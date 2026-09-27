@@ -37,7 +37,7 @@
 <body>
 <canvas id="game"></canvas>
 <button id="fsBtn" title="Полный экран">⛶</button>
-<div id="ui">🍎 Фрукты: <span id="fruitCount">0</span></div>
+<div id="ui">🍎 Фрукты: <span id="fruitCount">0</span> | 💰 Монеты: <span id="moneyCount">0</span></div>
 <div id="hint">WASD — движение | 1-5 — слоты | I — мешок | E — NPC | Tab — статистика | N N — админ<br><b>ЛКМ</b> — кулак | <b>Z / X / C / R</b> — способности | ⚠️ В море -30 HP/сек!</div>
 <div id="playerName"></div>
 <button id="logoutBtn">🚪 Выйти</button>
@@ -80,6 +80,13 @@ let ws = null;
 let wsConnected = false;
 let myNetColor = '#ffb300';
 const remotePlayers = new Map();
+
+function updateMoneyUi() {
+  document.getElementById('moneyCount').textContent = player.money;
+}
+function updateFruitUi() {
+  document.getElementById('fruitCount').textContent = player.fruitCount;
+}
 
 function showAuth() {
   document.getElementById('authOverlay').classList.remove('hidden');
@@ -165,11 +172,13 @@ function applySave(d) {
   player.hp = d.hp || getMaxHp();
   player.stamina = d.stamina || getMaxStamina();
   player.fruitCount = d.fruitCount || 0;
-  document.getElementById('fruitCount').textContent = player.fruitCount;
+  player.money = d.money || 0;
+  rollCooldownUntil = d.rollCooldownUntil || 0;
+  updateFruitUi();
+  updateMoneyUi();
   if (Array.isArray(d.inventory)) for (let i = 0; i < INVENTORY_SLOTS; i++) inventory[i] = d.inventory[i] || null;
   bag.length = 0;
   if (Array.isArray(d.bag)) for (const it of d.bag) bag.push(it);
-  if (Array.isArray(d.collectedFruits)) for (const f of fruitsOnGround) if (d.collectedFruits.includes(f.name)) f.collected = true;
   if (d.quest) quest.active = d.quest;
   camera.x = player.x - canvas.width / 2;
   camera.y = player.y - canvas.height / 2;
@@ -185,9 +194,10 @@ async function saveNow() {
     playerX: player.x, playerY: player.y,
     hp: player.hp, stamina: player.stamina,
     fruitCount: player.fruitCount,
+    money: player.money,
+    rollCooldownUntil: rollCooldownUntil,
     inventory: inventory.map(i => i ? { ...i } : null),
     bag: bag.map(i => ({ ...i })),
-    collectedFruits: fruitsOnGround.filter(f => f.collected).map(f => f.name),
     quest: quest.active
   };
   try {
@@ -420,6 +430,7 @@ addFence(-950, -550, 200, 10); addFence(-550, -680, 10, 200); addFence(150, -650
 // ==================== ХОТБАР ====================
 const INVENTORY_SLOTS = 5;
 const POWER_SLOT_INDEX = 1;
+const FRUIT_GIVE_SLOT = 4; // 5-й слот (индекс 4)
 const inventory = new Array(INVENTORY_SLOTS).fill(null);
 inventory[0] = { type: 'fists', name: 'Кулаки' };
 let heldSlot = 0;
@@ -450,6 +461,24 @@ function getAbilitiesFor(name) {
   if (name === 'Лёд') return ICE_ABILITIES;
   if (name === 'Акула') return SHARK_ABILITIES;
   return [];
+}
+
+// Редкости фруктов
+const FRUIT_RARITY = {
+  'Огонь': 'common',
+  'Лёд': 'uncommon',
+  'Акула': 'legendary'
+};
+function getFruitRarity(name) {
+  return FRUIT_RARITY[name] || 'common';
+}
+function getRarityLabel(rar) {
+  if (rar === 'common') return '⚪ Обычный';
+  if (rar === 'uncommon') return '🟢 Необычный';
+  if (rar === 'rare') return '🔵 Редкий';
+  if (rar === 'legendary') return '🟡 Легендарный';
+  if (rar === 'mythic') return '🔴 Мифический';
+  return '⚪ Обычный';
 }
 
 // ==================== СТАТИСТИКА ====================
@@ -502,10 +531,22 @@ const WATER_METER_MAX = 100;
 const WATER_METER_PER_KILL = 12.5;
 let waterMeter = 0;
 
+// ==================== ПРОКРУТКА ФРУКТОВ ====================
+const ROLL_COOLDOWN_MS = 30 * 60 * 1000; // 30 минут
+const ROLL_MIN_LEVEL = 3;
+let rollCooldownUntil = 0;
+
+function getRollCost() {
+  const lvlForCost = Math.max(0, stats.level - ROLL_MIN_LEVEL);
+  return Math.floor(300 * Math.pow(1.1, lvlForCost));
+}
+
 // ==================== КВЕСТ ====================
 const quest = { active: null, completed: false };
 const questNpc = { x: -700, y: -400, radius: 30, name: 'Капитан Барнс', color: '#d4a373', hatColor: '#4a2c0a' };
+const rollNpc = { x: 600, y: -500, radius: 30, name: 'Nexvertix', color: '#c4a4ff', hatColor: '#3a1a5a' };
 function isNearQuestNpc() { return Math.hypot(player.x - questNpc.x, player.y - questNpc.y) < player.radius + questNpc.radius + 20; }
+function isNearRollNpc() { return Math.hypot(player.x - rollNpc.x, player.y - rollNpc.y) < player.radius + rollNpc.radius + 20; }
 
 // ==================== ИГРОК ====================
 const player = {
@@ -513,6 +554,7 @@ const player = {
   speedWalk: 1.6,
   lookX: 0, lookY: 0, fruitCount: 0,
   hp: 100, stamina: 100,
+  money: 0,
   isRunning: false,
   cooldowns: {},
   invulnUntil: 0, hitFlash: 0,
@@ -523,20 +565,49 @@ const player = {
   seaDamageTimer: 0
 };
 const TRANSFORM_DURATION = 90000;
-// Реген HP: 0.0118/кадр ≈ 0.708/сек (было 0.02/кадр ≈ 1.2/сек — замедлено в 1.7 раз)
+// Реген HP: 0.0118/кадр ≈ 0.708/сек (было 0.02/кадр — замедлено в 1.7 раз)
 const HP_REGEN_PER_FRAME = 0.02 / 1.7;
 const HP_REGEN_DELAY_MS = 7000;
-// Реген стамины: 0.12/кадр ≈ 7.2/сек (было 0.3/кадр ≈ 18/сек — замедлено в 2.5 раз)
+// Реген стамины: 0.12/кадр ≈ 7.2/сек (было 0.3/кадр — замедлено в 2.5 раз)
 const STAMINA_REGEN_PER_FRAME = 0.3 / 2.5;
 
-// ==================== ФРУКТЫ ====================
-const fruitsOnGround = [
-  { x: 200, y: 200, radius: 20, color: '#ff3b3b', name: 'Резина', collected: false, bobPhase: 0 },
-  { x: -500, y: 400, radius: 20, color: '#8a2be2', name: 'Тьма', collected: false, bobPhase: 1.5 },
-  { x: 600, y: -200, radius: 20, color: '#00c8ff', name: 'Лёд', collected: false, bobPhase: 3 },
-  { x: -800, y: -100, radius: 20, color: '#ff6600', name: 'Огонь', collected: false, bobPhase: 2.2 },
-  { x: 800, y: 500, radius: 22, color: '#1a4f8c', name: 'Акула', collected: false, bobPhase: 4.5, glow: true }
-];
+// ==================== МОНЕТЫ (замена разбросанных фруктов) ====================
+const coinsOnGround = [];
+const droppedFruits = []; // фрукты, сброшенные игроками
+const COIN_RESPAWN_MS = 40000;
+const MAX_COINS = 30;
+
+function randomIslandPos() {
+  for (let tries = 0; tries < 40; tries++) {
+    const x = ISLAND.x + BEACH_WIDTH + Math.random() * (ISLAND.width - BEACH_WIDTH * 2);
+    const y = ISLAND.y + BEACH_WIDTH + Math.random() * (ISLAND.height - BEACH_WIDTH * 2);
+    if (canBeAt(x, y, 20)) return { x, y };
+  }
+  return { x: 0, y: 0 };
+}
+
+function spawnCoin() {
+  const pos = randomIslandPos();
+  coinsOnGround.push({
+    x: pos.x, y: pos.y, radius: 14,
+    value: 5 + Math.floor(Math.random() * 11), // 5–15
+    collected: false,
+    respawnAt: 0,
+    bobPhase: Math.random() * 6
+  });
+}
+function respawnCoin(c) {
+  const pos = randomIslandPos();
+  c.x = pos.x; c.y = pos.y;
+  c.value = 5 + Math.floor(Math.random() * 11);
+  c.collected = false;
+  c.bobPhase = Math.random() * 6;
+}
+for (let i = 0; i < MAX_COINS; i++) spawnCoin();
+
+// ==================== ФРУКТЫ (для выдачи админом / прокрутки / сброса) ====================
+// fruitsOnGround больше нет — теперь на карте монеты (coinsOnGround).
+// Фрукты, сброшенные игроками, лежат в droppedFruits.
 
 const npc = { x: 400, y: 200, radius: 30, maxHp: 1000, hp: 1000, color: '#d4a373', hitFlash: 0, shakeUntil: 0, shakeOffset: { x: 0, y: 0 }, slowUntil: 0 };
 
@@ -549,6 +620,7 @@ const PIRATE_SPEED = 0.5;
 const PIRATE_RADIUS = 22;
 const PIRATE_MASTERY_REWARD = 20;
 const PIRATE_XP_REWARD = 25;
+const PIRATE_COIN_REWARD = 5;
 const MAX_PIRATES = 4;
 const PIRATE_AGGRO_RADIUS = 90;
 const PIRATE_LEASH_RADIUS = 350;
@@ -614,6 +686,21 @@ function adminLog(text, color) {
   if (adminHistory.length > 8) adminHistory.shift();
 }
 
+// Дать игроку обычный фрукт в 5-й слот хотбара
+function giveFruitToSlot5(name, color) {
+  const slotIdx = FRUIT_GIVE_SLOT;
+  const existing = inventory[slotIdx];
+  if (existing && existing.type === 'fruit') {
+    // Старый фрукт уходит в мешок
+    bag.push({ type: 'fruit', name: existing.name, color: existing.color });
+    player.fruitCount = Math.max(0, player.fruitCount - 1);
+  }
+  inventory[slotIdx] = { type: 'fruit', name, color };
+  player.fruitCount++;
+  updateFruitUi();
+  saveNow();
+}
+
 function adminSubmit() {
   const cmd = adminInput.trim();
   adminInput = '';
@@ -629,61 +716,31 @@ function adminSubmit() {
     return;
   }
 
-  // Разбор команды: "g огонь"
   const parts = cmd.split(/\s+/);
   const command = parts[0].toLowerCase();
   const arg = parts.slice(1).join(' ').toLowerCase();
 
   if (command === 'g') {
     const fruitMap = {
-      'огонь':   { name: 'Огонь',  color: '#ff6600' },
-      'огня':    { name: 'Огонь',  color: '#ff6600' },
-      'fire':    { name: 'Огонь',  color: '#ff6600' },
-      'лёд':     { name: 'Лёд',    color: '#00c8ff' },
-      'лед':     { name: 'Лёд',    color: '#00c8ff' },
-      'ice':     { name: 'Лёд',    color: '#00c8ff' },
-      'акула':   { name: 'Акула',  color: '#1a4f8c' },
-      'акулы':   { name: 'Акула',  color: '#1a4f8c' },
-      'shark':   { name: 'Акула',  color: '#1a4f8c' },
-      'резина':  { name: 'Резина', color: '#ff3b3b' },
-      'резины':  { name: 'Резина', color: '#ff3b3b' },
-      'тьма':    { name: 'Тьма',   color: '#8a2be2' },
-      'тьмы':    { name: 'Тьма',   color: '#8a2be2' }
+      'огонь':  { name: 'Огонь', color: '#ff6600' },
+      'огня':   { name: 'Огонь', color: '#ff6600' },
+      'fire':   { name: 'Огонь', color: '#ff6600' },
+      'лёд':    { name: 'Лёд',   color: '#00c8ff' },
+      'лед':    { name: 'Лёд',   color: '#00c8ff' },
+      'льда':   { name: 'Лёд',   color: '#00c8ff' },
+      'ice':    { name: 'Лёд',   color: '#00c8ff' },
+      'акула':  { name: 'Акула', color: '#1a4f8c' },
+      'акулы':  { name: 'Акула', color: '#1a4f8c' },
+      'shark':  { name: 'Акула', color: '#1a4f8c' }
     };
     const fruit = fruitMap[arg];
     if (!fruit) {
       adminLog('❌ Фрукт не найден: ' + arg, '#ff5555');
-      adminLog('Попробуй: g огонь / g лёд / g акула / g резина / g тьма', '#ffdd66');
+      adminLog('Доступно: огонь / лёд / акула', '#ffdd66');
       return;
     }
-
-    const powers = ['Огонь', 'Лёд', 'Акула'];
-    if (powers.includes(fruit.name)) {
-      const oldPower = inventory[POWER_SLOT_INDEX];
-      if (oldPower && oldPower.type === 'power') {
-        bag.push({ type: 'fruit', name: oldPower.name, color: oldPower.color });
-      }
-      inventory[POWER_SLOT_INDEX] = { type: 'power', name: fruit.name, color: fruit.color, mastery: 0 };
-      player.cooldowns = {};
-      player.waterFormUntil = 0;
-      if (aimingAbility) aimingAbility = null;
-      spawnEatEffect(player.x, player.y, fruit.color);
-      saveNow();
-      adminLog('🍎 Выдан фрукт: ' + fruit.name + ' (в слот 2)', '#66ff66');
-    } else {
-      let free = -1;
-      for (let i = 0; i < INVENTORY_SLOTS; i++) { if (i === POWER_SLOT_INDEX) continue; if (inventory[i] === null) { free = i; break; } }
-      if (free === -1) {
-        bag.push({ type: 'fruit', name: fruit.name, color: fruit.color });
-        adminLog('🎒 Хотбар полон — ' + fruit.name + ' в мешок', '#ffdd66');
-      } else {
-        inventory[free] = { type: 'fruit', color: fruit.color, name: fruit.name };
-        player.fruitCount++;
-        document.getElementById('fruitCount').textContent = player.fruitCount;
-        saveNow();
-        adminLog('🍎 Выдан фрукт: ' + fruit.name + ' (в слот ' + (free + 1) + ')', '#66ff66');
-      }
-    }
+    giveFruitToSlot5(fruit.name, fruit.color);
+    adminLog('🍎 Выдан фрукт: ' + fruit.name + ' (слот 5)', '#66ff66');
     return;
   }
 
@@ -694,11 +751,9 @@ function adminSubmit() {
 function drawAdminConsole() {
   if (!adminOpen) return;
 
-  // Затемнение
   ctx.fillStyle = 'rgba(0,0,0,0.55)';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Панель
   const pw = 640, ph = 400;
   const px = (canvas.width - pw) / 2;
   const py = (canvas.height - ph) / 2;
@@ -707,23 +762,20 @@ function drawAdminConsole() {
   ctx.lineWidth = 3;
   roundRect(px, py, pw, ph, 12); ctx.fill(); ctx.stroke();
 
-  // Заголовок
   ctx.fillStyle = adminUnlocked ? '#66ff66' : '#ffaa00';
   ctx.font = 'bold 22px Consolas, monospace';
   ctx.textAlign = 'left'; ctx.textBaseline = 'top';
   ctx.fillText(adminUnlocked ? '⚙ АДМИН-КОНСОЛЬ [РАЗБЛОКИРОВАНА]' : '🔒 АДМИН-КОНСОЛЬ [ВВЕДИ ПАРОЛЬ]', px + 20, py + 18);
 
-  // Подсказка
   ctx.fillStyle = 'rgba(255,255,255,0.55)';
   ctx.font = '13px Consolas, monospace';
   if (adminUnlocked) {
     ctx.fillText('Команда: g [фрукт]   ·   пример: g огонь', px + 20, py + 50);
-    ctx.fillText('Фрукты: огонь · лёд · акула · резина · тьма', px + 20, py + 68);
+    ctx.fillText('Фрукты: огонь · лёд · акула   (кладётся в слот 5)', px + 20, py + 68);
   } else {
     ctx.fillText('Введи пароль администратора и нажми Enter', px + 20, py + 50);
   }
 
-  // История
   const logY = py + 100;
   const logH = ph - 180;
   ctx.fillStyle = 'rgba(0,0,0,0.6)';
@@ -741,7 +793,6 @@ function drawAdminConsole() {
     ctx.fillText(visibleHistory[i].text, px + 32, logY + 10 + i * 20);
   }
 
-  // Поле ввода
   const inY = py + ph - 60;
   ctx.fillStyle = 'rgba(0,0,0,0.7)';
   roundRect(px + 20, inY, pw - 40, 40, 6); ctx.fill();
@@ -749,20 +800,17 @@ function drawAdminConsole() {
   ctx.lineWidth = 2;
   roundRect(px + 20, inY, pw - 40, 40, 6); ctx.stroke();
 
-  ctx.fillStyle = '#ffffff';
+  ctx.fillStyle = '#66ff66';
   ctx.font = 'bold 16px Consolas, monospace';
   ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
   const promptText = adminUnlocked ? '> ' : '🔑 ';
-  ctx.fillStyle = '#66ff66';
   ctx.fillText(promptText, px + 32, inY + 20);
 
   ctx.fillStyle = '#ffffff';
   const inputX = px + 32 + ctx.measureText(promptText).width;
-  // Скрываем символы пароля
   const displayInput = adminUnlocked ? adminInput : '•'.repeat(adminInput.length);
   ctx.fillText(displayInput + (Math.floor(now / 500) % 2 === 0 ? '_' : ''), inputX, inY + 20);
 
-  // Подвал
   ctx.fillStyle = 'rgba(255,255,255,0.35)';
   ctx.font = '11px Arial';
   ctx.textAlign = 'center';
@@ -983,11 +1031,18 @@ function damagePirate(pirate, dmg) {
     if (held) { held.power.mastery += PIRATE_MASTERY_REWARD; showToast(`+${PIRATE_MASTERY_REWARD} mastery`); }
     waterMeter = Math.min(WATER_METER_MAX, waterMeter + WATER_METER_PER_KILL);
     pendingXp.push(PIRATE_XP_REWARD);
+    // Монеты за пирата
+    player.money += PIRATE_COIN_REWARD;
+    updateMoneyUi();
+    damageNumbers.push({ x: pirate.x, y: pirate.y - pirate.radius - 20, vy: -1.4, life: 60, maxLife: 60, text: '+' + PIRATE_COIN_REWARD + '💰', color: '#ffd700' });
     if (quest.active) {
       quest.active.current++;
       if (quest.active.current >= quest.active.target) {
         pendingXp.push(quest.active.rewardXp);
-        showToast('✅ КВЕСТ ВЫПОЛНЕН!');
+        player.money += 200;
+        updateMoneyUi();
+        showToast('✅ КВЕСТ ВЫПОЛНЕН! +200 💰');
+        damageNumbers.push({ x: player.x, y: player.y - player.radius - 20, vy: -1.4, life: 90, maxLife: 90, text: '+200💰', color: '#ffd700' });
         quest.active = null;
       }
     }
@@ -1039,6 +1094,7 @@ canvas.addEventListener('click', (e) => {
   const rect = canvas.getBoundingClientRect();
   const mx = e.clientX - rect.left, my = e.clientY - rect.top;
   if (questDialogOpen) { handleQuestDialogClick(mx, my); return; }
+  if (rollDialogOpen) { handleRollDialogClick(mx, my); return; }
   if (statsOpen) { handleStatsClick(mx, my); return; }
   if (aimingAbility) { executeAbilityAt(mx + camera.x, my + camera.y); return; }
   if (bagOpen) { handleBagClick(mx, my); return; }
@@ -1070,7 +1126,7 @@ canvas.addEventListener('click', (e) => {
 });
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 
-// ==================== NPC ДИАЛОГ ====================
+// ==================== NPC ДИАЛОГ (КВЕСТ) ====================
 let questDialogOpen = false;
 function openQuestDialog() { questDialogOpen = true; }
 function closeQuestDialog() { questDialogOpen = false; }
@@ -1088,9 +1144,70 @@ function handleQuestDialogClick(mx, my) {
   if (mx >= b.close.x && mx <= b.close.x + b.close.w && my >= b.close.y && my <= b.close.y + b.close.h) { closeQuestDialog(); return; }
   if (mx >= b.takeQuest.x && mx <= b.takeQuest.x + b.takeQuest.w && my >= b.takeQuest.y && my <= b.takeQuest.y + b.takeQuest.h) {
     if (quest.active) { showToast('Квест уже активен!'); }
-    else { quest.active = { type: 'kill', target: 4, current: 0, rewardXp: 100 }; showToast('📜 Квест: убить 4 пирата'); closeQuestDialog(); }
+    else { quest.active = { type: 'kill', target: 4, current: 0, rewardXp: 100 }; showToast('📜 Квест: убить 4 пирата (+200 💰)'); closeQuestDialog(); }
     return;
   }
+}
+
+// ==================== NPC ДИАЛОГ (ПРОКРУТКА ФРУКТОВ) ====================
+let rollDialogOpen = false;
+function openRollDialog() { rollDialogOpen = true; }
+function closeRollDialog() { rollDialogOpen = false; }
+function getRollDialogButtons() {
+  const pw = 520, ph = 420;
+  const px = (canvas.width - pw) / 2, py = (canvas.height - ph) / 2;
+  return {
+    panel: { x: px, y: py, w: pw, h: ph },
+    close: { x: px + pw - 44, y: py + 15, w: 30, h: 30 },
+    roll: { x: px + 30, y: py + ph - 90, w: pw - 60, h: 60 }
+  };
+}
+function handleRollDialogClick(mx, my) {
+  const b = getRollDialogButtons();
+  if (mx >= b.close.x && mx <= b.close.x + b.close.w && my >= b.close.y && my <= b.close.y + b.close.h) { closeRollDialog(); return; }
+  if (mx >= b.roll.x && mx <= b.roll.x + b.roll.w && my >= b.roll.y && my <= b.roll.y + b.roll.h) {
+    tryRollFruit(); return;
+  }
+}
+
+function tryRollFruit() {
+  if (stats.level < ROLL_MIN_LEVEL) {
+    showToast(`❌ Нужен ${ROLL_MIN_LEVEL} уровень (у тебя ${stats.level})`);
+    return;
+  }
+  const now = Date.now();
+  if (now < rollCooldownUntil) {
+    const rem = Math.ceil((rollCooldownUntil - now) / 1000);
+    const m = Math.floor(rem / 60);
+    const s = rem % 60;
+    showToast(`⏳ Перезарядка: ${m}:${String(s).padStart(2, '0')}`);
+    return;
+  }
+  const cost = getRollCost();
+  if (player.money < cost) {
+    showToast(`❌ Нужно ${cost} 💰 (у тебя ${player.money})`);
+    return;
+  }
+  player.money -= cost;
+  updateMoneyUi();
+
+  const roll = Math.random() * 100;
+  let rarity, fruitData;
+  if (roll < 50) { rarity = 'common'; fruitData = { name: 'Огонь', color: '#ff6600' }; }
+  else if (roll < 75) { rarity = 'uncommon'; fruitData = { name: 'Лёд', color: '#00c8ff' }; }
+  else if (roll < 93) { rarity = 'rare'; fruitData = null; }
+  else if (roll < 98) { rarity = 'legendary'; fruitData = { name: 'Акула', color: '#1a4f8c' }; }
+  else { rarity = 'mythic'; fruitData = null; }
+
+  if (fruitData) {
+    giveFruitToSlot5(fruitData.name, fruitData.color);
+    showToast(`${getRarityLabel(rarity)}: ${fruitData.name}!`);
+  } else {
+    showToast(`${getRarityLabel(rarity)} — скоро будет! (пока пусто)`);
+  }
+
+  rollCooldownUntil = Date.now() + ROLL_COOLDOWN_MS;
+  saveNow();
 }
 
 // ==================== СТАТИСТИКА ====================
@@ -1162,23 +1279,32 @@ function executeMenuAction(action) {
     consumeFruit(item);
     inventory[heldSlot] = null; heldSlot = -1;
     player.fruitCount = Math.max(0, player.fruitCount - 1);
-    document.getElementById('fruitCount').textContent = player.fruitCount;
+    updateFruitUi();
     saveNow();
   } else if (action === 'drop') {
     let lx = player.lookX, ly = player.lookY;
     if (lx === 0 && ly === 0) { lx = 1; ly = 0; }
     const l = Math.hypot(lx, ly) || 1; lx /= l; ly /= l;
-    fruitsOnGround.push({ x: player.x + lx * 70, y: player.y + ly * 70, radius: 20, color: item.color, name: item.name, collected: false, bobPhase: Math.random() * 6, glow: item.name === 'Акула' });
+    droppedFruits.push({
+      x: player.x + lx * 70,
+      y: player.y + ly * 70,
+      radius: 20,
+      color: item.color,
+      name: item.name,
+      bobPhase: Math.random() * 6,
+      glow: item.name === 'Акула',
+      warned: 0
+    });
     inventory[heldSlot] = null; heldSlot = -1;
     player.fruitCount = Math.max(0, player.fruitCount - 1);
-    document.getElementById('fruitCount').textContent = player.fruitCount;
+    updateFruitUi();
     showToast('Фрукт выброшен!');
     saveNow();
   } else if (action === 'save') {
     bag.push({ type: 'fruit', color: item.color, name: item.name });
     inventory[heldSlot] = null; heldSlot = -1;
     player.fruitCount = Math.max(0, player.fruitCount - 1);
-    document.getElementById('fruitCount').textContent = player.fruitCount;
+    updateFruitUi();
     showToast('Фрукт в мешке!');
     saveNow();
   }
@@ -1221,7 +1347,6 @@ window.addEventListener('keydown', (e) => {
   // === Админ-консоль: двойное нажатие N ===
   if (e.code === 'KeyN' || e.key.toLowerCase() === 'n' || e.key.toLowerCase() === 'т') {
     if (adminOpen) {
-      // внутри консоли печатаем "n"
       if (e.key.length === 1) { adminInput += e.key; e.preventDefault(); }
       return;
     }
@@ -1246,11 +1371,15 @@ window.addEventListener('keydown', (e) => {
 
   const k = e.key.toLowerCase(), code = e.code;
   if (k === 'i' || k === 'ш' || code === 'KeyI') { bagOpen = !bagOpen; contextMenu = null; return; }
-  if (code === 'Tab' || e.key === 'Tab') { e.preventDefault(); statsOpen = !statsOpen; questDialogOpen = false; return; }
-  if (code === 'KeyE' || k === 'e' || k === 'у') { if (isNearQuestNpc() && !questDialogOpen && !statsOpen) openQuestDialog(); return; }
+  if (code === 'Tab' || e.key === 'Tab') { e.preventDefault(); statsOpen = !statsOpen; questDialogOpen = false; rollDialogOpen = false; return; }
+  if (code === 'KeyE' || k === 'e' || k === 'у') {
+    if (isNearRollNpc() && !rollDialogOpen && !questDialogOpen && !statsOpen) { openRollDialog(); return; }
+    if (isNearQuestNpc() && !questDialogOpen && !rollDialogOpen && !statsOpen) { openQuestDialog(); return; }
+    return;
+  }
   const held = getHeldPower();
   const tc = (letter) => {
-    if (bagOpen || contextMenu || aimingAbility || statsOpen || questDialogOpen) return;
+    if (bagOpen || contextMenu || aimingAbility || statsOpen || questDialogOpen || rollDialogOpen) return;
     if (held) { const ab = held.abilities.find(a => a.key === letter); if (ab) startAbility(held.power.name, ab.id); }
     else showToast('Возьми силу в руки!');
   };
@@ -1259,6 +1388,7 @@ window.addEventListener('keydown', (e) => {
   if (code === 'KeyC' || k === 'c' || k === 'с') { tc('C'); return; }
   if (code === 'KeyR' || k === 'r' || k === 'к') { tc('R'); return; }
   if (e.key === 'Escape') {
+    if (rollDialogOpen) { closeRollDialog(); return; }
     if (questDialogOpen) { closeQuestDialog(); return; }
     if (statsOpen) { closeStats(); return; }
     if (aimingAbility) { aimingAbility = null; return; }
@@ -1268,7 +1398,7 @@ window.addEventListener('keydown', (e) => {
   keys[k] = true;
   if (['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k)) e.preventDefault();
   if (k >= '1' && k <= '5') {
-    if (bagOpen || statsOpen || questDialogOpen) return;
+    if (bagOpen || statsOpen || questDialogOpen || rollDialogOpen) return;
     const si = parseInt(k) - 1;
     const item = inventory[si];
     if (!item) return;
@@ -1312,8 +1442,8 @@ function update() {
   }
 
   const now = performance.now();
-  const blocked = bagOpen || statsOpen || questDialogOpen || adminOpen;
-  // Бег удалён — всегда ходьба
+  const blocked = bagOpen || statsOpen || questDialogOpen || adminOpen || rollDialogOpen;
+  // Бег удалён
   player.isRunning = false;
   const spd = player.speedWalk;
   if (now < player.waterFormUntil) player.waterRage = 0.5 + Math.sin(now * 0.008) * 0.5;
@@ -1330,7 +1460,6 @@ function update() {
     if (dx && dy) { const l = Math.hypot(dx, dy); dx /= l; dy /= l; }
     tryMove(player, dx * spd, dy * spd);
     if (dx || dy) { player.lookX = dx; player.lookY = dy; }
-    // Реген стамины замедлен в 2.5 раза
     player.stamina = Math.min(getMaxStamina(), player.stamina + STAMINA_REGEN_PER_FRAME);
   } else {
     player.stamina = Math.min(getMaxStamina(), player.stamina + STAMINA_REGEN_PER_FRAME);
@@ -1344,24 +1473,49 @@ function update() {
   }
   if (player.hp > mh) player.hp = mh;
 
+  // === Подбор монет ===
   if (!blocked && !aimingAbility) {
-    for (const f of fruitsOnGround) {
-      if (f.collected) continue;
-      if (Math.hypot(player.x - f.x, player.y - f.y) < player.radius + f.radius) {
-        let free = -1;
-        for (let i = 0; i < INVENTORY_SLOTS; i++) { if (i === POWER_SLOT_INDEX) continue; if (inventory[i] === null) { free = i; break; } }
-        if (free !== -1) {
-          f.collected = true;
-          inventory[free] = { type: 'fruit', color: f.color, name: f.name };
-          player.fruitCount++;
-          document.getElementById('fruitCount').textContent = player.fruitCount;
-          showToast(`Подобран: ${f.name}`);
-          saveNow();
-        } else { if (!f.warned || now - f.warned > 2000) { f.warned = now; showToast('Хотбар полон!'); } }
+    for (const c of coinsOnGround) {
+      if (c.collected) {
+        if (now >= c.respawnAt) respawnCoin(c);
+        continue;
+      }
+      if (Math.hypot(player.x - c.x, player.y - c.y) < player.radius + c.radius + 8) {
+        c.collected = true;
+        c.respawnAt = now + COIN_RESPAWN_MS;
+        player.money += c.value;
+        updateMoneyUi();
+        damageNumbers.push({ x: c.x, y: c.y - 15, vy: -1.4, life: 50, maxLife: 50, text: '+' + c.value + '💰', color: '#ffd700' });
+        saveNow();
       }
     }
   }
-  for (const f of fruitsOnGround) f.bobPhase += 0.05;
+  for (const c of coinsOnGround) c.bobPhase += 0.06;
+
+  // === Подбор сброшенных фруктов ===
+  if (!blocked && !aimingAbility) {
+    for (let i = droppedFruits.length - 1; i >= 0; i--) {
+      const f = droppedFruits[i];
+      if (Math.hypot(player.x - f.x, player.y - f.y) < player.radius + f.radius) {
+        let free = -1;
+        for (let s = 0; s < INVENTORY_SLOTS; s++) {
+          if (s === POWER_SLOT_INDEX) continue;
+          if (inventory[s] === null) { free = s; break; }
+        }
+        if (free !== -1) {
+          inventory[free] = { type: 'fruit', color: f.color, name: f.name };
+          player.fruitCount++;
+          updateFruitUi();
+          showToast(`Подобран: ${f.name}`);
+          droppedFruits.splice(i, 1);
+          saveNow();
+        } else {
+          if (!f.warned || now - f.warned > 2000) { f.warned = now; showToast('Хотбар полон!'); }
+        }
+      }
+    }
+  }
+  for (const f of droppedFruits) f.bobPhase = (f.bobPhase || 0) + 0.05;
 
   for (const k of Object.keys(player.cooldowns)) { if (player.cooldowns[k] > 0) player.cooldowns[k] -= 1/60; }
   if (player.punchCooldown > 0) player.punchCooldown -= 1/60;
@@ -1656,7 +1810,49 @@ function drawFruitShape(x, y, radius, color, phase = 0, bob = false, glow = fals
   ctx.stroke();
   ctx.beginPath(); ctx.strokeStyle = '#4a2c0a'; ctx.lineWidth = 3; ctx.moveTo(x, fy - radius); ctx.lineTo(x + 3, fy - radius - 8); ctx.stroke();
 }
-function drawFruitsOnGround() { for (const f of fruitsOnGround) { if (f.collected) continue; drawFruitShape(f.x - camera.x, f.y - camera.y, f.radius, f.color, f.bobPhase, true, f.glow); } }
+
+function drawDroppedFruits() {
+  for (const f of droppedFruits) {
+    drawFruitShape(f.x - camera.x, f.y - camera.y, f.radius, f.color, f.bobPhase, true, f.glow);
+  }
+}
+
+function drawCoin(cx, cy, radius, phase) {
+  const bo = Math.sin(phase) * 3;
+  const y = cy + bo;
+  // тень
+  ctx.beginPath(); ctx.ellipse(cx, cy + radius + 5, radius * 0.9, 5, 0, 0, Math.PI * 2); ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.fill();
+  // свет
+  const t = performance.now() * 0.003;
+  const glowR = radius * 2.2 + Math.sin(t + phase) * 4;
+  const gg = ctx.createRadialGradient(cx, y, 0, cx, y, glowR);
+  gg.addColorStop(0, 'rgba(255, 220, 60, 0.55)');
+  gg.addColorStop(1, 'rgba(255, 200, 0, 0)');
+  ctx.beginPath(); ctx.arc(cx, y, glowR, 0, Math.PI * 2); ctx.fillStyle = gg; ctx.fill();
+  // тело монеты
+  const g = ctx.createRadialGradient(cx - radius * 0.3, y - radius * 0.3, 1, cx, y, radius);
+  g.addColorStop(0, '#fff4a8');
+  g.addColorStop(0.6, '#ffcc33');
+  g.addColorStop(1, '#a97a00');
+  ctx.beginPath(); ctx.arc(cx, y, radius, 0, Math.PI * 2);
+  ctx.fillStyle = g; ctx.fill();
+  ctx.strokeStyle = '#7a5500'; ctx.lineWidth = 2; ctx.stroke();
+  // внутренний кружок
+  ctx.beginPath(); ctx.arc(cx, y, radius * 0.7, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(122, 85, 0, 0.5)'; ctx.lineWidth = 1.5; ctx.stroke();
+  // символ $
+  ctx.fillStyle = '#7a5500';
+  ctx.font = `bold ${Math.round(radius * 1.2)}px Arial`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('$', cx, y + 1);
+}
+
+function drawCoinsOnGround() {
+  for (const c of coinsOnGround) {
+    if (c.collected) continue;
+    drawCoin(c.x - camera.x, c.y - camera.y, c.radius, c.bobPhase);
+  }
+}
 
 function drawQuestNpc() {
   const x = questNpc.x - camera.x, y = questNpc.y - camera.y;
@@ -1685,6 +1881,52 @@ function drawQuestNpc() {
     roundRect(x - tw / 2, y + questNpc.radius + 15, tw, 24, 6); ctx.fill();
     ctx.fillStyle = '#ffdd44'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(ht, x, y + questNpc.radius + 27);
+  }
+}
+
+function drawRollNpc() {
+  const x = rollNpc.x - camera.x, y = rollNpc.y - camera.y;
+  const t = performance.now() * 0.003;
+  ctx.beginPath(); ctx.ellipse(x, rollNpc.y - camera.y + rollNpc.radius * 0.9, rollNpc.radius * 0.9, 7, 0, 0, Math.PI * 2); ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fill();
+  const g = ctx.createRadialGradient(x - rollNpc.radius * 0.35, y - rollNpc.radius * 0.35, 3, x, y, rollNpc.radius);
+  g.addColorStop(0, lightenColor(rollNpc.color, 0.3));
+  g.addColorStop(1, rollNpc.color);
+  ctx.beginPath(); ctx.arc(x, y, rollNpc.radius, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
+  ctx.strokeStyle = darkenColor(rollNpc.color, 0.4); ctx.lineWidth = 3; ctx.stroke();
+  // волшебная шляпа
+  ctx.beginPath(); ctx.moveTo(x - rollNpc.radius * 1.1, y - rollNpc.radius * 0.4);
+  ctx.lineTo(x, y - rollNpc.radius * 1.8);
+  ctx.lineTo(x + rollNpc.radius * 1.1, y - rollNpc.radius * 0.4);
+  ctx.closePath();
+  ctx.fillStyle = rollNpc.hatColor; ctx.fill();
+  ctx.strokeStyle = 'rgba(255,215,0,0.7)'; ctx.lineWidth = 2; ctx.stroke();
+  // звёздочка на шляпе
+  ctx.fillStyle = '#ffdd66'; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('★', x, y - rollNpc.radius * 1.15);
+  // глаза
+  const eo = rollNpc.radius * 0.35, er = rollNpc.radius * 0.14;
+  ctx.fillStyle = 'white'; ctx.beginPath(); ctx.arc(x - eo, y - rollNpc.radius * 0.05, er, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.arc(x + eo, y - rollNpc.radius * 0.05, er, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#1a1a1a'; ctx.beginPath(); ctx.arc(x - eo, y - rollNpc.radius * 0.05, er * 0.55, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.arc(x + eo, y - rollNpc.radius * 0.05, er * 0.55, 0, Math.PI * 2); ctx.fill();
+  // рот
+  ctx.beginPath(); ctx.arc(x, y + rollNpc.radius * 0.2, rollNpc.radius * 0.25, 0.15 * Math.PI, 0.85 * Math.PI); ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 2; ctx.stroke();
+  // имя
+  ctx.fillStyle = '#c4a4ff'; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
+  ctx.strokeText(rollNpc.name, x, y - rollNpc.radius - 20); ctx.fillText(rollNpc.name, x, y - rollNpc.radius - 20);
+  // значок $
+  const bob = Math.sin(t * 4) * 4;
+  ctx.fillStyle = '#ffd700'; ctx.font = 'bold 26px Arial';
+  ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
+  ctx.strokeText('💰', x, y - rollNpc.radius - 50 + bob);
+  ctx.fillText('💰', x, y - rollNpc.radius - 50 + bob);
+  if (isNearRollNpc()) {
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    const ht = 'E — купить фрукт';
+    ctx.font = 'bold 14px Arial';
+    const tw = ctx.measureText(ht).width + 20;
+    roundRect(x - tw / 2, y + rollNpc.radius + 15, tw, 24, 6); ctx.fill();
+    ctx.fillStyle = '#ffd700'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(ht, x, y + rollNpc.radius + 27);
   }
 }
 
@@ -1755,7 +1997,6 @@ function drawPirates() {
   }
 }
 
-// ==================== ОТРИСОВКА ДРУГИХ ИГРОКОВ ====================
 function drawRemotePlayers() {
   for (const rp of remotePlayers.values()) {
     const x = rp.x - camera.x;
@@ -2218,7 +2459,6 @@ function drawAbilityGuide() {
     ctx.fillText(ab.description, ix + ir + 8, abY + 28);
     ctx.fillStyle = unlocked ? '#66ff66' : '#ff6666'; ctx.font = 'bold 10px Arial';
     ctx.fillText(unlocked ? `✓ ${ab.requiredMastery} mastery` : `🔒 нужно ${ab.requiredMastery}`, ix + ir + 8, abY + rh - 14);
-    // Доп: для трансформации акулы — показать шкалу воды
     if (ab.usesWaterMeter) {
       const wmX = ix + ir + 8;
       const wmY = abY + rh - 30;
@@ -2281,9 +2521,22 @@ function drawPlayerStats() {
   ctx.fillStyle = 'white'; ctx.font = 'bold 13px Arial'; ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
   const st = `⚡ ${Math.ceil(player.stamina)} / ${mst}`;
   ctx.strokeText(st, x + bw / 2, sy + bh / 2); ctx.fillText(st, x + bw / 2, sy + bh / 2);
-  // Water meter (общий — показывается всегда, если есть сила Акулы в слоте)
-  const waterY = sy + bh + 10;
+
+  // Money panel
+  const moneyY = sy + bh + 10;
+  ctx.fillStyle = 'rgba(0,0,0,0.6)'; roundRect(x - 4, moneyY - 4, bw + 8, bh + 8, 6); ctx.fill();
+  ctx.fillStyle = '#3a2a00'; roundRect(x, moneyY, bw, bh, 4); ctx.fill();
+  const mg = ctx.createLinearGradient(x, moneyY, x, moneyY + bh);
+  mg.addColorStop(0, '#ffe680'); mg.addColorStop(1, '#cc9900');
+  ctx.fillStyle = mg; roundRect(x, moneyY, bw, bh, 4); ctx.fill();
+  ctx.fillStyle = 'white'; ctx.font = 'bold 13px Arial'; ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
+  const mt = `💰 ${player.money}`;
+  ctx.strokeText(mt, x + bw / 2, moneyY + bh / 2); ctx.fillText(mt, x + bw / 2, moneyY + bh / 2);
+
+  // Water meter (если есть сила Акулы в слоте)
+  const waterY = moneyY + bh + 10;
   const hasSharkPower = inventory[POWER_SLOT_INDEX] && inventory[POWER_SLOT_INDEX].type === 'power' && inventory[POWER_SLOT_INDEX].name === 'Акула';
+  let nextY = waterY;
   if (hasSharkPower) {
     ctx.fillStyle = 'rgba(0,0,0,0.6)'; roundRect(x - 4, waterY - 4, bw + 8, bh + 8, 6); ctx.fill();
     ctx.fillStyle = '#0a1a3a'; roundRect(x, waterY, bw, bh, 4); ctx.fill();
@@ -2296,27 +2549,28 @@ function drawPlayerStats() {
     ctx.fillStyle = 'white'; ctx.font = 'bold 13px Arial'; ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
     const wt2 = `💧 ${Math.floor(waterMeter)} / ${WATER_METER_MAX}`;
     ctx.strokeText(wt2, x + bw / 2, waterY + bh / 2); ctx.fillText(wt2, x + bw / 2, waterY + bh / 2);
+    nextY = waterY + bh + 10;
   }
   if (!isOnIsland(player.x, player.y) && !isInWaterForm()) {
-    const wy = sy + bh + 15 + (hasSharkPower ? bh + 10 : 0);
+    const wy = nextY;
     const pulse = 0.6 + Math.sin(performance.now() * 0.01) * 0.4;
     ctx.fillStyle = `rgba(80,180,255,${pulse})`; ctx.font = 'bold 16px Arial'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
     const wt3 = '🌊 ТОНЕШЬ! -30 HP/сек';
     ctx.strokeText(wt3, x + bw, wy); ctx.fillText(wt3, x + bw, wy);
+    nextY = wy + 24;
   }
   if (wsConnected) {
     ctx.fillStyle = 'rgba(0,0,0,0.55)';
-    const onlineY = sy + bh + 20 + (hasSharkPower ? bh + 10 : 0) + ((!isOnIsland(player.x, player.y) && !isInWaterForm()) ? 24 : 0);
-    roundRect(x - 4, onlineY, bw + 8, 24, 6); ctx.fill();
+    roundRect(x - 4, nextY, bw + 8, 24, 6); ctx.fill();
     ctx.fillStyle = '#88ff88'; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     const onl = `🌐 Онлайн: ${remotePlayers.size + 1}`;
-    ctx.fillText(onl, x + bw / 2, onlineY + 12);
+    ctx.fillText(onl, x + bw / 2, nextY + 12);
   }
 }
 
 function drawActiveQuest() {
   if (!quest.active) return;
-  const x = canvas.width - 300, y = 200, w = 280, h = 90;
+  const x = canvas.width - 300, y = 200, w = 280, h = 110;
   ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.strokeStyle = 'rgba(255,215,0,0.6)'; ctx.lineWidth = 2;
   roundRect(x, y, w, h, 10); ctx.fill(); ctx.stroke();
   ctx.fillStyle = '#ffd700'; ctx.font = 'bold 15px Arial'; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
@@ -2324,9 +2578,11 @@ function drawActiveQuest() {
   ctx.fillStyle = 'white'; ctx.font = 'bold 14px Arial';
   const pt = `Прогресс: ${quest.active.current} / ${quest.active.target}`;
   ctx.strokeText(pt, x + 12, y + 34); ctx.fillText(pt, x + 12, y + 34);
-  ctx.fillStyle = '#66ff66'; ctx.font = 'bold 13px Arial';
-  const rt = `Награда: ${quest.active.rewardXp} XP`;
+  ctx.fillStyle = '#ffd700'; ctx.font = 'bold 13px Arial';
+  const rt = `Награда: 200 💰 + ${quest.active.rewardXp} XP`;
   ctx.strokeText(rt, x + 12, y + 58); ctx.fillText(rt, x + 12, y + 58);
+  ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.font = '11px Arial';
+  ctx.fillText('+5 💰 за каждого пирата', x + 12, y + 78);
   const bx = x + 12, by = y + h - 14, bw = w - 24, bh = 6;
   ctx.fillStyle = 'rgba(0,0,0,0.7)'; roundRect(bx, by, bw, bh, 3); ctx.fill();
   ctx.fillStyle = '#ffd700'; roundRect(bx, by, bw * (quest.active.current / quest.active.target), bh, 3); ctx.fill();
@@ -2342,8 +2598,12 @@ function drawQuestDialog() {
   ctx.fillStyle = '#ffd700'; ctx.font = 'bold 26px Arial'; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
   ctx.strokeText('⚓ Капитан Барнс', p.x + 30, p.y + 25); ctx.fillText('⚓ Капитан Барнс', p.x + 30, p.y + 25);
   ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.font = 'italic 16px Arial'; ctx.strokeStyle = 'transparent';
-  const dt = quest.active ? `Квест активен! Осталось ${quest.active.target - quest.active.current} пиратов.` : 'Йо-хо-хо! Убей пиратов для меня!';
+  const dt = quest.active ? `Квест активен! Осталось ${quest.active.target - quest.active.current} пиратов.` : 'Йо-хо-хо! Убей пиратов — дам 200 монет!';
   ctx.fillText(dt, p.x + 30, p.y + 75);
+  ctx.fillStyle = 'rgba(255,215,0,0.85)'; ctx.font = 'bold 15px Arial';
+  ctx.fillText(`💰 Награда: 200 монет + 100 XP`, p.x + 30, p.y + 105);
+  ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.font = '13px Arial';
+  ctx.fillText(`📈 Ещё +5 монет за каждого пирата`, p.x + 30, p.y + 130);
   const c = b.close;
   ctx.fillStyle = 'rgba(255,80,80,0.85)'; roundRect(c.x, c.y, c.w, c.h, 6); ctx.fill();
   ctx.fillStyle = 'white'; ctx.font = 'bold 18px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -2355,8 +2615,74 @@ function drawQuestDialog() {
   ctx.fillStyle = 'white'; ctx.font = 'bold 20px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   const tt = quest.active ? '⏳ Квест уже активен' : '📜 Взять квест на пиратов';
   ctx.fillText(tt, tq.x + tq.w / 2, tq.y + tq.h / 2);
-  ctx.font = '13px Arial'; ctx.fillStyle = 'rgba(255,255,255,0.7)';
-  ctx.fillText('Убить 4 пирата · Награда: 100 XP', tq.x + tq.w / 2, tq.y + tq.h - 12);
+}
+
+function drawRollDialog() {
+  if (!rollDialogOpen) return;
+  ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const b = getRollDialogButtons();
+  const p = b.panel;
+  ctx.fillStyle = 'rgba(25,15,35,0.96)'; ctx.strokeStyle = 'rgba(200,160,255,0.85)'; ctx.lineWidth = 3;
+  roundRect(p.x, p.y, p.w, p.h, 16); ctx.fill(); ctx.stroke();
+
+  ctx.fillStyle = '#c4a4ff'; ctx.font = 'bold 26px Arial'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
+  ctx.strokeText('🎰 Nexvertix', p.x + 30, p.y + 22); ctx.fillText('🎰 Nexvertix', p.x + 30, p.y + 22);
+
+  ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.font = 'italic 15px Arial'; ctx.strokeStyle = 'transparent';
+  ctx.fillText('Крути и получай случайные фрукты!', p.x + 30, p.y + 62);
+
+  ctx.fillStyle = '#ffd700'; ctx.font = 'bold 19px Arial'; ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
+  const mTxt = `💰 Твои монеты: ${player.money}`;
+  ctx.strokeText(mTxt, p.x + 30, p.y + 100); ctx.fillText(mTxt, p.x + 30, p.y + 100);
+
+  const cost = getRollCost();
+  const canAfford = player.money >= cost;
+  ctx.fillStyle = canAfford ? '#88ff88' : '#ff6666';
+  const cTxt = `💵 Стоимость: ${cost} монет`;
+  ctx.strokeText(cTxt, p.x + 30, p.y + 132); ctx.fillText(cTxt, p.x + 30, p.y + 132);
+
+  const lvlOk = stats.level >= ROLL_MIN_LEVEL;
+  ctx.fillStyle = lvlOk ? '#88ff88' : '#ff6666';
+  const lTxt = `📈 Нужен ${ROLL_MIN_LEVEL}+ уровень (твой: ${stats.level})`;
+  ctx.strokeText(lTxt, p.x + 30, p.y + 164); ctx.fillText(lTxt, p.x + 30, p.y + 164);
+
+  const now = Date.now();
+  const onCooldown = now < rollCooldownUntil;
+  let cdText, cdColor;
+  if (onCooldown) {
+    const rem = Math.ceil((rollCooldownUntil - now) / 1000);
+    const m = Math.floor(rem / 60);
+    const s = rem % 60;
+    cdText = `⏳ Перезарядка: ${m}:${String(s).padStart(2,'0')}`;
+    cdColor = '#ffaa66';
+  } else {
+    cdText = '✅ Готово к прокрутке';
+    cdColor = '#88ff88';
+  }
+  ctx.fillStyle = cdColor;
+  ctx.strokeText(cdText, p.x + 30, p.y + 196); ctx.fillText(cdText, p.x + 30, p.y + 196);
+
+  ctx.fillStyle = 'rgba(255,255,255,0.75)'; ctx.font = 'bold 13px Arial';
+  ctx.fillText('Шансы:', p.x + 30, p.y + 230);
+  ctx.fillStyle = '#dddddd'; ctx.font = '13px Arial';
+  ctx.fillText('⚪ Обычный: 50%   🟢 Необычный: 25%   🔵 Редкий: 18%', p.x + 30, p.y + 252);
+  ctx.fillText('🟡 Легендарный: 5%   🔴 Мифический: 2%', p.x + 30, p.y + 272);
+  ctx.fillStyle = 'rgba(255,200,100,0.7)'; ctx.font = 'italic 11px Arial';
+  ctx.fillText('* Редкий и Мифический — скоро будет!', p.x + 30, p.y + 290);
+
+  const c = b.close;
+  ctx.fillStyle = 'rgba(255,80,80,0.85)'; roundRect(c.x, c.y, c.w, c.h, 6); ctx.fill();
+  ctx.fillStyle = 'white'; ctx.font = 'bold 18px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('✕', c.x + c.w / 2, c.y + c.h / 2);
+
+  const btn = b.roll;
+  const btnOk = !onCooldown && canAfford && lvlOk;
+  ctx.fillStyle = btnOk ? 'rgba(180, 120, 255, 0.95)' : 'rgba(80,60,100,0.6)';
+  roundRect(btn.x, btn.y, btn.w, btn.h, 10); ctx.fill();
+  ctx.strokeStyle = btnOk ? '#e0c8ff' : 'rgba(150,120,180,0.5)'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = 'white'; ctx.font = 'bold 22px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('🎰 КРУТИТЬ', btn.x + btn.w / 2, btn.y + btn.h / 2);
 }
 
 function drawStatsWindow() {
@@ -2485,12 +2811,14 @@ function gameLoop() {
     update();
     drawWorld();
     drawObstacles();
-    drawFruitsOnGround();
+    drawCoinsOnGround();
+    drawDroppedFruits();
     drawIceFields();
     drawIceZones();
     drawWhirlpools();
     drawWhirlpoolTentacles();
     drawQuestNpc();
+    drawRollNpc();
     drawNpc();
     drawPirates();
     drawRemotePlayers();
@@ -2512,6 +2840,7 @@ function gameLoop() {
     drawBag();
     drawAimCursor();
     drawQuestDialog();
+    drawRollDialog();
     drawStatsWindow();
     drawAdminConsole();
     drawToast();
