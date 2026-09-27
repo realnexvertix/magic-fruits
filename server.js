@@ -2,7 +2,7 @@ const express = require('express');
 const http = require('http');
 const path = require('path');
 const crypto = require('crypto');
-const sqlite3 = require('sqlite3').verbose();
+const { Pool } = require('pg');
 const { WebSocketServer } = require('ws');
 
 const app = express();
@@ -12,24 +12,32 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json({ limit: '1mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ==================== БАЗА ДАННЫХ ====================
-const db = new sqlite3.Database('./game.db');
-db.serialize(() => {
-  db.run(`CREATE TABLE IF NOT EXISTS users (
-    username TEXT PRIMARY KEY,
-    password TEXT NOT NULL,
-    data     TEXT
-  )`);
+// ==================== POSTGRES ====================
+// Render даёт DATABASE_URL автоматически, когда ты привязываешь Postgres к сервису.
+// Локально (у тебя на компе) можно задать переменную окружения вручную,
+// либо она подхватится из .env если ты используешь dotenv (мы не используем).
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL && process.env.DATABASE_URL.includes('render.com')
+    ? { rejectUnauthorized: false }
+    : false
 });
+
+async function initDb() {
+  // Таблица пользователей. data — JSON со всем прогрессом (level, xp, инвентарь и т.д.)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS users (
+      username TEXT PRIMARY KEY,
+      password TEXT NOT NULL,
+      data     JSONB DEFAULT '{}'::jsonb,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+  console.log('[db] Таблица users готова');
+}
 
 function hashPassword(p) {
   return crypto.createHash('sha256').update(p + '::magic_fruits_salt').digest('hex');
-}
-function dbGet(sql, params = []) {
-  return new Promise((res, rej) => db.get(sql, params, (e, r) => e ? rej(e) : res(r)));
-}
-function dbRun(sql, params = []) {
-  return new Promise((res, rej) => db.run(sql, params, function (e) { e ? rej(e) : res(this); }));
 }
 
 // ==================== REST API ====================
@@ -38,10 +46,14 @@ app.post('/api/register', async (req, res) => {
     const { username, password } = req.body || {};
     if (!username || username.length < 3) return res.json({ ok: false, error: 'Ник минимум 3 символа' });
     if (!password || password.length < 3) return res.json({ ok: false, error: 'Пароль минимум 3 символа' });
-    const exists = await dbGet('SELECT username FROM users WHERE username=?', [username]);
-    if (exists) return res.json({ ok: false, error: 'Ник уже занят' });
-    await dbRun('INSERT INTO users (username, password, data) VALUES (?,?,?)',
-      [username, hashPassword(password), JSON.stringify({})]);
+
+    const exists = await pool.query('SELECT username FROM users WHERE username=$1', [username]);
+    if (exists.rows.length > 0) return res.json({ ok: false, error: 'Ник уже занят' });
+
+    await pool.query(
+      'INSERT INTO users (username, password, data) VALUES ($1, $2, $3)',
+      [username, hashPassword(password), {}]
+    );
     res.json({ ok: true, data: {} });
   } catch (e) {
     console.error('[register]', e);
@@ -53,11 +65,21 @@ app.post('/api/login', async (req, res) => {
   try {
     const { username, password } = req.body || {};
     if (!username || !password) return res.json({ ok: false, error: 'Введи ник и пароль' });
-    const row = await dbGet('SELECT username, password, data FROM users WHERE username=?', [username]);
-    if (!row) return res.json({ ok: false, error: 'Игрок не найден' });
+
+    const result = await pool.query(
+      'SELECT username, password, data FROM users WHERE username=$1',
+      [username]
+    );
+    if (result.rows.length === 0) return res.json({ ok: false, error: 'Игрок не найден' });
+
+    const row = result.rows[0];
     if (row.password !== hashPassword(password)) return res.json({ ok: false, error: 'Неверный пароль' });
+
     let data = {};
-    try { data = row.data ? JSON.parse(row.data) : {}; } catch { data = {}; }
+    if (row.data) {
+      // pg возвращает JSONB уже как объект, но на всякий случай проверим
+      data = typeof row.data === 'string' ? JSON.parse(row.data) : row.data;
+    }
     res.json({ ok: true, data });
   } catch (e) {
     console.error('[login]', e);
@@ -69,9 +91,15 @@ app.post('/api/save', async (req, res) => {
   try {
     const { username, password, data } = req.body || {};
     if (!username || !password) return res.json({ ok: false, error: 'Не авторизован' });
-    const row = await dbGet('SELECT password FROM users WHERE username=?', [username]);
-    if (!row || row.password !== hashPassword(password)) return res.json({ ok: false, error: 'Не авторизован' });
-    await dbRun('UPDATE users SET data=? WHERE username=?', [JSON.stringify(data || {}), username]);
+
+    const check = await pool.query('SELECT password FROM users WHERE username=$1', [username]);
+    if (check.rows.length === 0) return res.json({ ok: false, error: 'Не авторизован' });
+    if (check.rows[0].password !== hashPassword(password)) return res.json({ ok: false, error: 'Не авторизован' });
+
+    await pool.query(
+      'UPDATE users SET data=$1 WHERE username=$2',
+      [data || {}, username]
+    );
     res.json({ ok: true });
   } catch (e) {
     console.error('[save]', e);
@@ -146,8 +174,10 @@ wss.on('connection', (ws) => {
       }
       let row;
       try {
-        row = await dbGet('SELECT password FROM users WHERE username=?', [msg.username]);
+        const result = await pool.query('SELECT password FROM users WHERE username=$1', [msg.username]);
+        row = result.rows[0];
       } catch (e) {
+        console.error('[ws hello]', e);
         ws.send(JSON.stringify({ type: 'hello_err', error: 'Ошибка БД' }));
         try { ws.close(); } catch (err) {}
         return;
@@ -341,6 +371,16 @@ setInterval(() => {
   }
 }, 30000);
 
-server.listen(PORT, () => {
-  console.log(`Magic Fruits listening on port ${PORT}`);
+// ==================== СТАРТ ====================
+initDb().then(() => {
+  server.listen(PORT, () => {
+    console.log(`Magic Fruits listening on port ${PORT}`);
+  });
+}).catch(err => {
+  console.error('[FATAL] Не удалось подключиться к БД:', err);
+  // Всё равно слушаем порт — Render не должен ругаться.
+  // Но регистрация/логин работать не будут, пока DATABASE_URL не настроен.
+  server.listen(PORT, () => {
+    console.log(`Magic Fruits listening on port ${PORT} (БД не подключена!)`);
+  });
 });
