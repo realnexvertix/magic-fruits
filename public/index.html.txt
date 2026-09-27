@@ -1,0 +1,1648 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Magic Fruits</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; overflow: hidden; background: #1e3a5f; font-family: Arial, sans-serif; user-select: none; }
+  canvas { display: block; background: #87CEEB; }
+  canvas.crosshair { cursor: crosshair; }
+  #ui { position: absolute; top: 10px; left: 10px; color: white; font-size: 18px; text-shadow: 2px 2px 4px black; pointer-events: none; }
+  #hint { position: absolute; top: 40px; left: 10px; color: white; font-size: 13px; text-shadow: 2px 2px 4px black; opacity: 0.85; line-height: 1.4; pointer-events: none; }
+  #fsBtn { position: absolute; top: 10px; right: 300px; width: 44px; height: 44px; background: rgba(0,0,0,0.5); border: 2px solid rgba(255,255,255,0.6); border-radius: 8px; color: white; font-size: 22px; cursor: pointer; z-index: 10; }
+  #fsBtn:hover { background: rgba(255,255,255,0.2); }
+  #authOverlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: linear-gradient(135deg, #1a2a4a, #0a1a3a); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+  #authOverlay.hidden { display: none; }
+  #authPanel { width: 420px; background: rgba(20,25,40,0.95); border: 3px solid rgba(255,215,0,0.6); border-radius: 16px; padding: 30px 40px; box-shadow: 0 20px 60px rgba(0,0,0,0.6); }
+  #authPanel h1 { color: #ffd700; margin: 0 0 8px; font-size: 34px; text-align: center; text-shadow: 0 0 20px rgba(255,215,0,0.5); }
+  #authPanel .subtitle { color: rgba(255,255,255,0.6); text-align: center; font-size: 14px; margin-bottom: 25px; }
+  #authTabs { display: flex; margin-bottom: 20px; border-bottom: 2px solid rgba(255,255,255,0.15); }
+  .authTab { flex: 1; padding: 12px; text-align: center; color: rgba(255,255,255,0.5); cursor: pointer; font-weight: bold; font-size: 16px; border-bottom: 3px solid transparent; margin-bottom: -2px; }
+  .authTab.active { color: #ffd700; border-bottom-color: #ffd700; }
+  .authField { margin-bottom: 15px; }
+  .authField label { display: block; color: rgba(255,255,255,0.75); font-size: 13px; margin-bottom: 6px; font-weight: bold; }
+  .authField input { width: 100%; padding: 12px 14px; background: rgba(0,0,0,0.35); border: 2px solid rgba(255,255,255,0.2); border-radius: 8px; color: white; font-size: 15px; }
+  .authField input:focus { outline: none; border-color: #ffd700; }
+  #authBtn { width: 100%; padding: 14px; background: linear-gradient(180deg, #4caf50, #2e7d32); border: none; border-radius: 8px; color: white; font-size: 17px; font-weight: bold; cursor: pointer; margin-top: 10px; box-shadow: 0 4px 0 #1b5e20; }
+  #authBtn.login { background: linear-gradient(180deg, #2196f3, #1565c0); box-shadow: 0 4px 0 #0d47a1; }
+  #authBtn:disabled { opacity: 0.6; cursor: wait; }
+  #authError { color: #ff5555; text-align: center; font-size: 13px; min-height: 18px; margin-top: 10px; font-weight: bold; }
+  #authHint { color: rgba(255,255,255,0.4); text-align: center; font-size: 11px; margin-top: 18px; }
+  #logoutBtn { position: absolute; bottom: 10px; left: 10px; padding: 6px 12px; background: rgba(255,60,60,0.7); border: 2px solid rgba(255,255,255,0.4); border-radius: 6px; color: white; font-size: 12px; cursor: pointer; z-index: 10; display: none; }
+  #logoutBtn:hover { background: rgba(255,60,60,0.95); }
+  #playerName { position: absolute; bottom: 55px; left: 10px; padding: 8px 16px; background: rgba(0,0,0,0.55); border: 2px solid rgba(255,215,0,0.6); border-radius: 8px; color: #ffd700; font-size: 16px; font-weight: bold; z-index: 10; display: none; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<button id="fsBtn" title="Полный экран">⛶</button>
+<div id="ui">🍎 Фрукты: <span id="fruitCount">0</span></div>
+<div id="hint">WASD — движение | Ctrl — бег | 1-5 — слоты | ЛКМ — кулак<br><b>Z / X / C</b> — способности | I — мешок | Tab — статистика | E — NPC</div>
+<div id="playerName"></div>
+<button id="logoutBtn">🚪 Выйти</button>
+
+<div id="authOverlay">
+  <div id="authPanel">
+    <h1>🍎 Magic Fruits</h1>
+    <div class="subtitle">Войди, чтобы сохранить прогресс навсегда</div>
+    <div id="authTabs">
+      <div class="authTab active" data-tab="login">Вход</div>
+      <div class="authTab" data-tab="register">Регистрация</div>
+    </div>
+    <div class="authField"><label>👤 Никнейм</label><input type="text" id="authLogin" placeholder="Введи ник" maxlength="20" autocomplete="off"></div>
+    <div class="authField"><label>🔒 Пароль</label><input type="password" id="authPassword" placeholder="Введи пароль" maxlength="30" autocomplete="off"></div>
+    <button id="authBtn">Войти в игру</button>
+    <div id="authError"></div>
+    <div id="authHint">Прогресс сохраняется на сервере 💾</div>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+resize(); window.addEventListener('resize', resize);
+document.getElementById('fsBtn').addEventListener('click', () => {
+  if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(()=>{});
+  else document.exitFullscreen();
+});
+
+// ==================== АККАУНТЫ ====================
+let currentUser = null;
+const API = '/api';
+
+function showAuth() {
+  document.getElementById('authOverlay').classList.remove('hidden');
+  document.getElementById('logoutBtn').style.display = 'none';
+  document.getElementById('playerName').style.display = 'none';
+}
+function hideAuth() {
+  document.getElementById('authOverlay').classList.add('hidden');
+  document.getElementById('logoutBtn').style.display = 'block';
+  document.getElementById('playerName').style.display = 'block';
+  document.getElementById('playerName').textContent = '👤 ' + currentUser.username;
+}
+function showAuthError(m) {
+  document.getElementById('authError').textContent = m;
+  setTimeout(() => {
+    if (document.getElementById('authError').textContent === m)
+      document.getElementById('authError').textContent = '';
+  }, 3500);
+}
+
+let authTab = 'login';
+document.querySelectorAll('.authTab').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('.authTab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    authTab = t.dataset.tab;
+    const b = document.getElementById('authBtn');
+    b.textContent = authTab === 'login' ? 'Войти в игру' : 'Создать аккаунт';
+    b.classList.toggle('login', authTab === 'register');
+    document.getElementById('authError').textContent = '';
+  });
+});
+
+document.getElementById('authBtn').addEventListener('click', async () => {
+  const u = document.getElementById('authLogin').value.trim();
+  const p = document.getElementById('authPassword').value;
+  if (u.length < 3) return showAuthError('Ник минимум 3 символа');
+  if (p.length < 3) return showAuthError('Пароль минимум 3 символа');
+  const btn = document.getElementById('authBtn');
+  btn.disabled = true;
+  const old = btn.textContent;
+  btn.textContent = '⏳ Подожди...';
+  try {
+    const url = authTab === 'register' ? API + '/register' : API + '/login';
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: u, password: p })
+    });
+    const res = await r.json();
+    if (!res.ok) { showAuthError(res.error); return; }
+    loginAs(u, p, res.data);
+  } catch (e) {
+    showAuthError('Сервер не отвечает');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = old;
+  }
+});
+
+document.getElementById('authPassword').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('authBtn').click();
+});
+
+function loginAs(username, password, data) {
+  currentUser = { username, password, data };
+  try { localStorage.setItem('mf_session', JSON.stringify({ username, password })); } catch(e){}
+  hideAuth();
+  applySave(data);
+  showToast('👋 Привет, ' + username + '!');
+}
+
+function applySave(d) {
+  if (!d) return;
+  stats.level = d.level || 1;
+  stats.xp = d.xp || 0;
+  stats.statPoints = d.statPoints || 0;
+  stats.points = d.points || { damage: 0, health: 0, fruit: 0 };
+  waterMeter = d.waterMeter || 0;
+  player.x = d.playerX || 0;
+  player.y = d.playerY || 0;
+  player.hp = d.hp || getMaxHp();
+  player.stamina = d.stamina || getMaxStamina();
+  player.fruitCount = d.fruitCount || 0;
+  document.getElementById('fruitCount').textContent = player.fruitCount;
+  if (Array.isArray(d.inventory)) for (let i = 0; i < 5; i++) inventory[i] = d.inventory[i] || null;
+  bag.length = 0;
+  if (Array.isArray(d.bag)) for (const it of d.bag) bag.push(it);
+  if (Array.isArray(d.collectedFruits)) for (const f of fruitsOnGround) if (d.collectedFruits.includes(f.name)) f.collected = true;
+  if (d.quest) quest.active = d.quest;
+  camera.x = player.x - canvas.width / 2;
+  camera.y = player.y - canvas.height / 2;
+}
+
+let saving = false;
+async function saveNow() {
+  if (!currentUser || saving) return;
+  saving = true;
+  const data = {
+    level: stats.level, xp: stats.xp, statPoints: stats.statPoints,
+    points: { ...stats.points }, waterMeter,
+    playerX: player.x, playerY: player.y,
+    hp: player.hp, stamina: player.stamina,
+    fruitCount: player.fruitCount,
+    inventory: inventory.map(i => i ? { ...i } : null),
+    bag: bag.map(i => ({ ...i })),
+    collectedFruits: fruitsOnGround.filter(f => f.collected).map(f => f.name),
+    quest: quest.active
+  };
+  try {
+    await fetch(API + '/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: currentUser.username, password: currentUser.password, data })
+    });
+  } catch (e) {}
+  saving = false;
+}
+
+document.getElementById('logoutBtn').addEventListener('click', async () => {
+  await saveNow();
+  try { localStorage.removeItem('mf_session'); } catch(e){}
+  location.reload();
+});
+
+setInterval(saveNow, 15000);
+window.addEventListener('beforeunload', saveNow);
+
+(async function() {
+  try {
+    const s = localStorage.getItem('mf_session');
+    if (s) {
+      const { username, password } = JSON.parse(s);
+      const r = await fetch(API + '/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      const res = await r.json();
+      if (res.ok) return loginAs(username, password, res.data);
+    }
+  } catch(e) {}
+  showAuth();
+})();
+
+// ==================== МИР ====================
+const camera = { x: 0, y: 0 };
+const ISLAND = { x: -1000, y: -700, width: 2000, height: 1400 };
+const BEACH = 100;
+
+const obstacles = [];
+function addTree(x, y, s = 1) { obstacles.push({ type: 'tree', x, y, r: 18 * s, trunkR: 7 * s, sway: Math.random() * 10 }); }
+function addHouse(x, y, w, h, wc, rc) { obstacles.push({ type: 'house', x, y, w, h, wc, rc }); }
+function addBarrel(x, y) { obstacles.push({ type: 'barrel', x, y, r: 13 }); }
+function addFence(x, y, w, h) { obstacles.push({ type: 'fence', x, y, w, h }); }
+
+addHouse(-700, -400, 150, 120, '#c9a877', '#8b3a2a');
+addHouse(-400, -500, 160, 130, '#b89b6a', '#5a3a2a');
+addHouse(100, -450, 170, 140, '#c9a877', '#7a4a3a');
+addHouse(400, -350, 140, 120, '#a88a5a', '#4a3a2a');
+
+addTree(-850, -150, 1.3); addTree(-650, -50, 1.1); addTree(-450, -100, 1.2);
+addTree(-250, 50, 1.0); addTree(-50, -50, 1.3); addTree(150, 100, 1.1);
+addTree(350, -100, 1.0); addTree(550, 50, 1.2); addTree(750, -150, 1.1);
+addTree(-800, 200, 1.1); addTree(-500, 300, 1.0); addTree(-200, 250, 1.2);
+addTree(100, 300, 1.1); addTree(400, 200, 1.0); addTree(700, 350, 1.2);
+addTree(-600, 100, 1.0); addTree(300, -300, 1.2); addTree(-100, -200, 1.1);
+
+addBarrel(-650, -300); addBarrel(-350, -400); addBarrel(150, -350);
+addBarrel(450, -250); addBarrel(-750, -250);
+addFence(-900, -500, 200, 10); addFence(-550, -550, 10, 200);
+
+// ==================== ХОТБАР ====================
+const INVENTORY_SLOTS = 5;
+const POWER_SLOT_INDEX = 1;
+const inventory = new Array(INVENTORY_SLOTS).fill(null);
+inventory[0] = { type: 'fists', name: 'Кулаки' };
+let heldSlot = 0;
+const bag = [];
+let bagOpen = false;
+let abilityGuide = null;
+let statsOpen = false;
+
+// ==================== СПОСОБНОСТИ ====================
+const FIRE_ABILITIES = [
+  { id: 'fire_charge', name: 'Огненный заряд', key: 'Z', cooldown: 15, stamina: 10, damage: 10, description: 'Огненный шар · 10 урона · кд 15с' },
+  { id: 'flame_dash', name: 'Рывок пламени', key: 'X', cooldown: 6, stamina: 25, damage: 0, description: 'Рывок вперёд · кд 6с' }
+];
+const ICE_ABILITIES = [
+  { id: 'ice_spear', name: 'Ледяное копьё', key: 'Z', cooldown: 14, stamina: 15, damage: 6.5, description: 'Копьё · 6.5 урона · кд 14с' },
+  { id: 'ice_prison', name: 'Ледяная тюрьма', key: 'X', cooldown: 5, stamina: 40, damage: 12, description: 'Зона заморозки · 12 урона · кд 5с' },
+  { id: 'ice_meteor', name: 'Метеоритный лёд', key: 'C', cooldown: 25, stamina: 60, damage: 20, description: 'Метеорит · 20 урона · кд 25с' }
+];
+const DARK_ABILITIES = [
+  { id: 'dark_ball', name: 'Тёмный шар', key: 'Z', cooldown: 15, stamina: 20, damage: 15, description: 'Шар тьмы · 15 урона · кд 15с' },
+  { id: 'dark_pull', name: 'Притяжение', key: 'X', cooldown: 8, stamina: 30, damage: 10, description: 'Притянуть врагов · кд 8с' }
+];
+
+function getAbilities(name) {
+  if (name === 'Огненный') return FIRE_ABILITIES;
+  if (name === 'Ледяной') return ICE_ABILITIES;
+  if (name === 'Тёмный') return DARK_ABILITIES;
+  return [];
+}
+
+function getHeldPower() {
+  if (heldSlot === -1) return null;
+  const it = inventory[heldSlot];
+  if (!it || it.type !== 'power') return null;
+  return { slot: heldSlot, power: it, abilities: getAbilities(it.name) };
+}
+
+// ==================== СТАТИСТИКА ====================
+const stats = {
+  level: 1, xp: 0, statPoints: 0,
+  points: { damage: 0, health: 0, fruit: 0 }
+};
+function xpForLevel(l) { return Math.floor(70 * Math.pow(1.2, l - 1)); }
+function getDamageMultiplier() { return Math.pow(1.1, Math.floor(stats.points.damage / 3)); }
+function getFruitDamageMultiplier() { return Math.pow(1.1, Math.floor(stats.points.fruit / 3)); }
+function getMaxHp() { return 100 + stats.points.health * 5; }
+function getMaxStamina() { return 100 + Math.floor(stats.points.damage / 2) * 5; }
+
+let waterMeter = 0;
+
+// ==================== КВЕСТ ====================
+const quest = { active: null };
+const questNpc = { x: -600, y: -250, radius: 28, name: 'Капитан Барнс' };
+function isNearQuestNpc() {
+  return Math.hypot(player.x - questNpc.x, player.y - questNpc.y) < player.radius + questNpc.radius + 20;
+}
+
+// ==================== ИГРОК ====================
+const player = {
+  x: 0, y: 0, radius: 22,
+  speedWalk: 1.8, speedRun: 3.6,
+  lookX: 0, lookY: 0,
+  fruitCount: 0,
+  hp: 100,
+  stamina: 100,
+  isRunning: false,
+  cooldowns: {},
+  punchCooldown: 0, punchAnim: 0,
+  punchDir: { x: 1, y: 0 },
+  invulnUntil: 0, hitFlash: 0,
+  seaTimer: 0
+};
+
+// ==================== ФРУКТЫ ====================
+const fruitsOnGround = [
+  { x: 200, y: 200, radius: 18, color: '#ff6600', name: 'Огненный', collected: false, bob: 0 },
+  { x: -400, y: 300, radius: 18, color: '#00c8ff', name: 'Ледяной', collected: false, bob: 1.5 },
+  { x: 500, y: -300, radius: 18, color: '#8a2be2', name: 'Тёмный', collected: false, bob: 3 }
+];
+
+// ==================== ПИРАТЫ ====================
+const pirates = [];
+function spawnPirate(id) {
+  const spots = [
+    { x: -700, y: 400 }, { x: -300, y: 500 },
+    { x: 400, y: 500 }, { x: 800, y: 300 }
+  ];
+  const pos = spots[id % spots.length];
+  pirates.push({
+    x: pos.x, y: pos.y, radius: 20,
+    hp: 100, maxHp: 100,
+    homeX: pos.x, homeY: pos.y, id,
+    aggro: false, chasing: false,
+    lastAttack: 0, hitFlash: 0,
+    dead: false, deathTimer: 0, respawnAt: 0,
+    slow: 0
+  });
+}
+for (let i = 0; i < 4; i++) spawnPirate(i);
+
+// ==================== ЭФФЕКТЫ ====================
+const particles = [];
+const damageNumbers = [];
+const projectiles = [];
+const dashTrails = [];
+const iceZones = [];
+const iceFields = [];
+const meteors = [];
+let aimingAbility = null;
+
+let mouseX = 0, mouseY = 0;
+canvas.addEventListener('mousemove', e => {
+  const r = canvas.getBoundingClientRect();
+  mouseX = e.clientX - r.left;
+  mouseY = e.clientY - r.top;
+});
+
+// ==================== КОЛЛИЗИИ ====================
+function isOnIsland(x, y) {
+  return x >= ISLAND.x && x <= ISLAND.x + ISLAND.width &&
+         y >= ISLAND.y && y <= ISLAND.y + ISLAND.height;
+}
+function canBeAt(x, y, r) {
+  for (const o of obstacles) {
+    if (o.type === 'house' || o.type === 'fence') {
+      const nx = Math.max(o.x, Math.min(x, o.x + o.w));
+      const ny = Math.max(o.y, Math.min(y, o.y + o.h));
+      if ((x - nx) ** 2 + (y - ny) ** 2 < r * r) return false;
+    } else {
+      if ((x - o.x) ** 2 + (y - o.y) ** 2 < (o.r + r) ** 2) return false;
+    }
+  }
+  return true;
+}
+function tryMove(ent, dx, dy) {
+  if (canBeAt(ent.x + dx, ent.y, ent.radius)) ent.x += dx;
+  if (canBeAt(ent.x, ent.y + dy, ent.radius)) ent.y += dy;
+}
+
+// ==================== КЛАВИШИ ====================
+const keys = {};
+window.addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  keys[k] = true;
+  if (e.key === 'Control') keys['control'] = true;
+  if (['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k)) e.preventDefault();
+  if (!currentUser) return;
+
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    statsOpen = !statsOpen;
+    bagOpen = false;
+    return;
+  }
+  if (k === 'i' || k === 'ш') {
+    bagOpen = !bagOpen;
+    statsOpen = false;
+    return;
+  }
+  if (k >= '1' && k <= '5') {
+    const i = parseInt(k) - 1;
+    if (inventory[i]) {
+      if (inventory[i].type === 'power') {
+        if (heldSlot === i && abilityGuide && abilityGuide.slot === i) {
+          heldSlot = -1; abilityGuide = null;
+        } else {
+          heldSlot = i;
+          abilityGuide = { slot: i, name: inventory[i].name, abilities: getAbilities(inventory[i].name) };
+        }
+      } else {
+        heldSlot = (heldSlot === i) ? -1 : i;
+        abilityGuide = null;
+      }
+      saveNow();
+    }
+  }
+  if (k === 'z') useAbility('Z');
+  if (k === 'x') useAbility('X');
+  if (k === 'c') useAbility('C');
+  if (k === 'e' && isNearQuestNpc()) {
+    if (!quest.active) {
+      quest.active = { type: 'kill', current: 0, target: 4, reward: 100 };
+      showToast('📜 Квест: убей 4 пирата!');
+    } else {
+      showToast('Квест: ' + quest.active.current + '/' + quest.active.target);
+    }
+  }
+  if (e.key === 'Escape') {
+    if (bagOpen) bagOpen = false;
+    else if (statsOpen) statsOpen = false;
+    else if (abilityGuide) abilityGuide = null;
+    else if (aimingAbility) aimingAbility = null;
+  }
+});
+window.addEventListener('keyup', e => {
+  keys[e.key.toLowerCase()] = false;
+  if (e.key === 'Control') keys['control'] = false;
+});
+
+canvas.addEventListener('click', () => {
+  if (!currentUser) return;
+  if (bagOpen || statsOpen) { handleUIClick(); return; }
+  if (aimingAbility) { executeAim(mouseX + camera.x, mouseY + camera.y); return; }
+  if (heldSlot !== -1 && inventory[heldSlot] && inventory[heldSlot].type === 'fists') {
+    punch();
+  }
+});
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+function punch() {
+  if (player.punchCooldown > 0) return;
+  if (player.stamina < 3) return;
+  player.punchCooldown = 0.28;
+  player.stamina = Math.max(0, player.stamina - 3);
+  player.punchAnim = 1;
+  let dx = player.lookX, dy = player.lookY;
+  if (dx === 0 && dy === 0) { dx = 1; dy = 0; }
+  const len = Math.hypot(dx, dy); dx /= len; dy /= len;
+  player.punchDir = { x: dx, y: dy };
+  const px = player.x + dx * 50, py = player.y + dy * 50;
+  const dmg = Math.round(5 * getDamageMultiplier());
+  for (const p of pirates) {
+    if (p.dead) continue;
+    if (Math.hypot(p.x - px, p.y - py) < 40) damagePirate(p, dmg);
+  }
+  for (let i = 0; i < 6; i++) {
+    const a = Math.atan2(dy, dx) + (Math.random() - 0.5) * 1.2;
+    const s = 3 + Math.random() * 3;
+    particles.push({ x: px, y: py, vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+      life: 15, maxLife: 15, radius: 3 + Math.random() * 2, color: '#cccccc' });
+  }
+}
+
+function useAbility(keyLetter) {
+  const held = getHeldPower();
+  if (!held) return showToast('Возьми силу в руки! (2)');
+  const ab = held.abilities.find(a => a.key === keyLetter);
+  if (!ab) return;
+  if (player.cooldowns[ab.id] > 0) return;
+  if (player.stamina < ab.stamina) { showToast('Мало стамины!'); return; }
+  aimingAbility = { slot: held.slot, ability: ab, powerName: held.power.name };
+  showToast('Кликни по цели');
+}
+
+function executeAim(tx, ty) {
+  if (!aimingAbility) return;
+  const ab = aimingAbility.ability;
+  const powerName = aimingAbility.powerName;
+  const held = getHeldPower();
+  if (!held) { aimingAbility = null; return; }
+  player.cooldowns[ab.id] = ab.cooldown;
+  player.stamina = Math.max(0, player.stamina - ab.stamina);
+  const dx = tx - player.x, dy = ty - player.y;
+  const dist = Math.hypot(dx, dy) || 1;
+  const nx = dx / dist, ny = dy / dist;
+  const finalDmg = ab.damage * getFruitDamageMultiplier();
+
+  if (ab.id === 'fire_charge') {
+    projectiles.push({
+      kind: 'fire', x: player.x + nx * 25, y: player.y + ny * 25,
+      vx: nx * 12, vy: ny * 12, radius: 12, life: 80, damage: finalDmg,
+      color: '#ff6600', trail: [], pierced: new Set()
+    });
+  } else if (ab.id === 'flame_dash') {
+    const maxDist = 350;
+    let fx = tx, fy = ty;
+    if (dist > maxDist) { fx = player.x + nx * maxDist; fy = player.y + ny * maxDist; }
+    const steps = 12;
+    for (let i = 1; i <= steps; i++) {
+      const t = i / steps;
+      const px = player.x + (fx - player.x) * t;
+      const py = player.y + (fy - player.y) * t;
+      dashTrails.push({ x: px, y: py, life: 30, maxLife: 30, radius: player.radius });
+      for (let k = 0; k < 2; k++) {
+        particles.push({ x: px, y: py, vx: (Math.random()-0.5)*3, vy: (Math.random()-0.5)*3,
+          life: 30, maxLife: 30, radius: 4 + Math.random()*4,
+          color: Math.random() < 0.5 ? '#ffdd00' : '#ff6600' });
+      }
+    }
+    if (canBeAt(fx, fy, player.radius)) { player.x = fx; player.y = fy; }
+  } else if (ab.id === 'ice_spear') {
+    projectiles.push({
+      kind: 'ice', x: player.x + nx * 25, y: player.y + ny * 25,
+      vx: nx * 15, vy: ny * 15, radius: 12, life: 80, damage: finalDmg,
+      color: '#00c8ff', trail: [], pierced: new Set(), angle: Math.atan2(ny, nx)
+    });
+  } else if (ab.id === 'ice_prison') {
+    const maxDist = 400;
+    let fx = tx, fy = ty;
+    if (dist > maxDist) { fx = player.x + nx * maxDist; fy = player.y + ny * maxDist; }
+    iceZones.push({ x: fx, y: fy, radius: 0, maxRadius: 100, life: 120, maxLife: 120,
+      damage: finalDmg, applied: false });
+  } else if (ab.id === 'ice_meteor') {
+    meteors.push({ targetX: tx, targetY: ty, x: tx, y: ty - 800,
+      fallProgress: 0, duration: 30, radius: 55, damage: finalDmg, impactDone: false });
+  } else if (ab.id === 'dark_ball') {
+    projectiles.push({
+      kind: 'dark', x: player.x + nx * 25, y: player.y + ny * 25,
+      vx: nx * 11, vy: ny * 11, radius: 14, life: 80, damage: finalDmg,
+      color: '#8a2be2', trail: [], pierced: new Set()
+    });
+  } else if (ab.id === 'dark_pull') {
+    for (const p of pirates) {
+      if (p.dead) continue;
+      const d = Math.hypot(p.x - player.x, p.y - player.y);
+      if (d < 400) {
+        const nx2 = (player.x - p.x) / d, ny2 = (player.y - p.y) / d;
+        p.x += nx2 * 50; p.y += ny2 * 50;
+        damagePirate(p, finalDmg);
+      }
+    }
+  }
+  aimingAbility = null;
+}
+
+function damagePirate(p, dmg) {
+  if (p.dead) return;
+  p.hp = Math.max(0, p.hp - dmg);
+  p.hitFlash = 10;
+  p.chasing = true;
+  damageNumbers.push({ x: p.x, y: p.y - 20, text: String(Math.round(dmg)), life: 60, maxLife: 60, vy: -1.5, color: '#ffdd00' });
+  if (p.hp <= 0 && !p.dead) {
+    p.dead = true;
+    p.deathTimer = 40;
+    p.respawnAt = performance.now() + 5000;
+    addXp(25);
+    if (quest.active && quest.active.type === 'kill') {
+      quest.active.current++;
+      if (quest.active.current >= quest.active.target) {
+        addXp(quest.active.reward);
+        showToast('✅ Квест выполнен! +100 XP');
+        quest.active = null;
+      }
+    }
+    waterMeter = Math.min(100, waterMeter + 12.5);
+    for (let i = 0; i < 30; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const s = 3 + Math.random() * 5;
+      particles.push({ x: p.x, y: p.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+        life: 40, maxLife: 40, radius: 3 + Math.random() * 4, color: '#aa0000' });
+    }
+    saveNow();
+  }
+}
+
+function addXp(amount) {
+  stats.xp += amount;
+  while (stats.level < 50) {
+    const need = xpForLevel(stats.level);
+    if (stats.xp >= need) {
+      stats.xp -= need;
+      stats.level++;
+      stats.statPoints += 3;
+      showToast('🎉 Уровень ' + stats.level + '! +3 очка');
+    } else break;
+  }
+}
+
+function damagePlayer(dmg) {
+  if (performance.now() < player.invulnUntil) return;
+  player.hp = Math.max(0, player.hp - dmg);
+  player.hitFlash = 10;
+  player.invulnUntil = performance.now() + 500;
+  damageNumbers.push({ x: player.x, y: player.y - 20, text: '-' + dmg, life: 60, maxLife: 60, vy: -1.5, color: '#ff4444' });
+  if (player.hp <= 0) {
+    player.hp = getMaxHp();
+    player.x = 0; player.y = 0;
+    showToast('💀 Ты погиб!');
+  }
+}
+
+function handleUIClick() {
+  const mx = mouseX, my = mouseY;
+  if (bagOpen) {
+    const cx = canvas.width / 2, cy = canvas.height / 2;
+    // Закрыть
+    if (mx > cx + 220 && mx < cx + 260 && my > cy - 220 && my < cy - 180) {
+      bagOpen = false; return;
+    }
+    // Клик вне панели — закрыть
+    if (mx < cx - 250 || mx > cx + 250 || my < cy - 220 || my > cy + 200) {
+      bagOpen = false; return;
+    }
+    const cols = 5, rows = 4, sz = 70, gap = 10;
+    const gx = cx - (cols * sz + (cols - 1) * gap) / 2;
+    const gy = cy - (rows * sz + (rows - 1) * gap) / 2 + 20;
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const x = gx + c * (sz + gap), y = gy + r * (sz + gap);
+        if (mx >= x && mx <= x + sz && my >= y && my <= y + sz) {
+          const idx = r * cols + c;
+          if (idx < bag.length) {
+            const item = bag[idx];
+            if (item.name === 'Огненный' || item.name === 'Ледяной' || item.name === 'Тёмный') {
+              inventory[POWER_SLOT_INDEX] = { type: 'power', name: item.name, color: item.color };
+              bag.splice(idx, 1);
+              showToast('✨ Сила: ' + item.name);
+              saveNow();
+            } else {
+              bag.splice(idx, 1);
+              showToast('Съеден: ' + item.name);
+              saveNow();
+            }
+          }
+        }
+      }
+    }
+  }
+  if (statsOpen) {
+    const cx = canvas.width / 2, cy = canvas.height / 2;
+    if (mx > cx + 220 && mx < cx + 260 && my > cy - 220 && my < cy - 180) {
+      statsOpen = false; return;
+    }
+    const rows = [
+      { y: cy - 80, key: 'damage' },
+      { y: cy + 20, key: 'health' },
+      { y: cy + 120, key: 'fruit' }
+    ];
+    for (const r of rows) {
+      if (mx > cx - 250 && mx < cx + 250 && my > r.y && my < r.y + 80) {
+        if (stats.statPoints > 0) {
+          stats.points[r.key]++;
+          stats.statPoints--;
+          showToast('+1 ' + r.key);
+          saveNow();
+        } else showToast('Нет очков!');
+        return;
+      }
+    }
+  }
+}
+
+function update() {
+  const now = performance.now();
+  if (!currentUser) return;
+
+  const blocked = bagOpen || statsOpen;
+  player.isRunning = !blocked && !!keys['control'] && player.stamina > 0;
+  const spd = player.isRunning ? player.speedRun : player.speedWalk;
+
+  if (!blocked && !aimingAbility) {
+    let dx = 0, dy = 0;
+    if (keys['w'] || keys['arrowup'] || keys['ц']) dy -= 1;
+    if (keys['s'] || keys['arrowdown'] || keys['ы']) dy += 1;
+    if (keys['a'] || keys['arrowleft'] || keys['ф']) dx -= 1;
+    if (keys['d'] || keys['arrowright'] || keys['в']) dx += 1;
+    if (dx && dy) { const l = Math.hypot(dx, dy); dx /= l; dy /= l; }
+    tryMove(player, dx * spd, dy * spd);
+    if (dx || dy) { player.lookX = dx; player.lookY = dy; }
+    if (player.isRunning && (dx || dy)) player.stamina = Math.max(0, player.stamina - 0.3);
+    else player.stamina = Math.min(getMaxStamina(), player.stamina + 0.25);
+  }
+
+  const mh = getMaxHp();
+  if (player.hp < mh) player.hp = Math.min(mh, player.hp + 0.05);
+
+  for (const k of Object.keys(player.cooldowns)) {
+    if (player.cooldowns[k] > 0) player.cooldowns[k] -= 1/60;
+  }
+  if (player.punchCooldown > 0) player.punchCooldown -= 1/60;
+  if (player.punchAnim > 0) player.punchAnim = Math.max(0, player.punchAnim - 0.08);
+
+  if (now > player.seaTimer && !isOnIsland(player.x, player.y)) {
+    player.seaTimer = now + 1000;
+    damagePlayer(30);
+  }
+
+  if (!blocked) {
+    for (const f of fruitsOnGround) {
+      if (f.collected) continue;
+      f.bob += 0.05;
+      if (Math.hypot(player.x - f.x, player.y - f.y) < player.radius + f.radius) {
+        let free = -1;
+        for (let i = 2; i < 5; i++) if (!inventory[i]) { free = i; break; }
+        if (free !== -1) {
+          f.collected = true;
+          inventory[free] = { type: 'fruit', name: f.name, color: f.color };
+          player.fruitCount++;
+          document.getElementById('fruitCount').textContent = player.fruitCount;
+          showToast('🍎 Подобран: ' + f.name);
+          saveNow();
+        }
+      }
+    }
+  }
+
+  // Снаряды
+  for (let i = projectiles.length - 1; i >= 0; i--) {
+    const p = projectiles[i];
+    p.x += p.vx; p.y += p.vy; p.life--;
+    p.trail.push({ x: p.x, y: p.y, life: 15 });
+    for (let j = p.trail.length - 1; j >= 0; j--) {
+      p.trail[j].life--;
+      if (p.trail[j].life <= 0) p.trail.splice(j, 1);
+    }
+    if (Math.random() < 0.7) {
+      particles.push({ x: p.x + (Math.random()-0.5)*12, y: p.y + (Math.random()-0.5)*12,
+        vx: (Math.random()-0.5)*2, vy: (Math.random()-0.5)*2,
+        life: 20, maxLife: 20, radius: 3 + Math.random()*3, color: p.color });
+    }
+    let hit = false;
+    for (const pir of pirates) {
+      if (pir.dead || p.pierced.has(pir)) continue;
+      if (Math.hypot(p.x - pir.x, p.y - pir.y) < p.radius + pir.radius) {
+        damagePirate(pir, p.damage);
+        if (p.kind === 'ice') { pir.slow = 1500; p.pierced.add(pir); }
+        else {
+          p.pierced.add(pir);
+          hit = true;
+          for (let k = 0; k < 20; k++) {
+            const a = Math.random()*Math.PI*2;
+            const s = 3 + Math.random()*5;
+            particles.push({ x: p.x, y: p.y, vx: Math.cos(a)*s, vy: Math.sin(a)*s,
+              life: 30, maxLife: 30, radius: 4 + Math.random()*4, color: p.color });
+          }
+          break;
+        }
+      }
+    }
+    if (hit || p.life <= 0) projectiles.splice(i, 1);
+  }
+
+  for (let i = dashTrails.length - 1; i >= 0; i--) {
+    dashTrails[i].life--;
+    if (dashTrails[i].life <= 0) dashTrails.splice(i, 1);
+  }
+
+  for (let i = iceZones.length - 1; i >= 0; i--) {
+    const z = iceZones[i];
+    z.life--;
+    const t = Math.min(1, (z.maxLife - z.life) / 15);
+    z.radius = z.maxRadius * t;
+    if (!z.applied && t >= 1) {
+      z.applied = true;
+      for (const p of pirates) {
+        if (p.dead) continue;
+        if (Math.hypot(p.x - z.x, p.y - z.y) < z.maxRadius) {
+          damagePirate(p, z.damage);
+          if (!p.dead) p.slow = 3000;
+        }
+      }
+    }
+    if (z.life <= 0) iceZones.splice(i, 1);
+  }
+
+  for (let i = meteors.length - 1; i >= 0; i--) {
+    const m = meteors[i];
+    m.fallProgress++;
+    const t = m.fallProgress / m.duration;
+    m.y = (m.targetY - 800) + 800 * Math.min(1, t);
+    if (t >= 1 && !m.impactDone) {
+      m.impactDone = true;
+      for (const p of pirates) {
+        if (p.dead) continue;
+        if (Math.hypot(p.x - m.targetX, p.y - m.targetY) < m.radius) damagePirate(p, m.damage);
+      }
+      for (let k = 0; k < 50; k++) {
+        const a = Math.random()*Math.PI*2;
+        const s = 3 + Math.random()*8;
+        particles.push({ x: m.targetX, y: m.targetY,
+          vx: Math.cos(a)*s, vy: Math.sin(a)*s,
+          life: 40, maxLife: 40, radius: 4 + Math.random()*6,
+          color: Math.random() < 0.5 ? '#ffffff' : '#aaffff' });
+      }
+      iceFields.push({ x: m.targetX, y: m.targetY, radius: 90, life: 240, maxLife: 240 });
+    }
+    if (m.impactDone && m.fallProgress > m.duration + 30) meteors.splice(i, 1);
+  }
+
+  for (let i = iceFields.length - 1; i >= 0; i--) {
+    const f = iceFields[i];
+    f.life--;
+    for (const p of pirates) {
+      if (p.dead) continue;
+      if (Math.hypot(p.x - f.x, p.y - f.y) < f.radius) p.slow = 100;
+    }
+    if (f.life <= 0) iceFields.splice(i, 1);
+  }
+
+  for (const p of pirates) {
+    if (p.dead) {
+      if (p.deathTimer > 0) p.deathTimer--;
+      if (now >= p.respawnAt) {
+        const id = p.id;
+        pirates.splice(pirates.indexOf(p), 1);
+        spawnPirate(id);
+      }
+      continue;
+    }
+    if (p.hitFlash > 0) p.hitFlash--;
+    if (p.slow > 0) p.slow -= 16;
+    const dist = Math.hypot(player.x - p.x, player.y - p.y);
+    if (!p.aggro && dist < 100) p.aggro = true;
+    if (p.aggro && dist > 400 && !p.chasing) p.aggro = false;
+    const spd2 = p.slow > 0 ? 0.25 : 0.6;
+    if ((p.aggro || p.chasing) && dist > 25) {
+      const nx = (player.x - p.x) / dist;
+      const ny = (player.y - p.y) / dist;
+      if (canBeAt(p.x + nx * spd2, p.y, p.radius)) p.x += nx * spd2;
+      if (canBeAt(p.x, p.y + ny * spd2, p.radius)) p.y += ny * spd2;
+    } else if (!p.aggro && !p.chasing) {
+      const hd = Math.hypot(p.homeX - p.x, p.homeY - p.y);
+      if (hd > 5) {
+        const nx = (p.homeX - p.x) / hd;
+        const ny = (p.homeY - p.y) / hd;
+        if (canBeAt(p.x + nx * 0.5, p.y, p.radius)) p.x += nx * 0.5;
+        if (canBeAt(p.x, p.y + ny * 0.5, p.radius)) p.y += ny * 0.5;
+      }
+    }
+    if (dist < p.radius + player.radius + 5 && now - p.lastAttack > 1500) {
+      p.lastAttack = now;
+      damagePlayer(8);
+    }
+  }
+
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.life--;
+    p.x += p.vx; p.y += p.vy;
+    p.vx *= 0.95; p.vy *= 0.95;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+  for (let i = damageNumbers.length - 1; i >= 0; i--) {
+    const d = damageNumbers[i];
+    d.y += d.vy; d.vy *= 0.96; d.life--;
+    if (d.life <= 0) damageNumbers.splice(i, 1);
+  }
+
+  camera.x = player.x - canvas.width / 2;
+  camera.y = player.y - canvas.height / 2;
+}
+
+function drawWorld() {
+  const g = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  g.addColorStop(0, '#3a89c8'); g.addColorStop(1, '#1a5a9c');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const t = performance.now() * 0.001;
+  ctx.strokeStyle = 'rgba(200,240,255,0.25)';
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 30; i++) {
+    const wx = ((i * 173) % (canvas.width + 200)) - 100;
+    const wy = ((i * 251) % canvas.height) + Math.sin(t + i * 0.7) * 8;
+    ctx.beginPath();
+    ctx.arc(wx, wy, 20 + (i % 5) * 6, 0, Math.PI, false);
+    ctx.stroke();
+  }
+
+  const sx = ISLAND.x - camera.x, sy = ISLAND.y - camera.y;
+  ctx.fillStyle = '#f2d68a';
+  ctx.fillRect(sx, sy, ISLAND.width, ISLAND.height);
+  ctx.fillStyle = '#7cc576';
+  ctx.fillRect(sx + BEACH, sy + BEACH, ISLAND.width - BEACH * 2, ISLAND.height - BEACH * 2);
+  ctx.strokeStyle = '#d4b878';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(sx, sy, ISLAND.width, ISLAND.height);
+
+  if (!isOnIsland(player.x, player.y)) {
+    const pulse = 0.3 + Math.sin(performance.now() * 0.008) * 0.2;
+    ctx.strokeStyle = `rgba(80,200,255,${pulse})`;
+    ctx.lineWidth = 8;
+    ctx.strokeRect(4, 4, canvas.width - 8, canvas.height - 8);
+  }
+}
+
+function lighten(c, a) {
+  const n = parseInt(c.slice(1), 16);
+  let r = Math.min(255, (n >> 16) + 255 * a);
+  let g = Math.min(255, ((n >> 8) & 0xff) + 255 * a);
+  let b = Math.min(255, (n & 0xff) + 255 * a);
+  return `rgb(${r|0},${g|0},${b|0})`;
+}
+function darken(c, a) {
+  const n = parseInt(c.slice(1), 16);
+  let r = (n >> 16) * (1 - a);
+  let g = ((n >> 8) & 0xff) * (1 - a);
+  let b = (n & 0xff) * (1 - a);
+  return `rgb(${r|0},${g|0},${b|0})`;
+}
+
+function drawObstacles() {
+  for (const o of obstacles) {
+    if (o.type === 'tree') {
+      const x = o.x - camera.x, y = o.y - camera.y;
+      ctx.beginPath();
+      ctx.ellipse(x, y + 6, o.r * 1.1, o.r * 0.4, 0, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.fill();
+      ctx.fillStyle = '#5a3a1a';
+      ctx.fillRect(x - o.trunkR, y - o.r * 0.6, o.trunkR * 2, o.r * 1.2);
+      const t = performance.now() * 0.002;
+      const sway = Math.sin(t + o.sway) * 2;
+      const cy = y - o.r * 1.3;
+      const cr = o.r * 1.5;
+      ctx.fillStyle = '#4a9a3a';
+      ctx.beginPath(); ctx.arc(x - cr * 0.5 + sway, cy, cr * 0.7, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(x + cr * 0.5 + sway, cy, cr * 0.7, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#5cb04a';
+      ctx.beginPath(); ctx.arc(x + sway, cy - cr * 0.3, cr * 0.9, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#2a6a2a'; ctx.lineWidth = 2; ctx.stroke();
+    } else if (o.type === 'house') {
+      const x = o.x - camera.x, y = o.y - camera.y;
+      ctx.fillStyle = 'rgba(0,0,0,0.2)';
+      ctx.fillRect(x + 6, y + o.h - 4, o.w, 8);
+      ctx.fillStyle = o.wc;
+      ctx.fillRect(x, y, o.w, o.h);
+      ctx.strokeStyle = darken(o.wc, 0.3);
+      ctx.lineWidth = 3;
+      ctx.strokeRect(x, y, o.w, o.h);
+      ctx.fillStyle = '#5a3a2a';
+      ctx.fillRect(x + o.w / 2 - 20, y + o.h - 55, 40, 55);
+      ctx.fillStyle = '#87CEEB';
+      ctx.fillRect(x + 15, y + 20, 22, 22);
+      ctx.fillRect(x + o.w - 37, y + 20, 22, 22);
+      ctx.strokeStyle = '#3a2a1a'; ctx.lineWidth = 2;
+      ctx.strokeRect(x + 15, y + 20, 22, 22);
+      ctx.strokeRect(x + o.w - 37, y + 20, 22, 22);
+      ctx.fillStyle = o.rc;
+      ctx.beginPath();
+      ctx.moveTo(x - 10, y);
+      ctx.lineTo(x + o.w / 2, y - 55);
+      ctx.lineTo(x + o.w + 10, y);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = darken(o.rc, 0.3); ctx.lineWidth = 3; ctx.stroke();
+    } else if (o.type === 'barrel') {
+      const x = o.x - camera.x, y = o.y - camera.y;
+      ctx.beginPath();
+      ctx.ellipse(x, y + 4, o.r * 1.1, o.r * 0.4, 0, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.fill();
+      ctx.fillStyle = '#8a5a2a';
+      ctx.fillRect(x - o.r, y - o.r * 1.4, o.r * 2, o.r * 2);
+      ctx.strokeStyle = '#5a3a1a'; ctx.lineWidth = 2;
+      ctx.strokeRect(x - o.r, y - o.r * 1.4, o.r * 2, o.r * 2);
+      ctx.fillStyle = '#3a3a3a';
+      ctx.fillRect(x - o.r, y - o.r * 1.1, o.r * 2, 4);
+      ctx.fillRect(x - o.r, y + o.r * 0.3, o.r * 2, 4);
+    } else if (o.type === 'fence') {
+      const x = o.x - camera.x, y = o.y - camera.y;
+      ctx.fillStyle = '#8a5a2a';
+      ctx.fillRect(x, y, o.w, o.h);
+      ctx.strokeStyle = '#5a3a1a'; ctx.lineWidth = 2;
+      ctx.strokeRect(x, y, o.w, o.h);
+    }
+  }
+}
+
+function drawFruit(f) {
+  if (f.collected) return;
+  const x = f.x - camera.x;
+  const y = f.y - camera.y + Math.sin(f.bob) * 4;
+  ctx.beginPath();
+  ctx.ellipse(x, f.y - camera.y + 20, 14, 5, 0, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.fill();
+  const g = ctx.createRadialGradient(x - 5, y - 5, 2, x, y, f.radius);
+  g.addColorStop(0, lighten(f.color, 0.5));
+  g.addColorStop(1, f.color);
+  ctx.beginPath();
+  ctx.arc(x, y, f.radius, 0, Math.PI * 2);
+  ctx.fillStyle = g; ctx.fill();
+  ctx.strokeStyle = darken(f.color, 0.4);
+  ctx.lineWidth = 2; ctx.stroke();
+  ctx.beginPath();
+  ctx.strokeStyle = darken(f.color, 0.3);
+  for (let i = 0; i < 30; i++) {
+    const t = i / 30;
+    const a = t * Math.PI * 6;
+    const r = t * f.radius * 0.7;
+    const px = x + Math.cos(a) * r;
+    const py = y + Math.sin(a) * r;
+    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+  }
+  ctx.stroke();
+}
+
+function drawQuestNpc() {
+  const x = questNpc.x - camera.x, y = questNpc.y - camera.y;
+  const t = performance.now() * 0.003;
+  ctx.beginPath();
+  ctx.ellipse(x, y + questNpc.radius * 0.9, questNpc.radius * 0.9, 7, 0, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fill();
+  const g = ctx.createRadialGradient(x - 8, y - 8, 3, x, y, questNpc.radius);
+  g.addColorStop(0, '#e8b878');
+  g.addColorStop(1, '#d4a373');
+  ctx.beginPath();
+  ctx.arc(x, y, questNpc.radius, 0, Math.PI * 2);
+  ctx.fillStyle = g; ctx.fill();
+  ctx.strokeStyle = '#8a6030'; ctx.lineWidth = 3; ctx.stroke();
+  // Шляпа
+  ctx.beginPath();
+  ctx.arc(x, y - questNpc.radius * 0.4, questNpc.radius * 1.05, Math.PI * 1.05, Math.PI * 1.95);
+  ctx.strokeStyle = '#4a2c0a'; ctx.lineWidth = 7; ctx.lineCap = 'round'; ctx.stroke();
+  // Глаза
+  const eo = questNpc.radius * 0.35, er = questNpc.radius * 0.14;
+  ctx.fillStyle = 'white';
+  ctx.beginPath(); ctx.arc(x - eo, y - 2, er, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x + eo, y - 2, er, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#1a1a1a';
+  ctx.beginPath(); ctx.arc(x - eo, y - 2, er * 0.55, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x + eo, y - 2, er * 0.55, 0, Math.PI * 2); ctx.fill();
+  // Усы
+  ctx.beginPath();
+  ctx.moveTo(x - eo - 2, y + 8);
+  ctx.quadraticCurveTo(x - eo - 10, y + 5, x - eo - 12, y - 2);
+  ctx.moveTo(x + eo + 2, y + 8);
+  ctx.quadraticCurveTo(x + eo + 10, y + 5, x + eo + 12, y - 2);
+  ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 2.5; ctx.stroke();
+  // Имя
+  ctx.fillStyle = '#ffdd44'; ctx.font = 'bold 13px Arial';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
+  ctx.strokeText(questNpc.name, x, y - questNpc.radius - 18);
+  ctx.fillText(questNpc.name, x, y - questNpc.radius - 18);
+  // Восклицание
+  const bob = Math.sin(t * 4) * 4;
+  ctx.fillStyle = '#ffdd44'; ctx.font = 'bold 26px Arial';
+  ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
+  ctx.strokeText('!', x, y - questNpc.radius - 45 + bob);
+  ctx.fillText('!', x, y - questNpc.radius - 45 + bob);
+  // Подсказка
+  if (isNearQuestNpc()) {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    const hint = 'E — поговорить';
+    ctx.font = 'bold 13px Arial';
+    const tw = ctx.measureText(hint).width + 20;
+    ctx.fillRect(x - tw / 2, y + questNpc.radius + 12, tw, 22);
+    ctx.fillStyle = '#ffdd44'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(hint, x, y + questNpc.radius + 23);
+  }
+}
+
+function drawPlayer() {
+  const x = player.x - camera.x;
+  const y = player.y - camera.y;
+
+  if (player.isRunning && (keys['w'] || keys['a'] || keys['s'] || keys['d'])) {
+    for (let i = 0; i < 5; i++) {
+      const a = performance.now() * 0.005 + i * (Math.PI * 2 / 5);
+      const ax = x + Math.cos(a) * (player.radius + 5);
+      const ay = y + Math.sin(a) * (player.radius + 5);
+      const gr = ctx.createRadialGradient(ax, ay, 0, ax, ay, 8);
+      gr.addColorStop(0, 'rgba(255,200,100,0.5)');
+      gr.addColorStop(1, 'rgba(255,100,0,0)');
+      ctx.beginPath(); ctx.arc(ax, ay, 8, 0, Math.PI * 2);
+      ctx.fillStyle = gr; ctx.fill();
+    }
+  }
+
+  ctx.beginPath();
+  ctx.ellipse(x, y + player.radius * 0.9, player.radius * 0.9, 6, 0, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fill();
+
+  const isHit = player.hitFlash > 0;
+  const g = ctx.createRadialGradient(x - 8, y - 8, 3, x, y, player.radius);
+  g.addColorStop(0, isHit ? '#ffffff' : '#ffe066');
+  g.addColorStop(1, isHit ? '#ff6666' : '#ffb300');
+  ctx.beginPath();
+  ctx.arc(x, y, player.radius, 0, Math.PI * 2);
+  ctx.fillStyle = g; ctx.fill();
+  ctx.strokeStyle = '#b37700'; ctx.lineWidth = 3; ctx.stroke();
+
+  if (player.punchAnim > 0.05) {
+    const px = x + player.punchDir.x * (player.radius + 15 + player.punchAnim * 15);
+    const py = y + player.punchDir.y * (player.radius + 15 + player.punchAnim * 15);
+    ctx.beginPath();
+    ctx.arc(px, py, 12 + player.punchAnim * 5, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffe066';
+    ctx.fill();
+    ctx.strokeStyle = '#b37700'; ctx.lineWidth = 2; ctx.stroke();
+  }
+
+  let lx = player.lookX, ly = player.lookY;
+  if (lx === 0 && ly === 0) { lx = 0.3; ly = 0.5; }
+  const ll = Math.hypot(lx, ly); lx /= ll; ly /= ll;
+  const eo = player.radius * 0.35, eoy = -player.radius * 0.15;
+  const er = player.radius * 0.28, pr = er * 0.55, ps = er * 0.35;
+  const eLx = x - eo, eLy = y + eoy;
+  const eRx = x + eo, eRy = y + eoy;
+  ctx.beginPath(); ctx.arc(eLx, eLy, er, 0, Math.PI * 2); ctx.fillStyle = 'white'; ctx.fill();
+  ctx.strokeStyle = '#333'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.beginPath(); ctx.arc(eRx, eRy, er, 0, Math.PI * 2); ctx.fillStyle = 'white'; ctx.fill();
+  ctx.strokeStyle = '#333'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.beginPath(); ctx.arc(eLx + lx * ps, eLy + ly * ps, pr, 0, Math.PI * 2); ctx.fillStyle = '#1a1a1a'; ctx.fill();
+  ctx.beginPath(); ctx.arc(eRx + lx * ps, eRy + ly * ps, pr, 0, Math.PI * 2); ctx.fillStyle = '#1a1a1a'; ctx.fill();
+  ctx.beginPath();
+  ctx.arc(x, y + player.radius * 0.25, player.radius * 0.4, 0.15 * Math.PI, 0.85 * Math.PI);
+  ctx.strokeStyle = '#5a3a00'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.stroke();
+
+  if (currentUser) {
+    ctx.font = 'bold 13px Arial';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
+    ctx.strokeText(currentUser.username, x, y - player.radius - 12);
+    ctx.fillStyle = '#ffd700';
+    ctx.fillText(currentUser.username, x, y - player.radius - 12);
+  }
+}
+
+function drawPirates() {
+  for (const p of pirates) {
+    if (p.dead && p.deathTimer <= 0) continue;
+    const x = p.x - camera.x;
+    const y = p.y - camera.y;
+    let alpha = 1, scale = 1;
+    if (p.dead) { const t = p.deathTimer / 40; alpha = t; scale = 0.5 + t * 0.5; }
+    ctx.globalAlpha = alpha;
+
+    ctx.beginPath();
+    ctx.ellipse(x, p.y - camera.y + p.radius * 0.9 * scale, p.radius * 0.9 * scale, 5, 0, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fill();
+
+    const isHit = p.hitFlash > 0;
+    const isSlowed = p.slow > 0;
+    const color = isHit ? '#ffffff' : (isSlowed ? '#66c8ff' : '#8b2222');
+    const g = ctx.createRadialGradient(x - 7, y - 7, 2, x, y, p.radius * scale);
+    g.addColorStop(0, lighten(color, 0.3));
+    g.addColorStop(1, color);
+    ctx.beginPath();
+    ctx.arc(x, y, p.radius * scale, 0, Math.PI * 2);
+    ctx.fillStyle = g; ctx.fill();
+    ctx.strokeStyle = darken(color, 0.5); ctx.lineWidth = 3; ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(x, y - p.radius * 0.3 * scale, p.radius * 0.9 * scale, Math.PI * 1.1, Math.PI * 1.9);
+    ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 5 * scale; ctx.stroke();
+
+    const eo = p.radius * 0.35 * scale;
+    const er = p.radius * 0.13 * scale;
+    ctx.fillStyle = 'white';
+    ctx.beginPath(); ctx.arc(x - eo, y - 2, er, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + eo, y - 2, er, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#1a1a1a';
+    ctx.beginPath(); ctx.arc(x - eo + 1, y - 2, er * 0.6, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + eo + 1, y - 2, er * 0.6, 0, Math.PI * 2); ctx.fill();
+
+    if (!p.dead) {
+      const w = 44, h = 6;
+      const hx = x - w / 2, hy = y - p.radius - 16;
+      ctx.fillStyle = 'rgba(0,0,0,0.7)';
+      ctx.fillRect(hx - 2, hy - 2, w + 4, h + 4);
+      ctx.fillStyle = '#3a0000';
+      ctx.fillRect(hx, hy, w, h);
+      ctx.fillStyle = '#ff3b3b';
+      ctx.fillRect(hx, hy, w * (p.hp / p.maxHp), h);
+      if (p.aggro || p.chasing) {
+        ctx.font = 'bold 16px Arial';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillStyle = p.chasing ? '#ff2222' : '#ffaa00';
+        ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
+        const sym = p.chasing ? '‼' : '!';
+        ctx.strokeText(sym, x, y - p.radius - 32);
+        ctx.fillText(sym, x, y - p.radius - 32);
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawParticles() {
+  for (const p of particles) {
+    const a = p.life / p.maxLife;
+    const g = ctx.createRadialGradient(p.x - camera.x, p.y - camera.y, 0, p.x - camera.x, p.y - camera.y, p.radius);
+    const c = p.color;
+    const n = parseInt(c.slice(1), 16);
+    g.addColorStop(0, `rgba(${n>>16},${(n>>8)&0xff},${n&0xff},${a})`);
+    g.addColorStop(1, `rgba(${n>>16},${(n>>8)&0xff},${n&0xff},0)`);
+    ctx.beginPath();
+    ctx.arc(p.x - camera.x, p.y - camera.y, p.radius, 0, Math.PI * 2);
+    ctx.fillStyle = g; ctx.fill();
+  }
+}
+
+function drawProjectiles() {
+  for (const p of projectiles) {
+    for (const t of p.trail) {
+      const a = t.life / 15;
+      const r = p.radius * a * 0.8;
+      const g = ctx.createRadialGradient(t.x - camera.x, t.y - camera.y, 0, t.x - camera.x, t.y - camera.y, r);
+      const c = p.color;
+      const n = parseInt(c.slice(1), 16);
+      g.addColorStop(0, `rgba(${n>>16},${(n>>8)&0xff},${n&0xff},${a*0.6})`);
+      g.addColorStop(1, `rgba(${n>>16},${(n>>8)&0xff},${n&0xff},0)`);
+      ctx.beginPath();
+      ctx.arc(t.x - camera.x, t.y - camera.y, r, 0, Math.PI * 2);
+      ctx.fillStyle = g; ctx.fill();
+    }
+    const x = p.x - camera.x, y = p.y - camera.y;
+    const g = ctx.createRadialGradient(x, y, 0, x, y, p.radius * 1.5);
+    g.addColorStop(0, '#ffffff');
+    const c = p.color;
+    const n = parseInt(c.slice(1), 16);
+    g.addColorStop(0.4, `rgba(${n>>16},${(n>>8)&0xff},${n&0xff},1)`);
+    g.addColorStop(1, `rgba(${n>>16},${(n>>8)&0xff},${n&0xff},0)`);
+    ctx.beginPath();
+    ctx.arc(x, y, p.radius * 1.5, 0, Math.PI * 2);
+    ctx.fillStyle = g; ctx.fill();
+  }
+}
+
+function drawDashTrails() {
+  for (const d of dashTrails) {
+    const a = d.life / d.maxLife;
+    const x = d.x - camera.x, y = d.y - camera.y;
+    const g = ctx.createRadialGradient(x, y, 0, x, y, d.radius);
+    g.addColorStop(0, `rgba(255,220,100,${a*0.8})`);
+    g.addColorStop(0.5, `rgba(255,120,0,${a*0.6})`);
+    g.addColorStop(1, 'rgba(255,40,0,0)');
+    ctx.beginPath();
+    ctx.arc(x, y, d.radius, 0, Math.PI * 2);
+    ctx.fillStyle = g; ctx.fill();
+  }
+}
+
+function drawIceZones() {
+  for (const z of iceZones) {
+    const x = z.x - camera.x, y = z.y - camera.y;
+    const a = Math.min(1, z.life / 40);
+    const g = ctx.createRadialGradient(x, y, 0, x, y, z.radius);
+    g.addColorStop(0, `rgba(120,200,255,${a*0.5})`);
+    g.addColorStop(0.7, `rgba(80,160,220,${a*0.3})`);
+    g.addColorStop(1, 'rgba(40,100,180,0)');
+    ctx.beginPath();
+    ctx.arc(x, y, z.radius, 0, Math.PI * 2);
+    ctx.fillStyle = g; ctx.fill();
+  }
+}
+
+function drawIceFields() {
+  for (const f of iceFields) {
+    const x = f.x - camera.x, y = f.y - camera.y;
+    const a = Math.min(1, f.life / 60) * 0.7;
+    const g = ctx.createRadialGradient(x, y, 0, x, y, f.radius);
+    g.addColorStop(0, `rgba(180,230,255,${a*0.7})`);
+    g.addColorStop(0.7, `rgba(120,190,240,${a*0.5})`);
+    g.addColorStop(1, 'rgba(60,130,200,0)');
+    ctx.beginPath();
+    ctx.arc(x, y, f.radius, 0, Math.PI * 2);
+    ctx.fillStyle = g; ctx.fill();
+  }
+}
+
+function drawMeteors() {
+  for (const m of meteors) {
+    if (m.impactDone) continue;
+    const x = m.x - camera.x, y = m.y - camera.y;
+    const tx = m.targetX - camera.x, ty = m.targetY - camera.y;
+    ctx.beginPath();
+    ctx.arc(tx, ty, m.radius, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(160,220,255,0.7)';
+    ctx.lineWidth = 3;
+    ctx.setLineDash([10, 8]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    const g = ctx.createRadialGradient(x, y, 0, x, y, 40);
+    g.addColorStop(0, 'rgba(255,255,255,1)');
+    g.addColorStop(0.4, 'rgba(200,240,255,0.95)');
+    g.addColorStop(0.7, 'rgba(120,200,255,0.9)');
+    g.addColorStop(1, 'rgba(40,100,200,0)');
+    ctx.beginPath();
+    ctx.arc(x, y, 40, 0, Math.PI * 2);
+    ctx.fillStyle = g; ctx.fill();
+  }
+}
+
+function drawDamageNumbers() {
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  for (const d of damageNumbers) {
+    const a = d.life / 30;
+    ctx.font = 'bold 20px Arial';
+    ctx.strokeStyle = `rgba(0,0,0,${a})`;
+    ctx.lineWidth = 3;
+    ctx.strokeText(d.text, d.x - camera.x, d.y - camera.y);
+    ctx.fillStyle = d.color === '#ff4444' ? `rgba(255,68,68,${a})` : `rgba(255,220,50,${a})`;
+    ctx.fillText(d.text, d.x - camera.x, d.y - camera.y);
+  }
+}
+
+function drawUI() {
+  // HP / Stamina
+  const barW = 240, barH = 18;
+  const x = canvas.width - barW - 20, y = 20;
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(x - 4, y - 4, barW + 8, barH + 8);
+  ctx.fillStyle = '#3a0000';
+  ctx.fillRect(x, y, barW, barH);
+  ctx.fillStyle = '#cc2222';
+  ctx.fillRect(x, y, barW * (player.hp / getMaxHp()), barH);
+  ctx.fillStyle = 'white';
+  ctx.font = 'bold 12px Arial';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(`❤️ ${Math.ceil(player.hp)}/${getMaxHp()}`, x + barW / 2, y + barH / 2);
+
+  const sy = y + barH + 8;
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(x - 4, sy - 4, barW + 8, barH + 8);
+  ctx.fillStyle = '#003a3a';
+  ctx.fillRect(x, sy, barW, barH);
+  ctx.fillStyle = '#33bbcc';
+  ctx.fillRect(x, sy, barW * (player.stamina / getMaxStamina()), barH);
+  ctx.fillStyle = 'white';
+  ctx.fillText(`⚡ ${Math.ceil(player.stamina)}/${getMaxStamina()}`, x + barW / 2, sy + barH / 2);
+
+  if (!isOnIsland(player.x, player.y)) {
+    ctx.fillStyle = `rgba(80,180,255,${0.6 + Math.sin(performance.now() * 0.01) * 0.4})`;
+    ctx.font = 'bold 16px Arial';
+    ctx.textAlign = 'right';
+    ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
+    ctx.strokeText('🌊 ТОНЕШЬ! -30 HP/сек', x + barW, sy + barH + 20);
+    ctx.fillText('🌊 ТОНЕШЬ! -30 HP/сек', x + barW, sy + barH + 20);
+  }
+
+  // Уровень
+  const lx = 20, ly = canvas.height - 80;
+  ctx.fillStyle = 'rgba(0,0,0,0.65)';
+  ctx.fillRect(lx, ly, 220, 60);
+  ctx.strokeStyle = 'rgba(255,215,0,0.8)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(lx, ly, 220, 60);
+  ctx.fillStyle = '#ffd700';
+  ctx.font = 'bold 20px Arial';
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.fillText(`Уровень ${stats.level}`, lx + 10, ly + 8);
+  const bx = lx + 10, by = ly + 36, bw = 200, bh = 16;
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(bx, by, bw, bh);
+  const need = xpForLevel(stats.level);
+  ctx.fillStyle = '#44aa44';
+  ctx.fillRect(bx, by, bw * Math.min(1, stats.xp / need), bh);
+  ctx.fillStyle = 'white';
+  ctx.font = 'bold 11px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText(`${stats.xp}/${need} XP`, bx + bw / 2, by + bh / 2);
+
+  if (stats.statPoints > 0) {
+    ctx.fillStyle = '#66ff66';
+    ctx.font = 'bold 14px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText(`+${stats.statPoints} очков (Tab)`, lx + 10, ly - 25);
+  }
+
+  // Хотбар
+  const slot = 50, gap = 6;
+  const totalW = 5 * slot + 4 * gap;
+  const hx = (canvas.width - totalW) / 2;
+  const hy = canvas.height - slot - 15;
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.fillRect(hx - 6, hy - 6, totalW + 12, slot + 12);
+  for (let i = 0; i < 5; i++) {
+    const sx = hx + i * (slot + gap);
+    const isHeld = heldSlot === i;
+    ctx.fillStyle = isHeld ? 'rgba(255,215,0,0.35)' : 'rgba(255,255,255,0.15)';
+    ctx.fillRect(sx, hy, slot, slot);
+    ctx.strokeStyle = isHeld ? '#ffd700' : 'rgba(255,255,255,0.5)';
+    ctx.lineWidth = isHeld ? 3 : 2;
+    ctx.strokeRect(sx, hy, slot, slot);
+
+    const it = inventory[i];
+    if (it) {
+      if (it.type === 'fists') {
+        ctx.font = '24px Arial';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('👊', sx + slot / 2, hy + slot / 2);
+      } else if (it.type === 'fruit') {
+        ctx.beginPath();
+        ctx.arc(sx + slot / 2, hy + slot / 2, 14, 0, Math.PI * 2);
+        ctx.fillStyle = it.color || '#ff3b3b';
+        ctx.fill();
+        ctx.strokeStyle = darken(it.color || '#ff3b3b', 0.4);
+        ctx.lineWidth = 2; ctx.stroke();
+      } else if (it.type === 'power') {
+        ctx.beginPath();
+        ctx.arc(sx + slot / 2, hy + slot / 2, 16, 0, Math.PI * 2);
+        ctx.fillStyle = it.name === 'Огненный' ? '#ff6600' :
+                        it.name === 'Ледяной' ? '#00c8ff' : '#8a2be2';
+        ctx.fill();
+        ctx.strokeStyle = 'black'; ctx.lineWidth = 2; ctx.stroke();
+      }
+    }
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.font = 'bold 11px Arial';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    ctx.fillText(String(i + 1), sx + 4, hy + 2);
+  }
+
+  // Способности
+  if (abilityGuide) {
+    const pw = 240, ph = 40 + abilityGuide.abilities.length * 55;
+    const px = canvas.width - pw - 20;
+    const py = canvas.height - ph - 90;
+    ctx.fillStyle = 'rgba(20,20,35,0.85)';
+    ctx.fillRect(px, py, pw, ph);
+    ctx.strokeStyle = 'rgba(255,215,0,0.6)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(px, py, pw, ph);
+    ctx.fillStyle = '#ffd700';
+    ctx.font = 'bold 15px Arial';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    ctx.fillText('✨ ' + abilityGuide.name, px + 12, py + 10);
+    for (let i = 0; i < abilityGuide.abilities.length; i++) {
+      const ab = abilityGuide.abilities[i];
+      const ay = py + 40 + i * 55;
+      const cd = player.cooldowns[ab.id] || 0;
+      ctx.fillStyle = cd > 0 ? 'rgba(100,100,100,0.5)' : 'rgba(80,80,120,0.6)';
+      ctx.fillRect(px + 12, ay, 40, 40);
+      ctx.strokeStyle = cd > 0 ? '#666' : '#ffd700';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(px + 12, ay, 40, 40);
+      ctx.fillStyle = 'white';
+      ctx.font = 'bold 18px Arial';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(ab.key, px + 32, ay + 20);
+      if (cd > 0) {
+        ctx.fillStyle = '#ffcc66';
+        ctx.font = 'bold 14px Arial';
+        ctx.fillText(cd.toFixed(1), px + 32, ay + 20);
+      }
+      ctx.fillStyle = 'white';
+      ctx.font = 'bold 13px Arial';
+      ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+      ctx.fillText(ab.name, px + 62, ay + 6);
+      ctx.fillStyle = 'rgba(255,255,255,0.55)';
+      ctx.font = '11px Arial';
+      ctx.fillText(ab.description, px + 62, ay + 24);
+    }
+  }
+}
+
+function drawBag() {
+  if (!bagOpen) return;
+  const cx = canvas.width / 2, cy = canvas.height / 2;
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const pw = 500, ph = 420;
+  ctx.fillStyle = 'rgba(30,30,45,0.95)';
+  ctx.fillRect(cx - pw / 2, cy - ph / 2, pw, ph);
+  ctx.strokeStyle = 'rgba(255,215,0,0.6)';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(cx - pw / 2, cy - ph / 2, pw, ph);
+  ctx.fillStyle = '#ffd700';
+  ctx.font = 'bold 22px Arial';
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.fillText('🎒 Мешок', cx - pw / 2 + 20, cy - ph / 2 + 15);
+  ctx.fillStyle = 'rgba(255,255,255,0.6)';
+  ctx.font = '12px Arial';
+  ctx.fillText('Клик по фрукту — съесть/надеть', cx - pw / 2 + 20, cy - ph / 2 + 42);
+
+  const cols = 5, rows = 4, sz = 70, gap = 10;
+  const gx = cx - (cols * sz + (cols - 1) * gap) / 2;
+  const gy = cy - (rows * sz + (rows - 1) * gap) / 2 + 20;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const x = gx + c * (sz + gap);
+      const y = gy + r * (sz + gap);
+      const idx = r * cols + c;
+      ctx.fillStyle = 'rgba(255,255,255,0.08)';
+      ctx.fillRect(x, y, sz, sz);
+      ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x, y, sz, sz);
+      if (idx < bag.length) {
+        const item = bag[idx];
+        ctx.beginPath();
+        ctx.arc(x + sz / 2, y + sz / 2, 20, 0, Math.PI * 2);
+        ctx.fillStyle = item.color;
+        ctx.fill();
+        ctx.strokeStyle = darken(item.color, 0.4);
+        ctx.lineWidth = 2; ctx.stroke();
+        ctx.fillStyle = 'white';
+        ctx.font = '11px Arial';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+        ctx.fillText(item.name, x + sz / 2, y + sz - 15);
+      }
+    }
+  }
+  // Крестик закрытия
+  ctx.fillStyle = 'rgba(255,80,80,0.85)';
+  ctx.fillRect(cx + 220, cy - 220, 30, 30);
+  ctx.fillStyle = 'white';
+  ctx.font = 'bold 20px Arial';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('✕', cx + 235, cy - 205);
+}
+
+function drawStatsWindow() {
+  if (!statsOpen) return;
+  const cx = canvas.width / 2, cy = canvas.height / 2;
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const pw = 500, ph = 420;
+  ctx.fillStyle = 'rgba(20,20,40,0.95)';
+  ctx.fillRect(cx - pw / 2, cy - ph / 2, pw, ph);
+  ctx.strokeStyle = 'rgba(120,180,255,0.8)';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(cx - pw / 2, cy - ph / 2, pw, ph);
+  ctx.fillStyle = '#aaddff';
+  ctx.font = 'bold 22px Arial';
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.fillText('📊 Статистика', cx - pw / 2 + 20, cy - ph / 2 + 15);
+  ctx.fillStyle = stats.statPoints > 0 ? '#66ff66' : 'rgba(255,255,255,0.5)';
+  ctx.font = 'bold 16px Arial';
+  ctx.fillText(`Очки: ${stats.statPoints}`, cx - pw / 2 + 20, cy - ph / 2 + 45);
+  // Крестик
+  ctx.fillStyle = 'rgba(255,80,80,0.85)';
+  ctx.fillRect(cx + 220, cy - 220, 30, 30);
+  ctx.fillStyle = 'white';
+  ctx.font = 'bold 20px Arial';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('✕', cx + 235, cy - 205);
+
+  const rows = [
+    { y: cy - 80, key: 'damage', icon: '💪', name: 'Урон кулака', color: '#ff8844' },
+    { y: cy + 20, key: 'health', icon: '❤️', name: 'Здоровье', color: '#ff4444' },
+    { y: cy + 120, key: 'fruit', icon: '🍎', name: 'Урон фрукта', color: '#44ff88' }
+  ];
+  for (const r of rows) {
+    ctx.fillStyle = 'rgba(60,80,120,0.4)';
+    ctx.fillRect(cx - 250, r.y, 500, 80);
+    ctx.strokeStyle = 'rgba(120,160,220,0.5)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(cx - 250, r.y, 500, 80);
+    ctx.font = '28px Arial';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'white';
+    ctx.fillText(r.icon, cx - 220, r.y + 40);
+    ctx.fillStyle = r.color;
+    ctx.font = 'bold 18px Arial';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    ctx.fillText(r.name, cx - 170, r.y + 15);
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.font = '12px Arial';
+    ctx.fillText(`Вложено: ${stats.points[r.key]}`, cx - 170, r.y + 42);
+    ctx.fillStyle = '#ffd700';
+    ctx.font = 'bold 22px Arial';
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.fillText('+1', cx + 220, r.y + 40);
+  }
+}
+
+let toast = null;
+function showToast(t) { toast = { t, until: performance.now() + 2000 }; }
+function drawToast() {
+  if (!toast) return;
+  if (performance.now() > toast.until) { toast = null; return; }
+  const a = Math.min(1, (toast.until - performance.now()) / 300);
+  ctx.font = 'bold 22px Arial';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const w = ctx.measureText(toast.t).width + 40;
+  ctx.fillStyle = `rgba(0,0,0,${0.7 * a})`;
+  ctx.fillRect((canvas.width - w) / 2, 90, w, 44);
+  ctx.fillStyle = `rgba(255,255,255,${a})`;
+  ctx.fillText(toast.t, canvas.width / 2, 112);
+}
+
+function drawAimCursor() {
+  if (!aimingAbility) return;
+  const x = mouseX, y = mouseY;
+  const t = performance.now() * 0.005;
+  const r = 22 + Math.sin(t * 3) * 4;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(255,215,0,0.9)';
+  ctx.lineWidth = 3;
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(x, y, 5, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,255,100,0.9)';
+  ctx.fill();
+}
+
+function loop() {
+  if (currentUser) {
+    update();
+    drawWorld();
+    drawObstacles();
+    for (const f of fruitsOnGround) drawFruit(f);
+    drawQuestNpc();
+    drawParticles();
+    drawDashTrails();
+    drawIceZones();
+    drawIceFields();
+    drawMeteors();
+    drawProjectiles();
+    drawPirates();
+    drawPlayer();
+    drawDamageNumbers();
+    drawUI();
+    if (bagOpen) drawBag();
+    if (statsOpen) drawStatsWindow();
+    drawAimCursor();
+    drawToast();
+  } else {
+    ctx.fillStyle = '#0a1a3a';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>

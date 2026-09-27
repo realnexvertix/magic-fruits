@@ -1,0 +1,103 @@
+const express = require('express');
+const Database = require('better-sqlite3');
+const bcrypt = require('bcryptjs');
+const cors = require('cors');
+const path = require('path');
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.use(cors());
+app.use(express.json({ limit: '5mb' }));
+app.use(express.static(path.join(__dirname, 'public')));
+
+const db = new Database(path.join(__dirname, 'accounts.db'));
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS accounts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE NOT NULL,
+    password TEXT NOT NULL,
+    save_data TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+`);
+
+console.log('✅ База данных готова');
+
+app.post('/api/register', (req, res) => {
+  const { username, password } = req.body;
+  if (!username || username.length < 3 || username.length > 20) {
+    return res.json({ ok: false, error: 'Ник 3-20 символов' });
+  }
+  if (!password || password.length < 3) {
+    return res.json({ ok: false, error: 'Пароль от 3 символов' });
+  }
+  try {
+    const existing = db.prepare('SELECT id FROM accounts WHERE username = ?').get(username);
+    if (existing) return res.json({ ok: false, error: 'Ник занят' });
+    const hash = bcrypt.hashSync(password, 10);
+    const now = Date.now();
+    const defaultData = {
+      level: 1, xp: 0, statPoints: 0,
+      points: { damage: 0, health: 0, fruit: 0 },
+      playerX: 0, playerY: 0,
+      inventory: [{ type: 'fists', name: 'Кулаки' }, null, null, null, null],
+      bag: [], fruitCount: 0, collectedFruits: [],
+      quest: null, hp: 100, stamina: 100,
+      waterMeter: 0
+    };
+    db.prepare('INSERT INTO accounts (username, password, save_data, created_at, updated_at) VALUES (?, ?, ?, ?, ?)')
+      .run(username, hash, JSON.stringify(defaultData), now, now);
+    console.log(`📝 Регистрация: ${username}`);
+    res.json({ ok: true, username, data: defaultData });
+  } catch (e) {
+    console.error(e);
+    res.json({ ok: false, error: 'Ошибка сервера' });
+  }
+});
+
+app.post('/api/login', (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) return res.json({ ok: false, error: 'Введите данные' });
+  try {
+    const acc = db.prepare('SELECT * FROM accounts WHERE username = ?').get(username);
+    if (!acc) return res.json({ ok: false, error: 'Аккаунт не найден' });
+    if (!bcrypt.compareSync(password, acc.password)) {
+      return res.json({ ok: false, error: 'Неверный пароль' });
+    }
+    const data = acc.save_data ? JSON.parse(acc.save_data) : null;
+    console.log(`✅ Вход: ${username}`);
+    res.json({ ok: true, username, data });
+  } catch (e) {
+    console.error(e);
+    res.json({ ok: false, error: 'Ошибка сервера' });
+  }
+});
+
+app.post('/api/save', (req, res) => {
+  const { username, password, data } = req.body;
+  if (!username || !password || !data) return res.json({ ok: false, error: 'Мало данных' });
+  try {
+    const acc = db.prepare('SELECT * FROM accounts WHERE username = ?').get(username);
+    if (!acc) return res.json({ ok: false, error: 'Не найден' });
+    if (!bcrypt.compareSync(password, acc.password)) {
+      return res.json({ ok: false, error: 'Неверный пароль' });
+    }
+    db.prepare('UPDATE accounts SET save_data = ?, updated_at = ? WHERE username = ?')
+      .run(JSON.stringify(data), Date.now(), username);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error(e);
+    res.json({ ok: false, error: 'Ошибка сохранения' });
+  }
+});
+
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+app.listen(PORT, () => {
+  console.log(`\n🚀 Magic Fruits: порт ${PORT}\n`);
+});
