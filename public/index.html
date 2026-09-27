@@ -75,6 +75,12 @@ document.getElementById('fsBtn').addEventListener('click', () => {
 let currentUser = null;
 const API = '/api';
 
+// ==================== МУЛЬТИПЛЕЕР (состояние) ====================
+let ws = null;
+let wsConnected = false;
+let myNetColor = '#ffb300';
+const remotePlayers = new Map(); // username -> remote player state
+
 function showAuth() {
   document.getElementById('authOverlay').classList.remove('hidden');
   document.getElementById('logoutBtn').style.display = 'none';
@@ -144,6 +150,7 @@ function loginAs(username, password, data) {
   hideAuth();
   applySave(data);
   showToast('👋 Привет, ' + username + '!');
+  connectWebSocket();
 }
 
 function applySave(d) {
@@ -195,6 +202,8 @@ async function saveNow() {
 
 document.getElementById('logoutBtn').addEventListener('click', async () => {
   await saveNow();
+  try { if (ws) ws.close(); } catch (e) {}
+  ws = null;
   try { localStorage.removeItem('mf_session'); } catch(e) {}
   location.reload();
 });
@@ -218,6 +227,176 @@ window.addEventListener('beforeunload', saveNow);
   } catch(e) {}
   showAuth();
 })();
+
+// ==================== МУЛЬТИПЛЕЕР (клиент) ====================
+function connectWebSocket() {
+  if (ws && (ws.readyState === 0 || ws.readyState === 1)) return;
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  try {
+    ws = new WebSocket(proto + '//' + location.host);
+  } catch (e) {
+    setTimeout(connectWebSocket, 3000);
+    return;
+  }
+
+  ws.onopen = () => {
+    try {
+      ws.send(JSON.stringify({
+        type: 'hello',
+        username: currentUser.username,
+        password: currentUser.password
+      }));
+    } catch (e) {}
+  };
+
+  ws.onmessage = (ev) => {
+    let msg;
+    try { msg = JSON.parse(ev.data); } catch { return; }
+    handleWsMessage(msg);
+  };
+
+  ws.onclose = () => {
+    wsConnected = false;
+    ws = null;
+    remotePlayers.clear();
+    if (currentUser) setTimeout(connectWebSocket, 3000);
+  };
+
+  ws.onerror = () => { /* молча — переподключимся */ };
+}
+
+function mkRemote(p) {
+  return {
+    u: p.u,
+    x: p.x, y: p.y,
+    targetX: p.x, targetY: p.y,
+    lx: (typeof p.lx === 'number' ? p.lx : 1),
+    ly: (typeof p.ly === 'number' ? p.ly : 0),
+    hp: (typeof p.hp === 'number' ? p.hp : 100),
+    mhp: (typeof p.mhp === 'number' ? p.mhp : 100),
+    color: p.c || '#ffb300',
+    waterForm: !!p.wf,
+    hitFlash: 0,
+    punchAnim: 0
+  };
+}
+
+function handleWsMessage(msg) {
+  if (msg.type === 'hello_ok') {
+    wsConnected = true;
+    myNetColor = msg.you && msg.you.c ? msg.you.c : '#ffb300';
+    remotePlayers.clear();
+    if (Array.isArray(msg.players)) {
+      for (const p of msg.players) remotePlayers.set(p.u, mkRemote(p));
+    }
+    // сразу отправим свою позицию, чтобы другие увидели нас не через 50 мс
+    syncPositionNow();
+    showToast('🌐 Подключено к серверу (' + remotePlayers.size + ' онлайн)');
+    return;
+  }
+  if (msg.type === 'hello_err') {
+    showToast('❌ Мультиплеер: ' + (msg.error || 'ошибка авторизации'));
+    return;
+  }
+  if (msg.type === 'join') {
+    remotePlayers.set(msg.u, mkRemote(msg));
+    showToast('👋 ' + msg.u + ' зашёл в игру');
+    return;
+  }
+  if (msg.type === 'leave') {
+    if (remotePlayers.has(msg.u)) remotePlayers.delete(msg.u);
+    return;
+  }
+  if (msg.type === 'pos') {
+    const rp = remotePlayers.get(msg.u);
+    if (rp) {
+      rp.targetX = msg.x;
+      rp.targetY = msg.y;
+      rp.lx = msg.lx;
+      rp.ly = msg.ly;
+      rp.hp = msg.hp;
+      rp.mhp = msg.mhp;
+      rp.waterForm = !!msg.wf;
+    } else {
+      remotePlayers.set(msg.u, mkRemote({
+        u: msg.u, x: msg.x, y: msg.y, lx: msg.lx, ly: msg.ly,
+        hp: msg.hp, mhp: msg.mhp, c: msg.c, wf: msg.wf
+      }));
+    }
+    return;
+  }
+  if (msg.type === 'hurt') {
+    // PvP-урон по мне. Сервер авторитетен — выставляем его hp.
+    player.hp = Math.max(0, msg.hp);
+    player.hitFlash = 12;
+    damageNumbers.push({
+      x: player.x, y: player.y - player.radius,
+      vy: -1.6, life: 60, maxLife: 60,
+      text: '-' + msg.dmg, color: '#ff4444'
+    });
+    showToast('💥 ' + msg.from + ' ударил тебя (-' + msg.dmg + ' HP)');
+    if (player.hp <= 0) {
+      showToast('💀 Ты убит игроком ' + msg.from);
+    }
+    return;
+  }
+  if (msg.type === 'hitfx') {
+    // Кто-то кого-то ударил рядом — показываем искры и цифру
+    spawnImpactEffect(msg.x, msg.y);
+    damageNumbers.push({
+      x: msg.x, y: msg.y - 30,
+      vy: -1.6, life: 60, maxLife: 60,
+      text: '-' + msg.dmg, color: '#ffdd00'
+    });
+    const rp = remotePlayers.get(msg.target);
+    if (rp) rp.hitFlash = 12;
+    return;
+  }
+  if (msg.type === 'kill') {
+    showToast('☠️ ' + msg.from + ' убил ' + msg.target);
+    return;
+  }
+  if (msg.type === 'respawn') {
+    player.x = msg.x;
+    player.y = msg.y;
+    player.hp = msg.hp || getMaxHp();
+    player.invulnUntil = performance.now() + 1500;
+    showToast('🛡 Респавн');
+    return;
+  }
+}
+
+function syncPositionNow() {
+  if (!ws || ws.readyState !== 1 || !currentUser) return;
+  try {
+    ws.send(JSON.stringify({
+      type: 'move',
+      x: Math.round(player.x),
+      y: Math.round(player.y),
+      lx: +player.lookX.toFixed(2),
+      ly: +player.lookY.toFixed(2),
+      hp: Math.round(player.hp),
+      mhp: getMaxHp(),
+      wf: isInWaterForm()
+    }));
+  } catch (e) {}
+}
+
+// 20 раз в секунду отправляем свою позицию
+setInterval(syncPositionNow, 50);
+
+// Отправка удара по игроку
+function sendHit(targetUsername, dmg, kind) {
+  if (!ws || ws.readyState !== 1) return;
+  try {
+    ws.send(JSON.stringify({
+      type: 'hit',
+      target: targetUsername,
+      dmg: Math.max(1, Math.round(dmg)),
+      kind: kind === 'ranged' ? 'ranged' : 'melee'
+    }));
+  } catch (e) {}
+}
 
 // ==================== МИР ====================
 const camera = { x: 0, y: 0 };
@@ -507,6 +686,15 @@ function punchFist() {
     if (Math.hypot(pir.x - px, pir.y - py) < hr) { damagePirate(pir, f, px, py); pir.chasing = true; }
   }
   if (Math.hypot(npc.x - px, npc.y - py) < hr) damageNpc(f);
+
+  // PvP: кулак бьёт удалённых игроков
+  for (const rp of remotePlayers.values()) {
+    if (Math.hypot(rp.x - px, rp.y - py) < hr + player.radius) {
+      sendHit(rp.u, f, 'melee');
+      spawnImpactEffect(rp.x, rp.y);
+    }
+  }
+
   for (let i = 0; i < 8; i++) {
     const a = Math.atan2(dy, dx) + (Math.random() - 0.5) * 1.2;
     const s = 3 + Math.random() * 3;
@@ -910,6 +1098,16 @@ function update() {
   let g = 0;
   while (pendingXp.length > 0 && g < 50) { g++; addXp(pendingXp.shift()); }
 
+  // Интерполяция удалённых игроков
+  for (const rp of remotePlayers.values()) {
+    const ddx = rp.targetX - rp.x;
+    const ddy = rp.targetY - rp.y;
+    rp.x += ddx * 0.25;
+    rp.y += ddy * 0.25;
+    if (rp.hitFlash > 0) rp.hitFlash--;
+    if (rp.punchAnim > 0) rp.punchAnim = Math.max(0, rp.punchAnim - 0.08);
+  }
+
   const now = performance.now();
   const blocked = bagOpen || statsOpen || questDialogOpen;
   player.isRunning = !!keys['control'] && player.stamina > 0 && !blocked && !aimingAbility;
@@ -983,6 +1181,19 @@ function update() {
         else { hit = true; spawnImpactEffect(p.x, p.y); break; }
       }
     }
+    // PvP через снаряды
+    if (!hit) {
+      for (const rp of remotePlayers.values()) {
+        if (p.pierced.has(rp.u)) continue;
+        if (Math.hypot(p.x - rp.x, p.y - rp.y) < p.radius + player.radius) {
+          sendHit(rp.u, p.damage, 'ranged');
+          spawnImpactEffect(p.x, p.y);
+          if (p.kind === 'ice_spear') { p.pierced.add(rp.u); }
+          else { hit = true; }
+          break;
+        }
+      }
+    }
     if (hit || p.life <= 0) projectiles.splice(i, 1);
   }
 
@@ -1008,6 +1219,18 @@ function update() {
         }
       }
     }
+    // PvP через акул
+    if (!hit) {
+      for (const rp of remotePlayers.values()) {
+        if (s.pierced.has(rp.u)) continue;
+        if (Math.hypot(s.x - rp.x, s.y - rp.y) < s.radius + player.radius) {
+          sendHit(rp.u, s.damage, 'ranged');
+          s.pierced.add(rp.u);
+          spawnSharkImpact(s.x, s.y);
+          break;
+        }
+      }
+    }
     if (hit || s.life <= 0) sharkBites.splice(i, 1);
   }
 
@@ -1019,6 +1242,14 @@ function update() {
     w.radius = w.maxRadius * t;
     for (const pir of pirates) { if (pir.dead || w.damagedOnce.has(pir)) continue; if (Math.hypot(pir.x - w.x, pir.y - w.y) < w.radius) { damagePirate(pir, w.damage); w.damagedOnce.add(pir); } }
     if (!w.damagedOnce.has('npc') && Math.hypot(npc.x - w.x, npc.y - w.y) < w.radius) { damageNpc(w.damage); w.damagedOnce.add('npc'); }
+    // PvP
+    for (const rp of remotePlayers.values()) {
+      if (w.damagedOnce.has(rp.u)) continue;
+      if (Math.hypot(rp.x - w.x, rp.y - w.y) < w.radius) {
+        sendHit(rp.u, w.damage, 'ranged');
+        w.damagedOnce.add(rp.u);
+      }
+    }
     const pullR = 350;
     for (const pir of pirates) {
       if (pir.dead) continue;
@@ -1051,6 +1282,12 @@ function update() {
       z.applied = true;
       for (const pir of pirates) { if (pir.dead) continue; if (Math.hypot(pir.x - z.x, pir.y - z.y) < z.maxRadius) { damagePirate(pir, z.damage); if (!pir.dead) pir.frozenUntil = performance.now() + z.freezeDuration; } }
       if (Math.hypot(npc.x - z.x, npc.y - z.y) < z.maxRadius) damageNpc(z.damage);
+      // PvP
+      for (const rp of remotePlayers.values()) {
+        if (Math.hypot(rp.x - z.x, rp.y - z.y) < z.maxRadius) {
+          sendHit(rp.u, z.damage, 'ranged');
+        }
+      }
     }
     if (z.life <= 0) iceZones.splice(i, 1);
   }
@@ -1069,6 +1306,11 @@ function update() {
       m.impactDone = true;
       for (const pir of pirates) { if (pir.dead) continue; if (Math.hypot(pir.x - m.targetX, pir.y - m.targetY) < m.radius) { damagePirate(pir, m.damage); if (!pir.dead) pir.stunUntil = performance.now() + 2000; } }
       if (Math.hypot(npc.x - m.targetX, npc.y - m.targetY) < m.radius) damageNpc(m.damage);
+      for (const rp of remotePlayers.values()) {
+        if (Math.hypot(rp.x - m.targetX, rp.y - m.targetY) < m.radius) {
+          sendHit(rp.u, m.damage, 'ranged');
+        }
+      }
       for (let k = 0; k < 40; k++) { const a = Math.random() * Math.PI * 2; const s = 3 + Math.random() * 8; particles.push({ x: m.targetX, y: m.targetY, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 40, maxLife: 70, radius: 4 + Math.random() * 6, color: '#aaffff' }); }
       particles.push({ isShockwave: true, x: m.targetX, y: m.targetY, radius: 10, maxRadius: 150, life: 30, maxLife: 30, color: '#aaffff' });
       iceFields.push({ x: m.targetX, y: m.targetY, radius: 100, life: 300, maxLife: 300 });
@@ -1304,6 +1546,89 @@ function drawPirates() {
       ctx.strokeText(txt, x, hy + hh / 2); ctx.fillText(txt, x, hy + hh / 2);
     }
     ctx.globalAlpha = 1;
+  }
+}
+
+// ==================== ОТРИСОВКА ДРУГИХ ИГРОКОВ ====================
+function drawRemotePlayers() {
+  for (const rp of remotePlayers.values()) {
+    const x = rp.x - camera.x;
+    const y = rp.y - camera.y;
+    const r = player.radius;
+    const inWater = rp.waterForm;
+
+    // В воде — всплеск
+    if (inWater) {
+      const t = performance.now() * 0.005;
+      const ar = 65 + Math.sin(t * 3) * 6;
+      const ag = ctx.createRadialGradient(x, y, r * 0.7, x, y, ar);
+      ag.addColorStop(0, 'rgba(80,200,255,0.4)');
+      ag.addColorStop(0.5, 'rgba(30,100,200,0.25)');
+      ag.addColorStop(1, 'rgba(0,50,120,0)');
+      ctx.beginPath(); ctx.arc(x, y, ar, 0, Math.PI * 2); ctx.fillStyle = ag; ctx.fill();
+    }
+
+    // тень
+    ctx.beginPath();
+    ctx.ellipse(x, y + r * 0.9, r * 0.9, 7, 0, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fill();
+
+    // тело
+    const isHit = rp.hitFlash > 0;
+    const g = ctx.createRadialGradient(x - r * 0.35, y - r * 0.35, 3, x, y, r);
+    if (isHit) { g.addColorStop(0, '#ffffff'); g.addColorStop(1, '#ff6666'); }
+    else if (inWater) { g.addColorStop(0, '#aaffff'); g.addColorStop(1, '#2288cc'); }
+    else {
+      try { g.addColorStop(0, lightenColor(rp.color, 0.35)); } catch (e) { g.addColorStop(0, '#ffddaa'); }
+      try { g.addColorStop(1, rp.color); } catch (e) { g.addColorStop(1, '#ffb300'); }
+    }
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
+    let strokeCol = '#b37700';
+    try { strokeCol = darkenColor(rp.color, 0.3); } catch (e) {}
+    if (inWater) strokeCol = '#005588';
+    ctx.strokeStyle = strokeCol; ctx.lineWidth = 3; ctx.stroke();
+
+    // глаза смотрят по направлению rp.lx, rp.ly
+    let lx = rp.lx, ly = rp.ly;
+    if (lx === 0 && ly === 0) { lx = 0.3; ly = 0.5; }
+    const ll = Math.hypot(lx, ly) || 1; lx /= ll; ly /= ll;
+    const eo = r * 0.35, eoy = -r * 0.15, er = r * 0.28, pr = er * 0.55, ps = er * 0.35;
+    const eLx = x - eo, eLy = y + eoy, eRx = x + eo, eRy = y + eoy;
+    ctx.beginPath(); ctx.arc(eLx, eLy, er, 0, Math.PI * 2); ctx.fillStyle = 'white'; ctx.fill(); ctx.strokeStyle = '#333'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.beginPath(); ctx.arc(eRx, eRy, er, 0, Math.PI * 2); ctx.fillStyle = 'white'; ctx.fill(); ctx.strokeStyle = '#333'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.beginPath(); ctx.arc(eLx + lx * ps, eLy + ly * ps, pr, 0, Math.PI * 2); ctx.fillStyle = inWater ? '#003366' : '#1a1a1a'; ctx.fill();
+    ctx.beginPath(); ctx.arc(eRx + lx * ps, eRy + ly * ps, pr, 0, Math.PI * 2); ctx.fillStyle = inWater ? '#003366' : '#1a1a1a'; ctx.fill();
+
+    // рот
+    ctx.beginPath();
+    ctx.arc(x, y + r * 0.25, r * 0.4, 0.15 * Math.PI, 0.85 * Math.PI);
+    ctx.strokeStyle = inWater ? '#003366' : '#5a3a00';
+    ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.stroke();
+
+    // ник
+    ctx.font = 'bold 13px Arial';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
+    ctx.strokeText(rp.u, x, y - r - 12);
+    ctx.fillStyle = rp.color || '#ffd700';
+    try { ctx.fillStyle = rp.color; } catch (e) {}
+    ctx.fillText(rp.u, x, y - r - 12);
+
+    // HP-бар если не полный
+    if (rp.hp < rp.mhp) {
+      const bw = 52, bh = 6;
+      const bx = x - bw / 2;
+      const by = y - r - 32;
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      roundRect(bx - 2, by - 2, bw + 4, bh + 4, 3); ctx.fill();
+      ctx.fillStyle = '#3a0000';
+      roundRect(bx, by, bw, bh, 2); ctx.fill();
+      const hr = Math.max(0, rp.hp) / rp.mhp;
+      if (hr > 0) {
+        ctx.fillStyle = '#ff3b3b';
+        roundRect(bx, by, bw * hr, bh, 2); ctx.fill();
+      }
+    }
   }
 }
 
@@ -1750,6 +2075,14 @@ function drawPlayerStats() {
     const wt = '🌊 ТОНЕШЬ! -30 HP/сек';
     ctx.strokeText(wt, x + bw, wy); ctx.fillText(wt, x + bw, wy);
   }
+  // Онлайн счётчик внизу справа
+  if (wsConnected) {
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    roundRect(x - 4, sy + bh + 20, bw + 8, 24, 6); ctx.fill();
+    ctx.fillStyle = '#88ff88'; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const onl = `🌐 Онлайн: ${remotePlayers.size + 1}`;
+    ctx.fillText(onl, x + bw / 2, sy + bh + 32);
+  }
 }
 
 function drawActiveQuest() {
@@ -1931,6 +2264,7 @@ function gameLoop() {
     drawQuestNpc();
     drawNpc();
     drawPirates();
+    drawRemotePlayers();
     drawMeteors();
     drawSharkBites();
     drawWhipTrails();
