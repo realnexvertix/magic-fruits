@@ -1,103 +1,346 @@
 const express = require('express');
-const Database = require('better-sqlite3');
-const bcrypt = require('bcryptjs');
-const cors = require('cors');
+const http = require('http');
 const path = require('path');
+const crypto = require('crypto');
+const sqlite3 = require('sqlite3').verbose();
+const { WebSocketServer } = require('ws');
 
 const app = express();
+const server = http.createServer(app);
 const PORT = process.env.PORT || 3000;
 
-app.use(cors());
-app.use(express.json({ limit: '5mb' }));
+app.use(express.json({ limit: '1mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-const db = new Database(path.join(__dirname, 'accounts.db'));
-
-db.exec(`
-  CREATE TABLE IF NOT EXISTS accounts (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT UNIQUE NOT NULL,
+// ==================== БАЗА ДАННЫХ ====================
+const db = new sqlite3.Database('./game.db');
+db.serialize(() => {
+  db.run(`CREATE TABLE IF NOT EXISTS users (
+    username TEXT PRIMARY KEY,
     password TEXT NOT NULL,
-    save_data TEXT,
-    created_at INTEGER NOT NULL,
-    updated_at INTEGER NOT NULL
-  );
-`);
+    data     TEXT
+  )`);
+});
 
-console.log('✅ База данных готова');
+function hashPassword(p) {
+  return crypto.createHash('sha256').update(p + '::magic_fruits_salt').digest('hex');
+}
+function dbGet(sql, params = []) {
+  return new Promise((res, rej) => db.get(sql, params, (e, r) => e ? rej(e) : res(r)));
+}
+function dbRun(sql, params = []) {
+  return new Promise((res, rej) => db.run(sql, params, function (e) { e ? rej(e) : res(this); }));
+}
 
-app.post('/api/register', (req, res) => {
-  const { username, password } = req.body;
-  if (!username || username.length < 3 || username.length > 20) {
-    return res.json({ ok: false, error: 'Ник 3-20 символов' });
-  }
-  if (!password || password.length < 3) {
-    return res.json({ ok: false, error: 'Пароль от 3 символов' });
-  }
+// ==================== REST API ====================
+app.post('/api/register', async (req, res) => {
   try {
-    const existing = db.prepare('SELECT id FROM accounts WHERE username = ?').get(username);
-    if (existing) return res.json({ ok: false, error: 'Ник занят' });
-    const hash = bcrypt.hashSync(password, 10);
-    const now = Date.now();
-    const defaultData = {
-      level: 1, xp: 0, statPoints: 0,
-      points: { damage: 0, health: 0, fruit: 0 },
-      playerX: 0, playerY: 0,
-      inventory: [{ type: 'fists', name: 'Кулаки' }, null, null, null, null],
-      bag: [], fruitCount: 0, collectedFruits: [],
-      quest: null, hp: 100, stamina: 100,
-      waterMeter: 0
-    };
-    db.prepare('INSERT INTO accounts (username, password, save_data, created_at, updated_at) VALUES (?, ?, ?, ?, ?)')
-      .run(username, hash, JSON.stringify(defaultData), now, now);
-    console.log(`📝 Регистрация: ${username}`);
-    res.json({ ok: true, username, data: defaultData });
+    const { username, password } = req.body || {};
+    if (!username || username.length < 3) return res.json({ ok: false, error: 'Ник минимум 3 символа' });
+    if (!password || password.length < 3) return res.json({ ok: false, error: 'Пароль минимум 3 символа' });
+    const exists = await dbGet('SELECT username FROM users WHERE username=?', [username]);
+    if (exists) return res.json({ ok: false, error: 'Ник уже занят' });
+    await dbRun('INSERT INTO users (username, password, data) VALUES (?,?,?)',
+      [username, hashPassword(password), JSON.stringify({})]);
+    res.json({ ok: true, data: {} });
   } catch (e) {
-    console.error(e);
+    console.error('[register]', e);
     res.json({ ok: false, error: 'Ошибка сервера' });
   }
 });
 
-app.post('/api/login', (req, res) => {
-  const { username, password } = req.body;
-  if (!username || !password) return res.json({ ok: false, error: 'Введите данные' });
+app.post('/api/login', async (req, res) => {
   try {
-    const acc = db.prepare('SELECT * FROM accounts WHERE username = ?').get(username);
-    if (!acc) return res.json({ ok: false, error: 'Аккаунт не найден' });
-    if (!bcrypt.compareSync(password, acc.password)) {
-      return res.json({ ok: false, error: 'Неверный пароль' });
-    }
-    const data = acc.save_data ? JSON.parse(acc.save_data) : null;
-    console.log(`✅ Вход: ${username}`);
-    res.json({ ok: true, username, data });
+    const { username, password } = req.body || {};
+    if (!username || !password) return res.json({ ok: false, error: 'Введи ник и пароль' });
+    const row = await dbGet('SELECT username, password, data FROM users WHERE username=?', [username]);
+    if (!row) return res.json({ ok: false, error: 'Игрок не найден' });
+    if (row.password !== hashPassword(password)) return res.json({ ok: false, error: 'Неверный пароль' });
+    let data = {};
+    try { data = row.data ? JSON.parse(row.data) : {}; } catch { data = {}; }
+    res.json({ ok: true, data });
   } catch (e) {
-    console.error(e);
+    console.error('[login]', e);
     res.json({ ok: false, error: 'Ошибка сервера' });
   }
 });
 
-app.post('/api/save', (req, res) => {
-  const { username, password, data } = req.body;
-  if (!username || !password || !data) return res.json({ ok: false, error: 'Мало данных' });
+app.post('/api/save', async (req, res) => {
   try {
-    const acc = db.prepare('SELECT * FROM accounts WHERE username = ?').get(username);
-    if (!acc) return res.json({ ok: false, error: 'Не найден' });
-    if (!bcrypt.compareSync(password, acc.password)) {
-      return res.json({ ok: false, error: 'Неверный пароль' });
-    }
-    db.prepare('UPDATE accounts SET save_data = ?, updated_at = ? WHERE username = ?')
-      .run(JSON.stringify(data), Date.now(), username);
+    const { username, password, data } = req.body || {};
+    if (!username || !password) return res.json({ ok: false, error: 'Не авторизован' });
+    const row = await dbGet('SELECT password FROM users WHERE username=?', [username]);
+    if (!row || row.password !== hashPassword(password)) return res.json({ ok: false, error: 'Не авторизован' });
+    await dbRun('UPDATE users SET data=? WHERE username=?', [JSON.stringify(data || {}), username]);
     res.json({ ok: true });
   } catch (e) {
-    console.error(e);
-    res.json({ ok: false, error: 'Ошибка сохранения' });
+    console.error('[save]', e);
+    res.json({ ok: false, error: 'Ошибка сервера' });
   }
 });
 
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+// ==================== WEBSOCKET ====================
+const wss = new WebSocketServer({ server });
+
+// Карта онлайн-игроков: username -> state
+const players = new Map();
+
+const COLORS = [
+  '#ffb300', '#ff5566', '#66ff99', '#aaddff',
+  '#ffaaee', '#ffdd88', '#88ddff', '#dd88ff',
+  '#c8ff88', '#ffcc66', '#88ffcc', '#ff8844'
+];
+function pickColor(username) {
+  let h = 0;
+  for (let i = 0; i < username.length; i++) h = (h * 31 + username.charCodeAt(i)) | 0;
+  return COLORS[Math.abs(h) % COLORS.length];
+}
+
+function broadcastAll(msg) {
+  const raw = JSON.stringify(msg);
+  for (const p of players.values()) {
+    if (p.ws.readyState === 1) { try { p.ws.send(raw); } catch (e) {} }
+  }
+}
+function broadcastExcept(msg, exceptUsername) {
+  const raw = JSON.stringify(msg);
+  for (const [u, p] of players) {
+    if (u === exceptUsername) continue;
+    if (p.ws.readyState === 1) { try { p.ws.send(raw); } catch (e) {} }
+  }
+}
+function snapshotExcept(exceptUsername) {
+  const list = [];
+  for (const [u, p] of players) {
+    if (u === exceptUsername) continue;
+    list.push({
+      u,
+      x: Math.round(p.x),
+      y: Math.round(p.y),
+      lx: +p.lx.toFixed(2),
+      ly: +p.ly.toFixed(2),
+      hp: Math.round(p.hp),
+      mhp: p.mhp,
+      c: p.color,
+      wf: p.waterForm
+    });
+  }
+  return list;
+}
+
+wss.on('connection', (ws) => {
+  let username = null;
+  ws.isAlive = true;
+  ws.on('pong', () => { ws.isAlive = true; });
+
+  ws.on('message', async (buf) => {
+    let msg;
+    try { msg = JSON.parse(buf.toString()); } catch { return; }
+
+    // -------- АВТОРИЗАЦИЯ --------
+    if (msg.type === 'hello') {
+      if (typeof msg.username !== 'string' || typeof msg.password !== 'string') {
+        ws.send(JSON.stringify({ type: 'hello_err', error: 'Неверные данные' }));
+        try { ws.close(); } catch (e) {}
+        return;
+      }
+      let row;
+      try {
+        row = await dbGet('SELECT password FROM users WHERE username=?', [msg.username]);
+      } catch (e) {
+        ws.send(JSON.stringify({ type: 'hello_err', error: 'Ошибка БД' }));
+        try { ws.close(); } catch (err) {}
+        return;
+      }
+      if (!row || row.password !== hashPassword(msg.password)) {
+        ws.send(JSON.stringify({ type: 'hello_err', error: 'Авторизация не пройдена' }));
+        try { ws.close(); } catch (e) {}
+        return;
+      }
+      username = msg.username;
+
+      // закрываем старое соединение, если игрок уже был онлайн
+      const prev = players.get(username);
+      if (prev && prev.ws !== ws) { try { prev.ws.close(); } catch (e) {} }
+
+      const me = {
+        ws,
+        username,
+        x: 0, y: 0,
+        lx: 1, ly: 0,
+        hp: 100, mhp: 100,
+        color: pickColor(username),
+        waterForm: false,
+        invulnUntil: 0,
+        lastMoveTime: Date.now(),
+        kills: 0,
+        deaths: 0,
+        hitCount: 0,
+        hitResetAt: 0
+      };
+      players.set(username, me);
+
+      ws.send(JSON.stringify({
+        type: 'hello_ok',
+        you: { u: username, c: me.color },
+        players: snapshotExcept(username)
+      }));
+
+      broadcastExcept({
+        type: 'join',
+        u: username,
+        x: me.x, y: me.y,
+        lx: me.lx, ly: me.ly,
+        hp: me.hp, mhp: me.mhp,
+        c: me.color, wf: me.waterForm
+      }, username);
+
+      console.log(`[ws] + ${username} (online ${players.size})`);
+      return;
+    }
+
+    if (!username) return;
+    const me = players.get(username);
+    if (!me) return;
+
+    // -------- ДВИЖЕНИЕ --------
+    if (msg.type === 'move') {
+      const nx = Number(msg.x), ny = Number(msg.y);
+      if (!Number.isFinite(nx) || !Number.isFinite(ny)) return;
+
+      const now = Date.now();
+      const dt = Math.max(0.01, (now - me.lastMoveTime) / 1000);
+      me.lastMoveTime = now;
+
+      const dx = nx - me.x, dy = ny - me.y;
+      const dist = Math.hypot(dx, dy);
+      const maxDist = 600 * dt + 60; // макс 600 px/сек + запас
+
+      if (dist > maxDist && dist > 0) {
+        const f = maxDist / dist;
+        me.x = me.x + dx * f;
+        me.y = me.y + dy * f;
+      } else {
+        me.x = nx;
+        me.y = ny;
+      }
+
+      if (typeof msg.lx === 'number' && Number.isFinite(msg.lx)) me.lx = msg.lx;
+      if (typeof msg.ly === 'number' && Number.isFinite(msg.ly)) me.ly = msg.ly;
+      if (typeof msg.hp === 'number' && Number.isFinite(msg.hp)) me.hp = Math.max(0, Math.min(msg.hp, me.mhp));
+      if (typeof msg.mhp === 'number' && Number.isFinite(msg.mhp)) me.mhp = msg.mhp;
+      if (typeof msg.wf === 'boolean') me.waterForm = msg.wf;
+
+      broadcastExcept({
+        type: 'pos',
+        u: username,
+        x: Math.round(me.x), y: Math.round(me.y),
+        lx: +me.lx.toFixed(2), ly: +me.ly.toFixed(2),
+        hp: Math.round(me.hp), mhp: me.mhp,
+        c: me.color, wf: me.waterForm
+      }, username);
+      return;
+    }
+
+    // -------- PvP УДАР --------
+    if (msg.type === 'hit') {
+      const target = players.get(msg.target);
+      if (!target || target.username === username) return;
+
+      const now = Date.now();
+
+      // rate limit: 10 ударов в секунду
+      if (now < me.hitResetAt) {
+        if (me.hitCount >= 10) return;
+        me.hitCount++;
+      } else {
+        me.hitResetAt = now + 1000;
+        me.hitCount = 1;
+      }
+
+      // неуязвимость цели
+      if (now < target.invulnUntil) return;
+
+      let dmg = Number(msg.dmg);
+      if (!Number.isFinite(dmg)) return;
+      dmg = Math.max(1, Math.min(50, Math.round(dmg)));
+
+      if (target.waterForm) dmg = Math.max(1, Math.floor(dmg * 0.8));
+
+      // проверка дистанции
+      const dist = Math.hypot(target.x - me.x, target.y - me.y);
+      const kind = msg.kind === 'ranged' ? 'ranged' : 'melee';
+      if (kind === 'melee' && dist > 260) return;
+      if (kind === 'ranged' && dist > 1200) return;
+
+      target.hp = Math.max(0, target.hp - dmg);
+      target.invulnUntil = now + 400;
+
+      if (target.ws.readyState === 1) {
+        try {
+          target.ws.send(JSON.stringify({
+            type: 'hurt',
+            from: username,
+            dmg,
+            hp: Math.round(target.hp)
+          }));
+        } catch (e) {}
+      }
+
+      broadcastAll({
+        type: 'hitfx',
+        from: username,
+        target: target.username,
+        dmg,
+        x: Math.round(target.x),
+        y: Math.round(target.y)
+      });
+
+      if (target.hp <= 0) {
+        target.deaths++;
+        me.kills++;
+        target.hp = target.mhp;
+        target.x = 0;
+        target.y = 0;
+        target.invulnUntil = now + 2000;
+        if (target.ws.readyState === 1) {
+          try {
+            target.ws.send(JSON.stringify({
+              type: 'respawn',
+              x: 0, y: 0,
+              hp: Math.round(target.hp)
+            }));
+          } catch (e) {}
+        }
+        broadcastAll({ type: 'kill', from: username, target: target.username });
+      }
+      return;
+    }
+  });
+
+  ws.on('close', () => {
+    if (username) {
+      const p = players.get(username);
+      if (p && p.ws === ws) {
+        players.delete(username);
+        broadcastAll({ type: 'leave', u: username });
+        console.log(`[ws] - ${username} (online ${players.size})`);
+      }
+    }
+  });
+
+  ws.on('error', (e) => { console.error('[ws err]', e.message); });
 });
 
-app.listen(PORT, () => {
-  console.log(`\n🚀 Magic Fruits: порт ${PORT}\n`);
+// heartbeat раз в 30 секунд
+setInterval(() => {
+  for (const ws of wss.clients) {
+    if (ws.isAlive === false) { try { ws.terminate(); } catch (e) {} continue; }
+    ws.isAlive = false;
+    try { ws.ping(); } catch (e) {}
+  }
+}, 30000);
+
+server.listen(PORT, () => {
+  console.log(`Magic Fruits listening on port ${PORT}`);
 });
