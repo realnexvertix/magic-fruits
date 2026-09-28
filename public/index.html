@@ -38,7 +38,7 @@
 <canvas id="game"></canvas>
 <button id="fsBtn" title="Полный экран">⛶</button>
 <div id="ui">🍎 Фрукты: <span id="fruitCount">0</span> | 💰 Монеты: <span id="moneyCount">0</span></div>
-<div id="hint">WASD — движение | 1-5 — слоты | I — мешок | E — NPC | Tab — статистика | N N — админ<br><b>ЛКМ</b> — кулак | <b>Z / X / C / R</b> — способности | ⚠️ В море -30 HP/сек!</div>
+<div id="hint">WASD — движение | 1-5 — слоты | I — мешок | E — NPC | Tab — статистика | N N — админ<br><b>ЛКМ</b> — кулак | <b>Z / X / C / R / V</b> — способности | ⚠️ В море -30 HP/сек!</div>
 <div id="playerName"></div>
 <button id="logoutBtn">🚪 Выйти</button>
 
@@ -75,18 +75,14 @@ document.getElementById('fsBtn').addEventListener('click', () => {
 let currentUser = null;
 const API = '/api';
 
-// ==================== МУЛЬТИПЛЕЕР (состояние) ====================
+// ==================== МУЛЬТИПЛЕЕР ====================
 let ws = null;
 let wsConnected = false;
 let myNetColor = '#ffb300';
 const remotePlayers = new Map();
 
-function updateMoneyUi() {
-  document.getElementById('moneyCount').textContent = player.money;
-}
-function updateFruitUi() {
-  document.getElementById('fruitCount').textContent = player.fruitCount;
-}
+function updateMoneyUi() { document.getElementById('moneyCount').textContent = player.money; }
+function updateFruitUi() { document.getElementById('fruitCount').textContent = player.fruitCount; }
 
 function showAuth() {
   document.getElementById('authOverlay').classList.remove('hidden');
@@ -248,7 +244,6 @@ function connectWebSocket() {
     setTimeout(connectWebSocket, 3000);
     return;
   }
-
   ws.onopen = () => {
     try {
       ws.send(JSON.stringify({
@@ -258,20 +253,17 @@ function connectWebSocket() {
       }));
     } catch (e) {}
   };
-
   ws.onmessage = (ev) => {
     let msg;
     try { msg = JSON.parse(ev.data); } catch { return; }
     handleWsMessage(msg);
   };
-
   ws.onclose = () => {
     wsConnected = false;
     ws = null;
     remotePlayers.clear();
     if (currentUser) setTimeout(connectWebSocket, 3000);
   };
-
   ws.onerror = () => {};
 }
 
@@ -370,6 +362,20 @@ function handleWsMessage(msg) {
     showToast('🛡 Респавн');
     return;
   }
+  if (msg.type === 'admin_setlevel_ok') {
+    adminLog('✅ ' + msg.target + ' → уровень ' + msg.level, '#66ff66');
+    return;
+  }
+  if (msg.type === 'admin_setlevel_err') {
+    adminLog('❌ ' + msg.error, '#ff5555');
+    return;
+  }
+  if (msg.type === 'admin_setlevel_apply') {
+    stats.level = msg.level;
+    spawnLevelUpEffect(player.x, player.y);
+    showToast('🎁 Админ установил тебе ' + msg.level + ' уровень!');
+    return;
+  }
 }
 
 function syncPositionNow() {
@@ -402,6 +408,18 @@ function sendHit(targetUsername, dmg, kind) {
   } catch (e) {}
 }
 
+function sendAdminSetLevel(target, level) {
+  if (!ws || ws.readyState !== 1) return;
+  try {
+    ws.send(JSON.stringify({
+      type: 'admin_setlevel',
+      password: ADMIN_PASSWORD,
+      target: target,
+      level: level
+    }));
+  } catch (e) {}
+}
+
 // ==================== МИР ====================
 const camera = { x: 0, y: 0 };
 const ISLAND = { x: -1200, y: -900, width: 2400, height: 1800 };
@@ -430,7 +448,7 @@ addFence(-950, -550, 200, 10); addFence(-550, -680, 10, 200); addFence(150, -650
 // ==================== ХОТБАР ====================
 const INVENTORY_SLOTS = 5;
 const POWER_SLOT_INDEX = 1;
-const FRUIT_GIVE_SLOT = 4; // 5-й слот (индекс 4)
+const FRUIT_GIVE_SLOT = 4;
 const inventory = new Array(INVENTORY_SLOTS).fill(null);
 inventory[0] = { type: 'fists', name: 'Кулаки' };
 let heldSlot = 0;
@@ -439,39 +457,39 @@ let bagOpen = false;
 let abilityGuide = null;
 let statsOpen = false;
 
-// ==================== СПОСОБНОСТИ ====================
+// ==================== СПОСОБНОСТИ (кулдауны / 3.3) ====================
 const FIRE_ABILITIES = [
-  { id: 'fire_charge', name: 'Огненный заряд', key: 'Z', requiredMastery: 0, cooldown: 15, stamina: 10, damage: 10, description: 'Огненный шар · 10 урона · кд 15с' },
-  { id: 'flame_dash', name: 'Рывок пламени', key: 'X', requiredMastery: 10, cooldown: 6, stamina: 25, damage: 0, description: 'Рывок вперёд · кд 6с' }
+  { id: 'fire_charge', name: 'Огненный заряд', key: 'Z', requiredMastery: 0, cooldown: 4.5, stamina: 10, damage: 10, description: 'Огненный шар · 10 урона · кд 4.5с' },
+  { id: 'flame_dash', name: 'Рывок пламени', key: 'X', requiredMastery: 10, cooldown: 1.8, stamina: 25, damage: 0, description: 'Рывок вперёд · кд 1.8с' }
 ];
 const ICE_ABILITIES = [
-  { id: 'ice_spear', name: 'Ледяное копьё', key: 'Z', requiredMastery: 0, cooldown: 14, stamina: 15, damage: 6.5, description: 'Копьё · 6.5 урона · кд 14с' },
-  { id: 'ice_prison', name: 'Ледяная тюрьма', key: 'X', requiredMastery: 15, cooldown: 5, stamina: 40, damage: 12, description: 'Зона заморозки · 12 урона · кд 5с' },
-  { id: 'ice_meteor', name: 'Метеоритный лёд', key: 'C', requiredMastery: 40, cooldown: 25, stamina: 60, damage: 20, description: 'Глыба с неба · 20 урона · кд 25с' }
+  { id: 'ice_spear', name: 'Ледяное копьё', key: 'Z', requiredMastery: 0, cooldown: 4.2, stamina: 15, damage: 6.5, description: 'Копьё · 6.5 урона · кд 4.2с' },
+  { id: 'ice_prison', name: 'Ледяная тюрьма', key: 'X', requiredMastery: 15, cooldown: 1.5, stamina: 40, damage: 12, description: 'Зона заморозки · 12 урона · кд 1.5с' },
+  { id: 'ice_meteor', name: 'Метеоритный лёд', key: 'C', requiredMastery: 40, cooldown: 7.5, stamina: 60, damage: 20, description: 'Глыба с неба · 20 урона · кд 7.5с' }
 ];
 const SHARK_ABILITIES = [
-  { id: 'shark_bite', name: 'Акулий укус', key: 'Z', requiredMastery: 0, cooldown: 15, stamina: 20, damage: 15, description: 'Акула бросается · 15 урона · кд 15с' },
-  { id: 'shark_torrent', name: 'Поток акул', key: 'X', requiredMastery: 15, cooldown: 20, stamina: 45, damage: 5, description: 'Веер из 5 акул · 5 урона каждая · кд 20с' },
-  { id: 'shark_whirlpool', name: 'Водоворот', key: 'C', requiredMastery: 40, cooldown: 30, stamina: 55, damage: 27, description: 'Водоворот · 27 урона · кд 30с' },
+  { id: 'shark_bite', name: 'Акулий укус', key: 'Z', requiredMastery: 0, cooldown: 4.5, stamina: 20, damage: 15, description: 'Акула бросается · 15 урона · кд 4.5с' },
+  { id: 'shark_torrent', name: 'Поток акул', key: 'X', requiredMastery: 15, cooldown: 6, stamina: 45, damage: 5, description: 'Веер из 5 акул · 5 урона каждая · кд 6с' },
+  { id: 'shark_whirlpool', name: 'Водоворот', key: 'C', requiredMastery: 40, cooldown: 9, stamina: 55, damage: 27, description: 'Водоворот · 27 урона · кд 9с' },
   { id: 'shark_transform', name: 'Трансформация', key: 'R', requiredMastery: 0, cooldown: 0, stamina: 0, damage: 0, description: 'Нужна шкала воды. 90с водного облика', usesWaterMeter: true }
+];
+const CONTROL_ABILITIES = [
+  { id: 'control_zone', name: 'Зона контроля', key: 'Z', requiredMastery: 0, cooldown: 9, stamina: 30, damage: 0, description: 'Круглая зона 20с · кд 9с', aiming: false },
+  { id: 'control_lasers', name: 'Лазерная пицца', key: 'X', requiredMastery: 0, cooldown: 13.5, stamina: 40, damage: 22, description: '8 лучей по 22 урона · кд 13.5с (только в зоне)', aiming: false, zoneOnly: true },
+  { id: 'control_meteor', name: 'Метеор контроля', key: 'C', requiredMastery: 0, cooldown: 18, stamina: 50, damage: 35, description: '35 урона, +2 по зоне · кд 18с (только в зоне)', zoneOnly: true },
+  { id: 'control_beam', name: 'Луч контроля', key: 'V', requiredMastery: 0, cooldown: 27, stamina: 70, damage: 70, description: '70 урона через 2с · кд 27с (только в зоне)', zoneOnly: true }
 ];
 
 function getAbilitiesFor(name) {
   if (name === 'Огонь') return FIRE_ABILITIES;
   if (name === 'Лёд') return ICE_ABILITIES;
   if (name === 'Акула') return SHARK_ABILITIES;
+  if (name === 'Контроль') return CONTROL_ABILITIES;
   return [];
 }
 
-// Редкости фруктов
-const FRUIT_RARITY = {
-  'Огонь': 'common',
-  'Лёд': 'uncommon',
-  'Акула': 'legendary'
-};
-function getFruitRarity(name) {
-  return FRUIT_RARITY[name] || 'common';
-}
+const FRUIT_RARITY = { 'Огонь': 'common', 'Лёд': 'uncommon', 'Акула': 'legendary', 'Контроль': 'mythic' };
+function getFruitRarity(name) { return FRUIT_RARITY[name] || 'common'; }
 function getRarityLabel(rar) {
   if (rar === 'common') return '⚪ Обычный';
   if (rar === 'uncommon') return '🟢 Необычный';
@@ -532,10 +550,9 @@ const WATER_METER_PER_KILL = 12.5;
 let waterMeter = 0;
 
 // ==================== ПРОКРУТКА ФРУКТОВ ====================
-const ROLL_COOLDOWN_MS = 30 * 60 * 1000; // 30 минут
+const ROLL_COOLDOWN_MS = 30 * 60 * 1000;
 const ROLL_MIN_LEVEL = 3;
 let rollCooldownUntil = 0;
-
 function getRollCost() {
   const lvlForCost = Math.max(0, stats.level - ROLL_MIN_LEVEL);
   return Math.floor(300 * Math.pow(1.1, lvlForCost));
@@ -565,49 +582,34 @@ const player = {
   seaDamageTimer: 0
 };
 const TRANSFORM_DURATION = 90000;
-// Реген HP: 0.0118/кадр ≈ 0.708/сек (было 0.02/кадр — замедлено в 1.7 раз)
-const HP_REGEN_PER_FRAME = 0.02 / 1.7;
+const HP_REGEN_PER_TICK = 0.02 / 1.7;
 const HP_REGEN_DELAY_MS = 7000;
-// Реген стамины: 0.12/кадр ≈ 7.2/сек (было 0.3/кадр — замедлено в 2.5 раз)
-const STAMINA_REGEN_PER_FRAME = 0.3 / 2.5;
+const STAMINA_REGEN_PER_TICK = 0.3 / 2.5;
 
-// ==================== МОНЕТЫ (замена разбросанных фруктов) ====================
-const coinsOnGround = [];
-const droppedFruits = []; // фрукты, сброшенные игроками
-const COIN_RESPAWN_MS = 40000;
-const MAX_COINS = 30;
+// ==================== МОНЕТЫ УБРАНЫ ====================
+const droppedFruits = [];
 
-function randomIslandPos() {
-  for (let tries = 0; tries < 40; tries++) {
-    const x = ISLAND.x + BEACH_WIDTH + Math.random() * (ISLAND.width - BEACH_WIDTH * 2);
-    const y = ISLAND.y + BEACH_WIDTH + Math.random() * (ISLAND.height - BEACH_WIDTH * 2);
-    if (canBeAt(x, y, 20)) return { x, y };
-  }
-  return { x: 0, y: 0 };
+// ==================== КОНТРОЛЬ: ЗОНА И ЭФФЕКТЫ ====================
+let controlZone = null;
+const controlLasers = [];
+const controlBeams = [];
+const controlMeteors = [];
+
+const CONTROL_ZONE_RADIUS = 320;
+const CONTROL_ZONE_DURATION_MS = 20000;
+const CONTROL_LASER_DAMAGE = 22;
+const CONTROL_LASER_DURATION_MS = 600;
+const CONTROL_BEAM_DAMAGE = 70;
+const CONTROL_BEAM_DELAY_MS = 2000;
+const CONTROL_BEAM_DURATION_MS = 3000;
+const CONTROL_METEOR_DAMAGE = 35;
+const CONTROL_METEOR_ZONE_DAMAGE = 2;
+
+function isInControlZone(x, y) {
+  if (!controlZone) return false;
+  if (performance.now() >= controlZone.until) return false;
+  return Math.hypot(x - controlZone.x, y - controlZone.y) <= controlZone.radius;
 }
-
-function spawnCoin() {
-  const pos = randomIslandPos();
-  coinsOnGround.push({
-    x: pos.x, y: pos.y, radius: 14,
-    value: 5 + Math.floor(Math.random() * 11), // 5–15
-    collected: false,
-    respawnAt: 0,
-    bobPhase: Math.random() * 6
-  });
-}
-function respawnCoin(c) {
-  const pos = randomIslandPos();
-  c.x = pos.x; c.y = pos.y;
-  c.value = 5 + Math.floor(Math.random() * 11);
-  c.collected = false;
-  c.bobPhase = Math.random() * 6;
-}
-for (let i = 0; i < MAX_COINS; i++) spawnCoin();
-
-// ==================== ФРУКТЫ (для выдачи админом / прокрутки / сброса) ====================
-// fruitsOnGround больше нет — теперь на карте монеты (coinsOnGround).
-// Фрукты, сброшенные игроками, лежат в droppedFruits.
 
 const npc = { x: 400, y: 200, radius: 30, maxHp: 1000, hp: 1000, color: '#d4a373', hitFlash: 0, shakeUntil: 0, shakeOffset: { x: 0, y: 0 }, slowUntil: 0 };
 
@@ -673,25 +675,17 @@ let adminHistory = [];
 let lastNPressTime = 0;
 const ADMIN_N_DOUBLE_PRESS_MS = 450;
 
-function openAdminConsole() {
-  adminOpen = true;
-  adminInput = '';
-}
-function closeAdminConsole() {
-  adminOpen = false;
-  adminInput = '';
-}
+function openAdminConsole() { adminOpen = true; adminInput = ''; }
+function closeAdminConsole() { adminOpen = false; adminInput = ''; }
 function adminLog(text, color) {
   adminHistory.push({ text, color: color || '#aaffaa', until: performance.now() + 4000 });
   if (adminHistory.length > 8) adminHistory.shift();
 }
 
-// Дать игроку обычный фрукт в 5-й слот хотбара
 function giveFruitToSlot5(name, color) {
   const slotIdx = FRUIT_GIVE_SLOT;
   const existing = inventory[slotIdx];
   if (existing && existing.type === 'fruit') {
-    // Старый фрукт уходит в мешок
     bag.push({ type: 'fruit', name: existing.name, color: existing.color });
     player.fruitCount = Math.max(0, player.fruitCount - 1);
   }
@@ -718,9 +712,9 @@ function adminSubmit() {
 
   const parts = cmd.split(/\s+/);
   const command = parts[0].toLowerCase();
-  const arg = parts.slice(1).join(' ').toLowerCase();
 
-  if (command === 'g') {
+  if (command === 'g' && parts.length === 2) {
+    const arg = parts[1].toLowerCase();
     const fruitMap = {
       'огонь':  { name: 'Огонь', color: '#ff6600' },
       'огня':   { name: 'Огонь', color: '#ff6600' },
@@ -731,12 +725,15 @@ function adminSubmit() {
       'ice':    { name: 'Лёд',   color: '#00c8ff' },
       'акула':  { name: 'Акула', color: '#1a4f8c' },
       'акулы':  { name: 'Акула', color: '#1a4f8c' },
-      'shark':  { name: 'Акула', color: '#1a4f8c' }
+      'shark':  { name: 'Акула', color: '#1a4f8c' },
+      'контроль': { name: 'Контроль', color: '#7c5cff' },
+      'контроля': { name: 'Контроль', color: '#7c5cff' },
+      'control': { name: 'Контроль', color: '#7c5cff' }
     };
     const fruit = fruitMap[arg];
     if (!fruit) {
       adminLog('❌ Фрукт не найден: ' + arg, '#ff5555');
-      adminLog('Доступно: огонь / лёд / акула', '#ffdd66');
+      adminLog('Доступно: огонь / лёд / акула / контроль', '#ffdd66');
       return;
     }
     giveFruitToSlot5(fruit.name, fruit.color);
@@ -744,79 +741,25 @@ function adminSubmit() {
     return;
   }
 
+  if (command === 'g' && parts.length >= 4 && parts[1].toLowerCase() === 'level') {
+    const lvl = parseInt(parts[2], 10);
+    const targetName = parts.slice(3).join(' ');
+    if (!Number.isFinite(lvl) || lvl < 1 || lvl > 20) {
+      adminLog('❌ Уровень должен быть 1-20', '#ff5555');
+      return;
+    }
+    if (!targetName) {
+      adminLog('❌ Укажи имя игрока: g level 4 Test1', '#ff5555');
+      return;
+    }
+    sendAdminSetLevel(targetName, lvl);
+    adminLog('📤 Запрос: ' + targetName + ' → уровень ' + lvl, '#aaddff');
+    return;
+  }
+
   adminLog('❌ Неизвестная команда: ' + command, '#ff5555');
-  adminLog('Доступно: g [фрукт]', '#ffdd66');
+  adminLog('Доступно: g [фрукт] | g level X имя', '#ffdd66');
 }
-
-function drawAdminConsole() {
-  if (!adminOpen) return;
-
-  ctx.fillStyle = 'rgba(0,0,0,0.55)';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  const pw = 640, ph = 400;
-  const px = (canvas.width - pw) / 2;
-  const py = (canvas.height - ph) / 2;
-  ctx.fillStyle = 'rgba(10, 15, 10, 0.95)';
-  ctx.strokeStyle = adminUnlocked ? '#66ff66' : '#ffaa00';
-  ctx.lineWidth = 3;
-  roundRect(px, py, pw, ph, 12); ctx.fill(); ctx.stroke();
-
-  ctx.fillStyle = adminUnlocked ? '#66ff66' : '#ffaa00';
-  ctx.font = 'bold 22px Consolas, monospace';
-  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-  ctx.fillText(adminUnlocked ? '⚙ АДМИН-КОНСОЛЬ [РАЗБЛОКИРОВАНА]' : '🔒 АДМИН-КОНСОЛЬ [ВВЕДИ ПАРОЛЬ]', px + 20, py + 18);
-
-  ctx.fillStyle = 'rgba(255,255,255,0.55)';
-  ctx.font = '13px Consolas, monospace';
-  if (adminUnlocked) {
-    ctx.fillText('Команда: g [фрукт]   ·   пример: g огонь', px + 20, py + 50);
-    ctx.fillText('Фрукты: огонь · лёд · акула   (кладётся в слот 5)', px + 20, py + 68);
-  } else {
-    ctx.fillText('Введи пароль администратора и нажми Enter', px + 20, py + 50);
-  }
-
-  const logY = py + 100;
-  const logH = ph - 180;
-  ctx.fillStyle = 'rgba(0,0,0,0.6)';
-  roundRect(px + 20, logY, pw - 40, logH, 6); ctx.fill();
-  ctx.strokeStyle = 'rgba(100,100,100,0.4)';
-  ctx.lineWidth = 1;
-  roundRect(px + 20, logY, pw - 40, logH, 6); ctx.stroke();
-
-  const now = performance.now();
-  const visibleHistory = adminHistory.filter(h => h.until > now);
-  ctx.font = '14px Consolas, monospace';
-  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-  for (let i = 0; i < visibleHistory.length; i++) {
-    ctx.fillStyle = visibleHistory[i].color;
-    ctx.fillText(visibleHistory[i].text, px + 32, logY + 10 + i * 20);
-  }
-
-  const inY = py + ph - 60;
-  ctx.fillStyle = 'rgba(0,0,0,0.7)';
-  roundRect(px + 20, inY, pw - 40, 40, 6); ctx.fill();
-  ctx.strokeStyle = adminUnlocked ? '#66ff66' : '#ffaa00';
-  ctx.lineWidth = 2;
-  roundRect(px + 20, inY, pw - 40, 40, 6); ctx.stroke();
-
-  ctx.fillStyle = '#66ff66';
-  ctx.font = 'bold 16px Consolas, monospace';
-  ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-  const promptText = adminUnlocked ? '> ' : '🔑 ';
-  ctx.fillText(promptText, px + 32, inY + 20);
-
-  ctx.fillStyle = '#ffffff';
-  const inputX = px + 32 + ctx.measureText(promptText).width;
-  const displayInput = adminUnlocked ? adminInput : '•'.repeat(adminInput.length);
-  ctx.fillText(displayInput + (Math.floor(now / 500) % 2 === 0 ? '_' : ''), inputX, inY + 20);
-
-  ctx.fillStyle = 'rgba(255,255,255,0.35)';
-  ctx.font = '11px Arial';
-  ctx.textAlign = 'center';
-  ctx.fillText('Esc — закрыть  ·  Enter — выполнить', px + pw / 2, py + ph - 12);
-}
-
 // ==================== КОЛЛИЗИИ ====================
 function isOnIsland(x, y) {
   return x >= ISLAND.x && x <= ISLAND.x + ISLAND.width && y >= ISLAND.y && y <= ISLAND.y + ISLAND.height;
@@ -838,9 +781,26 @@ function tryMove(ent, dx, dy) {
   if (canBeAt(ent.x, ent.y + dy, ent.radius)) ent.y += dy;
 }
 
+// Движение с учётом зоны контроля
+function tryMoveWithZone(ent, dx, dy) {
+  const zoneActive = controlZone && performance.now() < controlZone.until;
+  const inZoneNow = zoneActive && Math.hypot(ent.x - controlZone.x, ent.y - controlZone.y) <= controlZone.radius;
+
+  if (zoneActive && inZoneNow) {
+    const nx = ent.x + dx;
+    const dNx = Math.hypot(nx - controlZone.x, ent.y - controlZone.y);
+    if (dNx <= controlZone.radius && canBeAt(nx, ent.y, ent.radius)) ent.x = nx;
+    const ny = ent.y + dy;
+    const dNy = Math.hypot(ent.x - controlZone.x, ny - controlZone.y);
+    if (dNy <= controlZone.radius && canBeAt(ent.x, ny, ent.radius)) ent.y = ny;
+  } else {
+    tryMove(ent, dx, dy);
+  }
+}
+
 // ==================== СЪЕСТЬ ФРУКТ ====================
 function consumeFruit(item) {
-  const powers = ['Огонь', 'Лёд', 'Акула'];
+  const powers = ['Огонь', 'Лёд', 'Акула', 'Контроль'];
   if (powers.includes(item.name)) {
     const oldPower = inventory[POWER_SLOT_INDEX];
     if (oldPower && oldPower.type === 'power') {
@@ -926,7 +886,7 @@ function punchFist() {
   }
 }
 
-// ==================== ТРАНСФОРМАЦИЯ ====================
+// ==================== ТРАНСФОРМАЦИЯ (Акула) ====================
 function activateWaterTransform() {
   if (waterMeter < WATER_METER_MAX) { showToast(`Нужна полная шкала воды! (${Math.floor(waterMeter)}/100)`); return; }
   waterMeter = 0;
@@ -949,16 +909,132 @@ function startAbility(powerName, abilityId) {
   if (!ab) return;
   if (held.power.mastery < ab.requiredMastery) { showToast(`Нужно ${ab.requiredMastery} mastery!`); return; }
   if (ab.usesWaterMeter) { activateWaterTransform(); return; }
+
+  // zoneOnly способности Контроля — только внутри зоны
+  if (ab.zoneOnly && !isInControlZone(player.x, player.y)) {
+    showToast('❌ Только внутри зоны контроля!');
+    return;
+  }
+
   if ((player.cooldowns[abilityId] || 0) > 0) return;
   if (player.stamina < ab.stamina) { showToast('Мало стамины!'); return; }
+
+  if (abilityId === 'control_zone') { activateControlZone(); return; }
+  if (abilityId === 'control_lasers') { activateControlLasers(); return; }
+
   if (ab.aiming !== false) { aimingAbility = { powerName, abilityId, ability: ab }; showToast('Кликни по цели'); return; }
 }
 
+// ==================== КОНТРОЛЬ: ЗОНА ====================
+function activateControlZone() {
+  if (player.cooldowns['control_zone'] > 0) return;
+  if (player.stamina < 30) { showToast('Мало стамины!'); return; }
+  player.cooldowns['control_zone'] = 9;
+  player.stamina = Math.max(0, player.stamina - 30);
+
+  controlZone = {
+    x: player.x,
+    y: player.y,
+    radius: CONTROL_ZONE_RADIUS,
+    until: performance.now() + CONTROL_ZONE_DURATION_MS,
+    owner: currentUser ? currentUser.username : 'me'
+  };
+
+  for (let i = 0; i < 80; i++) {
+    const a = (i / 80) * Math.PI * 2;
+    const s = 4 + Math.random() * 3;
+    particles.push({
+      x: controlZone.x + Math.cos(a) * controlZone.radius,
+      y: controlZone.y + Math.sin(a) * controlZone.radius,
+      vx: Math.cos(a) * s * 0.3,
+      vy: Math.sin(a) * s * 0.3,
+      life: 60, maxLife: 60,
+      radius: 4 + Math.random() * 4,
+      color: Math.random() < 0.5 ? '#7c5cff' : '#aaffff'
+    });
+  }
+  showToast('🌀 ЗОНА КОНТРОЛЯ АКТИВНА! 20 секунд');
+}
+
+// ==================== КОНТРОЛЬ: ЛАЗЕРЫ ====================
+function activateControlLasers() {
+  if (player.cooldowns['control_lasers'] > 0) return;
+  if (player.stamina < 40) { showToast('Мало стамины!'); return; }
+  player.cooldowns['control_lasers'] = 13.5;
+  player.stamina = Math.max(0, player.stamina - 40);
+
+  const now = performance.now();
+  const cx = player.x, cy = player.y;
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    controlLasers.push({
+      x: cx, y: cy,
+      angle: a,
+      length: 800,
+      damage: CONTROL_LASER_DAMAGE,
+      start: now,
+      until: now + CONTROL_LASER_DURATION_MS,
+      hit: new Set()
+    });
+  }
+  showToast('⚡ ЛАЗЕРНАЯ ПИЦЦА!');
+}
+
+// ==================== КОНТРОЛЬ: МЕТЕОР (прицел → клик) ====================
+function activateControlMeteorAt(tx, ty) {
+  if (player.cooldowns['control_meteor'] > 0) return;
+  if (player.stamina < 50) { showToast('Мало стамины!'); return; }
+  if (!isInControlZone(tx, ty)) { showToast('❌ Целься внутри зоны!'); return; }
+
+  player.cooldowns['control_meteor'] = 18;
+  player.stamina = Math.max(0, player.stamina - 50);
+
+  controlMeteors.push({
+    targetX: tx, targetY: ty,
+    x: tx, y: ty - 1200,
+    startY: ty - 1200,
+    progress: 0,
+    duration: 40,
+    radius: 90,
+    damage: CONTROL_METEOR_DAMAGE,
+    impactDone: false
+  });
+  showToast('☄️ Метеор контроля!');
+}
+
+// ==================== КОНТРОЛЬ: ЛУЧ (прицел → клик, через 2с) ====================
+function activateControlBeamAt(tx, ty) {
+  if (player.cooldowns['control_beam'] > 0) return;
+  if (player.stamina < 70) { showToast('Мало стамины!'); return; }
+  if (!isInControlZone(tx, ty)) { showToast('❌ Целься внутри зоны!'); return; }
+
+  player.cooldowns['control_beam'] = 27;
+  player.stamina = Math.max(0, player.stamina - 70);
+
+  const now = performance.now();
+  controlBeams.push({
+    x: tx, y: ty,
+    radius: 160,
+    activateAt: now + CONTROL_BEAM_DELAY_MS,
+    until: now + CONTROL_BEAM_DELAY_MS + CONTROL_BEAM_DURATION_MS,
+    damage: CONTROL_BEAM_DAMAGE,
+    damaged: new Set(),
+    done: false
+  });
+  showToast('🔵 Луч заряжается... 2 секунды');
+}
+
+// ==================== ВЫПОЛНЕНИЕ ПРИЦЕЛЬНОЙ СПОСОБНОСТИ ====================
 function executeAbilityAt(tx, ty) {
   if (!aimingAbility) return;
   const { powerName, abilityId, ability } = aimingAbility;
   const held = getHeldPower();
   if (!held || held.power.name !== powerName) { aimingAbility = null; return; }
+
+  // Контроль C и V — спец-обработка
+  if (abilityId === 'control_meteor') { activateControlMeteorAt(tx, ty); aimingAbility = null; return; }
+  if (abilityId === 'control_beam') { activateControlBeamAt(tx, ty); aimingAbility = null; return; }
+
   const dx = tx - player.x, dy = ty - player.y;
   const dist = Math.hypot(dx, dy);
   if (dist < 1) { aimingAbility = null; return; }
@@ -1031,7 +1107,6 @@ function damagePirate(pirate, dmg) {
     if (held) { held.power.mastery += PIRATE_MASTERY_REWARD; showToast(`+${PIRATE_MASTERY_REWARD} mastery`); }
     waterMeter = Math.min(WATER_METER_MAX, waterMeter + WATER_METER_PER_KILL);
     pendingXp.push(PIRATE_XP_REWARD);
-    // Монеты за пирата
     player.money += PIRATE_COIN_REWARD;
     updateMoneyUi();
     damageNumbers.push({ x: pirate.x, y: pirate.y - pirate.radius - 20, vy: -1.4, life: 60, maxLife: 60, text: '+' + PIRATE_COIN_REWARD + '💰', color: '#ffd700' });
@@ -1197,7 +1272,7 @@ function tryRollFruit() {
   else if (roll < 75) { rarity = 'uncommon'; fruitData = { name: 'Лёд', color: '#00c8ff' }; }
   else if (roll < 93) { rarity = 'rare'; fruitData = null; }
   else if (roll < 98) { rarity = 'legendary'; fruitData = { name: 'Акула', color: '#1a4f8c' }; }
-  else { rarity = 'mythic'; fruitData = null; }
+  else { rarity = 'mythic'; fruitData = { name: 'Контроль', color: '#7c5cff' }; }
 
   if (fruitData) {
     giveFruitToSlot5(fruitData.name, fruitData.color);
@@ -1292,7 +1367,7 @@ function executeMenuAction(action) {
       color: item.color,
       name: item.name,
       bobPhase: Math.random() * 6,
-      glow: item.name === 'Акула',
+      glow: item.name === 'Акула' || item.name === 'Контроль',
       warned: 0
     });
     inventory[heldSlot] = null; heldSlot = -1;
@@ -1344,7 +1419,7 @@ const keys = {};
 window.addEventListener('keydown', (e) => {
   if (!currentUser) return;
 
-  // === Админ-консоль: двойное нажатие N ===
+  // Админ-консоль: двойное нажатие N
   if (e.code === 'KeyN' || e.key.toLowerCase() === 'n' || e.key.toLowerCase() === 'т') {
     if (adminOpen) {
       if (e.key.length === 1) { adminInput += e.key; e.preventDefault(); }
@@ -1360,7 +1435,6 @@ window.addEventListener('keydown', (e) => {
     lastNPressTime = now;
   }
 
-  // === Ввод в админ-консоль ===
   if (adminOpen) {
     if (e.key === 'Escape') { closeAdminConsole(); e.preventDefault(); return; }
     if (e.key === 'Enter') { adminSubmit(); e.preventDefault(); return; }
@@ -1387,6 +1461,7 @@ window.addEventListener('keydown', (e) => {
   if (code === 'KeyX' || k === 'x' || k === 'ч') { tc('X'); return; }
   if (code === 'KeyC' || k === 'c' || k === 'с') { tc('C'); return; }
   if (code === 'KeyR' || k === 'r' || k === 'к') { tc('R'); return; }
+  if (code === 'KeyV' || k === 'v' || k === 'м') { tc('V'); return; }
   if (e.key === 'Escape') {
     if (rollDialogOpen) { closeRollDialog(); return; }
     if (questDialogOpen) { closeQuestDialog(); return; }
@@ -1416,7 +1491,7 @@ window.addEventListener('keyup', (e) => {
   keys[e.key.toLowerCase()] = false;
 });
 
-// ==================== ОБНОВЛЕНИЕ ====================
+// ==================== ОБНОВЛЕНИЕ (ОДИН ТИК = 1/60 СЕК) ====================
 function update() {
   if (!currentUser) return;
   if (particles.length > 1500) particles.splice(0, particles.length - 1500);
@@ -1443,7 +1518,6 @@ function update() {
 
   const now = performance.now();
   const blocked = bagOpen || statsOpen || questDialogOpen || adminOpen || rollDialogOpen;
-  // Бег удалён
   player.isRunning = false;
   const spd = player.speedWalk;
   if (now < player.waterFormUntil) player.waterRage = 0.5 + Math.sin(now * 0.008) * 0.5;
@@ -1458,41 +1532,21 @@ function update() {
     if (keys['a'] || keys['arrowleft'] || keys['ф']) dx -= 1;
     if (keys['d'] || keys['arrowright'] || keys['в']) dx += 1;
     if (dx && dy) { const l = Math.hypot(dx, dy); dx /= l; dy /= l; }
-    tryMove(player, dx * spd, dy * spd);
+    tryMoveWithZone(player, dx * spd, dy * spd);
     if (dx || dy) { player.lookX = dx; player.lookY = dy; }
-    player.stamina = Math.min(getMaxStamina(), player.stamina + STAMINA_REGEN_PER_FRAME);
+    player.stamina = Math.min(getMaxStamina(), player.stamina + STAMINA_REGEN_PER_TICK);
   } else {
-    player.stamina = Math.min(getMaxStamina(), player.stamina + STAMINA_REGEN_PER_FRAME);
+    player.stamina = Math.min(getMaxStamina(), player.stamina + STAMINA_REGEN_PER_TICK);
   }
 
-  // === Реген HP: только после 7 секунд без урона ===
   const mh = getMaxHp();
   const sinceDamage = now - player.lastDamageTime;
   if (sinceDamage >= HP_REGEN_DELAY_MS && player.hp < mh) {
-    player.hp = Math.min(mh, player.hp + HP_REGEN_PER_FRAME);
+    player.hp = Math.min(mh, player.hp + HP_REGEN_PER_TICK);
   }
   if (player.hp > mh) player.hp = mh;
 
-  // === Подбор монет ===
-  if (!blocked && !aimingAbility) {
-    for (const c of coinsOnGround) {
-      if (c.collected) {
-        if (now >= c.respawnAt) respawnCoin(c);
-        continue;
-      }
-      if (Math.hypot(player.x - c.x, player.y - c.y) < player.radius + c.radius + 8) {
-        c.collected = true;
-        c.respawnAt = now + COIN_RESPAWN_MS;
-        player.money += c.value;
-        updateMoneyUi();
-        damageNumbers.push({ x: c.x, y: c.y - 15, vy: -1.4, life: 50, maxLife: 50, text: '+' + c.value + '💰', color: '#ffd700' });
-        saveNow();
-      }
-    }
-  }
-  for (const c of coinsOnGround) c.bobPhase += 0.06;
-
-  // === Подбор сброшенных фруктов ===
+  // Подбор сброшенных фруктов
   if (!blocked && !aimingAbility) {
     for (let i = droppedFruits.length - 1; i >= 0; i--) {
       const f = droppedFruits[i];
@@ -1633,6 +1687,137 @@ function update() {
     if (w.life <= 0) whirlpools.splice(i, 1);
   }
 
+  // КОНТРОЛЬ: ЗОНА — окончание
+  if (controlZone && now >= controlZone.until) {
+    for (let i = 0; i < 40; i++) {
+      const a = (i / 40) * Math.PI * 2;
+      particles.push({
+        x: controlZone.x + Math.cos(a) * controlZone.radius,
+        y: controlZone.y + Math.sin(a) * controlZone.radius,
+        vx: Math.cos(a) * 2, vy: Math.sin(a) * 2,
+        life: 30, maxLife: 30,
+        radius: 4, color: '#7c5cff'
+      });
+    }
+    controlZone = null;
+  }
+
+  // КОНТРОЛЬ: ЛАЗЕРЫ (пицца)
+  for (let i = controlLasers.length - 1; i >= 0; i--) {
+    const L = controlLasers[i];
+    if (now > L.until) { controlLasers.splice(i, 1); continue; }
+    // Проверка попадания: точки вдоль луча
+    if (!L.hit.has('__checked__')) {
+      // Проверяем всех врагов и игроков
+      const step = 30;
+      const steps = Math.floor(L.length / step);
+      const enemies = [];
+      for (const pir of pirates) if (!pir.dead) enemies.push({ ref: pir, x: pir.x, y: pir.y, r: pir.radius, type: 'pirate' });
+      enemies.push({ ref: npc, x: npc.x, y: npc.y, r: npc.radius, type: 'npc' });
+      for (const rp of remotePlayers.values()) enemies.push({ ref: rp, x: rp.x, y: rp.y, r: player.radius, type: 'remote', u: rp.u });
+
+      for (const en of enemies) {
+        if (L.hit.has(en.type === 'remote' ? en.u : en.ref)) continue;
+        // расстояние от точки до луча
+        const dx = en.x - L.x, dy = en.y - L.y;
+        const proj = dx * Math.cos(L.angle) + dy * Math.sin(L.angle);
+        if (proj < 0 || proj > L.length) continue;
+        const perpX = L.x + Math.cos(L.angle) * proj;
+        const perpY = L.y + Math.sin(L.angle) * proj;
+        const perpDist = Math.hypot(en.x - perpX, en.y - perpY);
+        if (perpDist <= en.r + 8) {
+          if (en.type === 'pirate') damagePirate(en.ref, L.damage);
+          else if (en.type === 'npc') damageNpc(L.damage);
+          else if (en.type === 'remote') sendHit(en.u, L.damage, 'ranged');
+          L.hit.add(en.type === 'remote' ? en.u : en.ref);
+        }
+      }
+      L.hit.add('__checked__');
+    }
+  }
+
+  // КОНТРОЛЬ: МЕТЕОРЫ
+  for (let i = controlMeteors.length - 1; i >= 0; i--) {
+    const m = controlMeteors[i];
+    m.progress++;
+    const t = m.progress / m.duration;
+    m.y = m.startY + (m.targetY - m.startY) * Math.min(1, t);
+    if (Math.random() < 0.7) {
+      particles.push({
+        x: m.x + (Math.random() - 0.5) * 40,
+        y: m.y + (Math.random() - 0.5) * 40,
+        vx: (Math.random() - 0.5) * 2, vy: (Math.random() - 0.5) * 2,
+        life: 25, maxLife: 25,
+        radius: 4 + Math.random() * 5,
+        color: Math.random() < 0.4 ? '#ffffff' : (Math.random() < 0.7 ? '#aaffff' : '#7c5cff')
+      });
+    }
+    if (t >= 1 && !m.impactDone) {
+      m.impactDone = true;
+      // Прямое попадание
+      for (const pir of pirates) {
+        if (pir.dead) continue;
+        const d = Math.hypot(pir.x - m.targetX, pir.y - m.targetY);
+        if (d < m.radius) damagePirate(pir, m.damage);
+        else if (isInControlZone(pir.x, pir.y)) damagePirate(pir, CONTROL_METEOR_ZONE_DAMAGE);
+      }
+      const npcDist = Math.hypot(npc.x - m.targetX, npc.y - m.targetY);
+      if (npcDist < m.radius) damageNpc(m.damage);
+
+      for (const rp of remotePlayers.values()) {
+        const d = Math.hypot(rp.x - m.targetX, rp.y - m.targetY);
+        if (d < m.radius) sendHit(rp.u, m.damage, 'ranged');
+        else if (isInControlZone(rp.x, rp.y)) sendHit(rp.u, CONTROL_METEOR_ZONE_DAMAGE, 'ranged');
+      }
+
+      for (let k = 0; k < 60; k++) {
+        const a = Math.random() * Math.PI * 2;
+        const s = 4 + Math.random() * 10;
+        particles.push({
+          x: m.targetX, y: m.targetY,
+          vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+          life: 45, maxLife: 80,
+          radius: 5 + Math.random() * 6,
+          color: Math.random() < 0.4 ? '#ffffff' : (Math.random() < 0.7 ? '#aaffff' : '#7c5cff')
+        });
+      }
+      particles.push({ isShockwave: true, x: m.targetX, y: m.targetY, radius: 10, maxRadius: 200, life: 35, maxLife: 35, color: '#7c5cff' });
+    }
+    if (m.impactDone && m.progress > m.duration + 40) controlMeteors.splice(i, 1);
+  }
+
+  // КОНТРОЛЬ: ЛУЧИ
+  for (let i = controlBeams.length - 1; i >= 0; i--) {
+    const B = controlBeams[i];
+    if (now > B.until) { controlBeams.splice(i, 1); continue; }
+    if (now >= B.activateAt && !B.done) {
+      B.done = true;
+      // Наносим урон один раз
+      for (const pir of pirates) {
+        if (pir.dead) continue;
+        const d = Math.hypot(pir.x - B.x, pir.y - B.y);
+        if (d < B.radius) damagePirate(pir, B.damage);
+      }
+      if (Math.hypot(npc.x - B.x, npc.y - B.y) < B.radius) damageNpc(B.damage);
+      for (const rp of remotePlayers.values()) {
+        const d = Math.hypot(rp.x - B.x, rp.y - B.y);
+        if (d < B.radius) sendHit(rp.u, B.damage, 'ranged');
+      }
+      for (let k = 0; k < 50; k++) {
+        const a = Math.random() * Math.PI * 2;
+        const s = 4 + Math.random() * 8;
+        particles.push({
+          x: B.x, y: B.y,
+          vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+          life: 40, maxLife: 70,
+          radius: 5 + Math.random() * 6,
+          color: Math.random() < 0.5 ? '#ffffff' : '#7c5cff'
+        });
+      }
+      particles.push({ isShockwave: true, x: B.x, y: B.y, radius: 10, maxRadius: B.radius * 1.2, life: 30, maxLife: 30, color: '#7c5cff' });
+    }
+  }
+
   for (let i = whipTrails.length - 1; i >= 0; i--) { whipTrails[i].life--; if (whipTrails[i].life <= 0) whipTrails.splice(i, 1); }
   for (let i = iceZones.length - 1; i >= 0; i--) {
     const z = iceZones[i];
@@ -1644,9 +1829,7 @@ function update() {
       for (const pir of pirates) { if (pir.dead) continue; if (Math.hypot(pir.x - z.x, pir.y - z.y) < z.maxRadius) { damagePirate(pir, z.damage); if (!pir.dead) pir.frozenUntil = performance.now() + z.freezeDuration; } }
       if (Math.hypot(npc.x - z.x, npc.y - z.y) < z.maxRadius) damageNpc(z.damage);
       for (const rp of remotePlayers.values()) {
-        if (Math.hypot(rp.x - z.x, rp.y - z.y) < z.maxRadius) {
-          sendHit(rp.u, z.damage, 'ranged');
-        }
+        if (Math.hypot(rp.x - z.x, rp.y - z.y) < z.maxRadius) sendHit(rp.u, z.damage, 'ranged');
       }
     }
     if (z.life <= 0) iceZones.splice(i, 1);
@@ -1667,9 +1850,7 @@ function update() {
       for (const pir of pirates) { if (pir.dead) continue; if (Math.hypot(pir.x - m.targetX, pir.y - m.targetY) < m.radius) { damagePirate(pir, m.damage); if (!pir.dead) pir.stunUntil = performance.now() + 2000; } }
       if (Math.hypot(npc.x - m.targetX, npc.y - m.targetY) < m.radius) damageNpc(m.damage);
       for (const rp of remotePlayers.values()) {
-        if (Math.hypot(rp.x - m.targetX, rp.y - m.targetY) < m.radius) {
-          sendHit(rp.u, m.damage, 'ranged');
-        }
+        if (Math.hypot(rp.x - m.targetX, rp.y - m.targetY) < m.radius) sendHit(rp.u, m.damage, 'ranged');
       }
       for (let k = 0; k < 40; k++) { const a = Math.random() * Math.PI * 2; const s = 3 + Math.random() * 8; particles.push({ x: m.targetX, y: m.targetY, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 40, maxLife: 70, radius: 4 + Math.random() * 6, color: '#aaffff' }); }
       particles.push({ isShockwave: true, x: m.targetX, y: m.targetY, radius: 10, maxRadius: 150, life: 30, maxLife: 30, color: '#aaffff' });
@@ -1690,13 +1871,13 @@ function update() {
     if (!pir.aggro && !pir.chasing && dist < PIRATE_AGGRO_RADIUS) pir.aggro = true;
     if (pir.aggro && !pir.chasing && dist > PIRATE_LEASH_RADIUS) pir.aggro = false;
     if (pir.chasing) {
-      if (dist > 30) { const nx = dx / dist, ny = dy / dist; const mx = nx * spd2, my = ny * spd2; if (canBeAt(pir.x + mx, pir.y, pir.radius)) pir.x += mx; if (canBeAt(pir.x, pir.y + my, pir.radius)) pir.y += my; }
+      if (dist > 30) { const nx = dx / dist, ny = dy / dist; const mx = nx * spd2, my = ny * spd2; tryMoveWithZone(pir, mx, my); }
     } else if (pir.aggro) {
-      if (dist > 30 && dist < PIRATE_LEASH_RADIUS) { const nx = dx / dist, ny = dy / dist; const mx = nx * spd2, my = ny * spd2; if (canBeAt(pir.x + mx, pir.y, pir.radius)) pir.x += mx; if (canBeAt(pir.x, pir.y + my, pir.radius)) pir.y += my; }
-      else if (dist >= PIRATE_LEASH_RADIUS) { const hx = pir.homeX - pir.x, hy = pir.homeY - pir.y, hd = Math.hypot(hx, hy); if (hd > 5) { const nx = hx / hd, ny = hy / hd; if (canBeAt(pir.x + nx * spd2, pir.y, pir.radius)) pir.x += nx * spd2; if (canBeAt(pir.x, pir.y + ny * spd2, pir.radius)) pir.y += ny * spd2; } else pir.aggro = false; }
+      if (dist > 30 && dist < PIRATE_LEASH_RADIUS) { const nx = dx / dist, ny = dy / dist; const mx = nx * spd2, my = ny * spd2; tryMoveWithZone(pir, mx, my); }
+      else if (dist >= PIRATE_LEASH_RADIUS) { const hx = pir.homeX - pir.x, hy = pir.homeY - pir.y, hd = Math.hypot(hx, hy); if (hd > 5) { const nx = hx / hd, ny = hy / hd; tryMoveWithZone(pir, nx * spd2, ny * spd2); } else pir.aggro = false; }
     } else {
       const hx = pir.homeX - pir.x, hy = pir.homeY - pir.y, hd = Math.hypot(hx, hy);
-      if (hd > 5) { const nx = hx / hd, ny = hy / hd; if (canBeAt(pir.x + nx * spd2, pir.y, pir.radius)) pir.x += nx * spd2; if (canBeAt(pir.x, pir.y + ny * spd2, pir.radius)) pir.y += ny * spd2; }
+      if (hd > 5) { const nx = hx / hd, ny = hy / hd; tryMoveWithZone(pir, nx * spd2, ny * spd2); }
     }
     if (dist < pir.radius + player.radius + 8 && now - pir.lastAttackTime > PIRATE_ATTACK_INTERVAL) { pir.lastAttackTime = now; damagePlayer(PIRATE_DAMAGE); }
   }
@@ -1729,8 +1910,7 @@ function spawnSharkImpact(x, y) {
   for (let k = 0; k < 30; k++) { const a = Math.random() * Math.PI * 2; const s = 4 + Math.random() * 8; particles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 35, maxLife: 60, radius: 4 + Math.random() * 6, color: Math.random() < 0.25 ? '#ffffff' : (Math.random() < 0.6 ? '#aaffff' : '#1a4f8c') }); }
   particles.push({ isShockwave: true, x, y, radius: 10, maxRadius: 90, life: 25, maxLife: 25, color: '#4fd4ff' });
 }
-
-// ==================== ОТРИСОВКА ====================
+// ==================== ОТРИСОВКА: МИР ====================
 function drawWorld() {
   const time = performance.now() * 0.001;
   const seaGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
@@ -1799,7 +1979,7 @@ function drawObstacles() {
 function drawFruitShape(x, y, radius, color, phase = 0, bob = false, glow = false) {
   const bo = bob ? Math.sin(phase) * 5 : 0;
   const fy = y + bo;
-  if (glow) { const t = performance.now() * 0.004; const gr = ctx.createRadialGradient(x, fy, 0, x, fy, radius * 3 + Math.sin(t) * 8); gr.addColorStop(0, 'rgba(80, 180, 255, 0.6)'); gr.addColorStop(0.5, 'rgba(30, 100, 200, 0.3)'); gr.addColorStop(1, 'rgba(0, 50, 120, 0)'); ctx.beginPath(); ctx.arc(x, fy, radius * 3 + Math.sin(t) * 8, 0, Math.PI * 2); ctx.fillStyle = gr; ctx.fill(); }
+  if (glow) { const t = performance.now() * 0.004; const gr = ctx.createRadialGradient(x, fy, 0, x, fy, radius * 3 + Math.sin(t) * 8); gr.addColorStop(0, 'rgba(140, 100, 255, 0.6)'); gr.addColorStop(0.5, 'rgba(80, 60, 200, 0.3)'); gr.addColorStop(1, 'rgba(30, 20, 120, 0)'); ctx.beginPath(); ctx.arc(x, fy, radius * 3 + Math.sin(t) * 8, 0, Math.PI * 2); ctx.fillStyle = gr; ctx.fill(); }
   ctx.beginPath(); ctx.ellipse(x, y + radius + 5, radius * 0.9, 6, 0, 0, Math.PI * 2); ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fill();
   const gradient = ctx.createRadialGradient(x - radius * 0.3, fy - radius * 0.3, 2, x, fy, radius);
   gradient.addColorStop(0, lightenColor(color, 0.5)); gradient.addColorStop(1, color);
@@ -1817,43 +1997,154 @@ function drawDroppedFruits() {
   }
 }
 
-function drawCoin(cx, cy, radius, phase) {
-  const bo = Math.sin(phase) * 3;
-  const y = cy + bo;
-  // тень
-  ctx.beginPath(); ctx.ellipse(cx, cy + radius + 5, radius * 0.9, 5, 0, 0, Math.PI * 2); ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.fill();
-  // свет
-  const t = performance.now() * 0.003;
-  const glowR = radius * 2.2 + Math.sin(t + phase) * 4;
-  const gg = ctx.createRadialGradient(cx, y, 0, cx, y, glowR);
-  gg.addColorStop(0, 'rgba(255, 220, 60, 0.55)');
-  gg.addColorStop(1, 'rgba(255, 200, 0, 0)');
-  ctx.beginPath(); ctx.arc(cx, y, glowR, 0, Math.PI * 2); ctx.fillStyle = gg; ctx.fill();
-  // тело монеты
-  const g = ctx.createRadialGradient(cx - radius * 0.3, y - radius * 0.3, 1, cx, y, radius);
-  g.addColorStop(0, '#fff4a8');
-  g.addColorStop(0.6, '#ffcc33');
-  g.addColorStop(1, '#a97a00');
-  ctx.beginPath(); ctx.arc(cx, y, radius, 0, Math.PI * 2);
-  ctx.fillStyle = g; ctx.fill();
-  ctx.strokeStyle = '#7a5500'; ctx.lineWidth = 2; ctx.stroke();
-  // внутренний кружок
-  ctx.beginPath(); ctx.arc(cx, y, radius * 0.7, 0, Math.PI * 2);
-  ctx.strokeStyle = 'rgba(122, 85, 0, 0.5)'; ctx.lineWidth = 1.5; ctx.stroke();
-  // символ $
-  ctx.fillStyle = '#7a5500';
-  ctx.font = `bold ${Math.round(radius * 1.2)}px Arial`;
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText('$', cx, y + 1);
+// ==================== ОТРИСОВКА: ЗОНА КОНТРОЛЯ ====================
+function drawControlZone() {
+  if (!controlZone) return;
+  const now = performance.now();
+  if (now >= controlZone.until) return;
+  const x = controlZone.x - camera.x;
+  const y = controlZone.y - camera.y;
+  const remaining = (controlZone.until - now) / CONTROL_ZONE_DURATION_MS;
+  const t = now * 0.001;
+  const pulse = 0.5 + Math.sin(t * 3) * 0.2;
+
+  // Заливка зоны
+  const g = ctx.createRadialGradient(x, y, controlZone.radius * 0.3, x, y, controlZone.radius);
+  g.addColorStop(0, `rgba(120, 200, 255, ${0.06 * remaining + 0.02})`);
+  g.addColorStop(0.7, `rgba(100, 160, 255, ${0.1 * remaining + 0.03})`);
+  g.addColorStop(1, `rgba(124, 92, 255, ${0.28 * remaining + 0.05})`);
+  ctx.beginPath(); ctx.arc(x, y, controlZone.radius, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
+
+  // Пульсирующее кольцо
+  ctx.beginPath(); ctx.arc(x, y, controlZone.radius, 0, Math.PI * 2);
+  ctx.strokeStyle = `rgba(180, 220, 255, ${pulse + 0.3})`;
+  ctx.lineWidth = 4; ctx.stroke();
+
+  // Внутреннее вращающееся кольцо
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(t * 1.2);
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    const rx = controlZone.radius * 0.75;
+    ctx.beginPath();
+    ctx.arc(Math.cos(a) * rx, Math.sin(a) * rx, 8, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(180, 220, 255, ${0.4 * remaining + 0.2})`;
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // Верхний счётчик времени
+  ctx.font = 'bold 16px Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
+  const secLeft = Math.ceil((controlZone.until - now) / 1000);
+  ctx.strokeText('🌀 ЗОНА: ' + secLeft + 'с', x, y - controlZone.radius - 18);
+  ctx.fillStyle = '#7c5cff';
+  ctx.fillText('🌀 ЗОНА: ' + secLeft + 'с', x, y - controlZone.radius - 18);
 }
 
-function drawCoinsOnGround() {
-  for (const c of coinsOnGround) {
-    if (c.collected) continue;
-    drawCoin(c.x - camera.x, c.y - camera.y, c.radius, c.bobPhase);
+// ==================== ОТРИСОВКА: ЛАЗЕРЫ (ПИЦЦА) ====================
+function drawControlLasers() {
+  for (const L of controlLasers) {
+    const x = L.x - camera.x, y = L.y - camera.y;
+    const life = Math.max(0, L.until - performance.now());
+    const alpha = life / CONTROL_LASER_DURATION_MS;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(L.angle);
+    // Свечение
+    const g = ctx.createLinearGradient(0, 0, L.length, 0);
+    g.addColorStop(0, `rgba(180, 220, 255, ${alpha * 0.95})`);
+    g.addColorStop(0.5, `rgba(124, 92, 255, ${alpha * 0.9})`);
+    g.addColorStop(1, `rgba(124, 92, 255, 0)`);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, -6, L.length, 12);
+    // Ядро
+    ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+    ctx.fillRect(0, -2, L.length, 4);
+    ctx.restore();
   }
 }
 
+// ==================== ОТРИСОВКА: ЛУЧИ (V) ====================
+function drawControlBeams() {
+  const now = performance.now();
+  for (const B of controlBeams) {
+    const x = B.x - camera.x, y = B.y - camera.y;
+
+    if (now < B.activateAt) {
+      // Фаза зарядки — пульсирующий круг + луч идёт сверху
+      const charge = (now - (B.activateAt - CONTROL_BEAM_DELAY_MS)) / CONTROL_BEAM_DELAY_MS;
+      ctx.beginPath();
+      ctx.arc(x, y, B.radius * (0.5 + charge * 0.5), 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(180, 220, 255, ${0.6 + Math.sin(now * 0.02) * 0.3})`;
+      ctx.lineWidth = 4;
+      ctx.stroke();
+      ctx.fillStyle = `rgba(124, 92, 255, ${0.15 + charge * 0.15})`;
+      ctx.fill();
+
+      // Отсчёт
+      const secLeft = Math.max(0, (B.activateAt - now) / 1000).toFixed(1);
+      ctx.font = 'bold 24px Arial';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
+      ctx.strokeText(secLeft + 'с', x, y);
+      ctx.fillStyle = '#aaddff';
+      ctx.fillText(secLeft + 'с', x, y);
+    } else if (now < B.until) {
+      // Активация — мощный столб
+      const alpha = Math.max(0, (B.until - now) / (B.until - B.activateAt));
+      // Столб
+      const g = ctx.createRadialGradient(x, y - 200, 0, x, y, B.radius);
+      g.addColorStop(0, `rgba(255, 255, 255, ${alpha})`);
+      g.addColorStop(0.4, `rgba(180, 220, 255, ${alpha * 0.9})`);
+      g.addColorStop(1, `rgba(124, 92, 255, ${alpha * 0.5})`);
+      ctx.fillStyle = g;
+      ctx.fillRect(x - B.radius, y - 800, B.radius * 2, 800);
+
+      // Круг на земле
+      ctx.beginPath(); ctx.arc(x, y, B.radius, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(180, 220, 255, ${alpha * 0.4})`;
+      ctx.fill();
+      ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+      ctx.lineWidth = 5; ctx.stroke();
+    }
+  }
+}
+
+// ==================== ОТРИСОВКА: МЕТЕОРЫ КОНТРОЛЯ (C) ====================
+function drawControlMeteors() {
+  for (const m of controlMeteors) {
+    if (m.impactDone) continue;
+    const x = m.x - camera.x;
+    const y = m.y - camera.y;
+    const tx = m.targetX - camera.x;
+    const ty = m.targetY - camera.y;
+
+    // Прицел на земле
+    ctx.beginPath();
+    ctx.arc(tx, ty, m.radius, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(180, 220, 255, 0.85)';
+    ctx.lineWidth = 3;
+    ctx.setLineDash([12, 10]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(124, 92, 255, 0.15)';
+    ctx.fill();
+
+    // Летящий метеор
+    const g = ctx.createRadialGradient(x, y, 0, x, y, 70);
+    g.addColorStop(0, 'rgba(255, 255, 255, 1)');
+    g.addColorStop(0.4, 'rgba(200, 220, 255, 0.95)');
+    g.addColorStop(0.7, 'rgba(124, 92, 255, 0.9)');
+    g.addColorStop(1, 'rgba(60, 40, 180, 0)');
+    ctx.beginPath(); ctx.arc(x, y, 70, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
+  }
+}
+
+// ==================== ОТРИСОВКА: NPC КВЕСТА ====================
 function drawQuestNpc() {
   const x = questNpc.x - camera.x, y = questNpc.y - camera.y;
   const t = performance.now() * 0.003;
@@ -1884,6 +2175,7 @@ function drawQuestNpc() {
   }
 }
 
+// ==================== ОТРИСОВКА: NPC ПРОКРУТКИ ====================
 function drawRollNpc() {
   const x = rollNpc.x - camera.x, y = rollNpc.y - camera.y;
   const t = performance.now() * 0.003;
@@ -1893,27 +2185,21 @@ function drawRollNpc() {
   g.addColorStop(1, rollNpc.color);
   ctx.beginPath(); ctx.arc(x, y, rollNpc.radius, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
   ctx.strokeStyle = darkenColor(rollNpc.color, 0.4); ctx.lineWidth = 3; ctx.stroke();
-  // волшебная шляпа
   ctx.beginPath(); ctx.moveTo(x - rollNpc.radius * 1.1, y - rollNpc.radius * 0.4);
   ctx.lineTo(x, y - rollNpc.radius * 1.8);
   ctx.lineTo(x + rollNpc.radius * 1.1, y - rollNpc.radius * 0.4);
   ctx.closePath();
   ctx.fillStyle = rollNpc.hatColor; ctx.fill();
   ctx.strokeStyle = 'rgba(255,215,0,0.7)'; ctx.lineWidth = 2; ctx.stroke();
-  // звёздочка на шляпе
   ctx.fillStyle = '#ffdd66'; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText('★', x, y - rollNpc.radius * 1.15);
-  // глаза
   const eo = rollNpc.radius * 0.35, er = rollNpc.radius * 0.14;
   ctx.fillStyle = 'white'; ctx.beginPath(); ctx.arc(x - eo, y - rollNpc.radius * 0.05, er, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.arc(x + eo, y - rollNpc.radius * 0.05, er, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = '#1a1a1a'; ctx.beginPath(); ctx.arc(x - eo, y - rollNpc.radius * 0.05, er * 0.55, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.arc(x + eo, y - rollNpc.radius * 0.05, er * 0.55, 0, Math.PI * 2); ctx.fill();
-  // рот
   ctx.beginPath(); ctx.arc(x, y + rollNpc.radius * 0.2, rollNpc.radius * 0.25, 0.15 * Math.PI, 0.85 * Math.PI); ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 2; ctx.stroke();
-  // имя
   ctx.fillStyle = '#c4a4ff'; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
   ctx.strokeText(rollNpc.name, x, y - rollNpc.radius - 20); ctx.fillText(rollNpc.name, x, y - rollNpc.radius - 20);
-  // значок $
   const bob = Math.sin(t * 4) * 4;
   ctx.fillStyle = '#ffd700'; ctx.font = 'bold 26px Arial';
   ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
@@ -1930,6 +2216,7 @@ function drawRollNpc() {
   }
 }
 
+// ==================== ОТРИСОВКА: МАНЕКЕН ====================
 function drawNpc() {
   const x = npc.x - camera.x + npc.shakeOffset.x, y = npc.y - camera.y + npc.shakeOffset.y;
   const isSlowed = performance.now() < npc.slowUntil;
@@ -1956,6 +2243,7 @@ function drawNpc() {
   ctx.strokeText('Манекен', x, hy - 14); ctx.fillStyle = '#ffdd00'; ctx.fillText('Манекен', x, hy - 14);
 }
 
+// ==================== ОТРИСОВКА: ПИРАТЫ ====================
 function drawPirates() {
   const now = performance.now();
   for (const pir of pirates) {
@@ -1997,6 +2285,7 @@ function drawPirates() {
   }
 }
 
+// ==================== ОТРИСОВКА: ДРУГИЕ ИГРОКИ ====================
 function drawRemotePlayers() {
   for (const rp of remotePlayers.values()) {
     const x = rp.x - camera.x;
@@ -2072,6 +2361,7 @@ function drawRemotePlayers() {
   }
 }
 
+// ==================== ОТРИСОВКА: СНАРЯДЫ ====================
 function drawProjectiles() {
   for (const p of projectiles) {
     const x = p.x - camera.x, y = p.y - camera.y;
@@ -2100,6 +2390,7 @@ function drawProjectiles() {
   }
 }
 
+// ==================== ОТРИСОВКА: ЧАСТИЦЫ ====================
 function drawParticles() {
   for (const pt of particles) {
     const a = pt.life / pt.maxLife;
@@ -2259,6 +2550,7 @@ function drawDamageNumbers() {
   }
 }
 
+// ==================== ОТРИСОВКА: ИГРОК ====================
 function drawPlayer() {
   const x = player.x - camera.x, y = player.y - camera.y;
   const inWater = isInWaterForm();
@@ -2324,17 +2616,19 @@ function drawHeldItem() {
     ctx.beginPath(); ctx.strokeStyle = '#b37700'; ctx.lineWidth = 4; ctx.lineCap = 'round';
     ctx.moveTo(player.x - camera.x + player.radius * 0.7, player.y - camera.y + player.radius * 0.3);
     ctx.lineTo(x - 5, y - 5); ctx.stroke();
-    drawFruitShape(x, y, 14, item.color, performance.now() * 0.002, false, item.name === 'Акула');
+    drawFruitShape(x, y, 14, item.color, performance.now() * 0.002, false, item.name === 'Акула' || item.name === 'Контроль');
   } else if (item.type === 'power') {
     const t = performance.now() * 0.005;
     const g = ctx.createRadialGradient(x, y, 0, x, y, 16 + Math.sin(t) * 2);
     if (item.name === 'Огонь') { g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.3, 'rgba(255,240,100,1)'); g.addColorStop(0.7, 'rgba(255,120,0,0.7)'); g.addColorStop(1, 'rgba(255,40,0,0)'); }
     else if (item.name === 'Лёд') { g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.4, 'rgba(180,240,255,1)'); g.addColorStop(0.7, 'rgba(80,180,255,0.8)'); g.addColorStop(1, 'rgba(40,100,200,0)'); }
+    else if (item.name === 'Контроль') { g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.4, 'rgba(200,180,255,1)'); g.addColorStop(0.7, 'rgba(124,92,255,0.8)'); g.addColorStop(1, 'rgba(60,40,180,0)'); }
     else { g.addColorStop(0, 'rgba(200,240,255,1)'); g.addColorStop(0.5, 'rgba(80,180,255,0.7)'); g.addColorStop(1, 'rgba(20,60,140,0)'); }
     ctx.beginPath(); ctx.arc(x, y, 16 + Math.sin(t) * 2, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
   }
 }
 
+// ==================== ИКОНКИ ФРУКТОВ ====================
 function drawPowerIcon(cx, cy, radius, name) {
   if (name === 'Огонь') {
     const bg = ctx.createRadialGradient(cx, cy, 1, cx, cy, radius * 1.2); bg.addColorStop(0, '#2a1a0a'); bg.addColorStop(1, '#0a0500');
@@ -2353,6 +2647,22 @@ function drawPowerIcon(cx, cy, radius, name) {
     ctx.beginPath(); ctx.arc(cx, cy, radius * 1.1, 0, Math.PI * 2); ctx.fillStyle = bg; ctx.fill(); ctx.strokeStyle = '#4fd4ff'; ctx.lineWidth = 2; ctx.stroke();
     ctx.beginPath(); ctx.moveTo(cx, cy - radius * 0.8); ctx.bezierCurveTo(cx + radius * 0.5, cy - radius * 0.3, cx + radius * 0.3, cy + radius * 0.5, cx, cy + radius * 0.5); ctx.bezierCurveTo(cx - radius * 0.3, cy + radius * 0.5, cx - radius * 0.5, cy - radius * 0.3, cx, cy - radius * 0.8); ctx.closePath();
     const g = ctx.createLinearGradient(cx, cy - radius, cx, cy + radius); g.addColorStop(0, '#4a6e9c'); g.addColorStop(0.5, '#1a3a5c'); g.addColorStop(1, '#0a1a3a'); ctx.fillStyle = g; ctx.fill();
+  } else if (name === 'Контроль') {
+    const bg = ctx.createRadialGradient(cx, cy, 1, cx, cy, radius * 1.2); bg.addColorStop(0, '#1a0a2a'); bg.addColorStop(1, '#050010');
+    ctx.beginPath(); ctx.arc(cx, cy, radius * 1.1, 0, Math.PI * 2); ctx.fillStyle = bg; ctx.fill(); ctx.strokeStyle = '#7c5cff'; ctx.lineWidth = 2; ctx.stroke();
+    // Воронка
+    const t = performance.now() * 0.002;
+    ctx.save(); ctx.translate(cx, cy); ctx.rotate(t * 0.5);
+    for (let i = 0; i < 3; i++) {
+      const rr = radius * (0.4 + i * 0.25);
+      ctx.beginPath(); ctx.arc(0, 0, rr, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(180, 160, 255, ${0.9 - i * 0.25})`;
+      ctx.lineWidth = 2; ctx.stroke();
+    }
+    ctx.restore();
+    // Центральная точка
+    ctx.beginPath(); ctx.arc(cx, cy, radius * 0.18, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffffff'; ctx.fill();
   }
 }
 function drawFistsIcon(cx, cy, radius) {
@@ -2419,13 +2729,13 @@ function drawAbilityGuide() {
   const pw = 280, hh = 95, rh = 72;
   const ph = hh + abilities.length * rh + 14;
   const px = canvas.width - pw - 20, py = canvas.height - ph - 80;
-  const isFire = abilityGuide.name === 'Огонь', isIce = abilityGuide.name === 'Лёд';
-  const themeSolid = isFire ? '#ff6600' : (isIce ? '#00c8ff' : '#4fd4ff');
-  const theme2 = isFire ? '#ffcc66' : (isIce ? '#aaffff' : '#aaddff');
-  const theme = isFire ? 'rgba(255,102,0,0.35)' : (isIce ? 'rgba(0,200,255,0.35)' : 'rgba(80,180,255,0.35)');
+  const isFire = abilityGuide.name === 'Огонь', isIce = abilityGuide.name === 'Лёд', isCtrl = abilityGuide.name === 'Контроль';
+  const themeSolid = isFire ? '#ff6600' : (isIce ? '#00c8ff' : (isCtrl ? '#7c5cff' : '#4fd4ff'));
+  const theme2 = isFire ? '#ffcc66' : (isIce ? '#aaffff' : (isCtrl ? '#c8b0ff' : '#aaddff'));
+  const theme = isFire ? 'rgba(255,102,0,0.35)' : (isIce ? 'rgba(0,200,255,0.35)' : (isCtrl ? 'rgba(124,92,255,0.4)' : 'rgba(80,180,255,0.35)'));
   ctx.fillStyle = 'rgba(15,10,5,0.22)'; ctx.strokeStyle = theme; ctx.lineWidth = 1.5;
   roundRect(px, py, pw, ph, 12); ctx.fill(); ctx.stroke();
-  const emoji = isFire ? '🔥' : (isIce ? '❄️' : '🦈');
+  const emoji = isFire ? '🔥' : (isIce ? '❄️' : (isCtrl ? '🌀' : '🦈'));
   ctx.fillStyle = theme2; ctx.font = 'bold 15px Arial'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
   ctx.fillText(`${emoji} ${abilityGuide.name}`, px + 14, py + 18);
   const power = inventory[abilityGuide.slotIndex];
@@ -2437,18 +2747,20 @@ function drawAbilityGuide() {
   const by = my + 12;
   ctx.fillStyle = 'rgba(0,0,0,0.5)'; roundRect(mx - 1, by - 1, mw + 2, mh + 2, 4); ctx.fill();
   ctx.fillStyle = 'rgba(40,40,80,0.6)'; roundRect(mx, by, mw, mh, 3); ctx.fill();
-  if (mp > 0) { const g = ctx.createLinearGradient(mx, by, mx, by + mh); g.addColorStop(0, themeSolid); g.addColorStop(1, isFire ? '#aa3300' : (isIce ? '#0066aa' : '#0a3a6c')); ctx.fillStyle = g; roundRect(mx, by, mw * (mp / 100), mh, 3); ctx.fill(); }
+  if (mp > 0) { const g = ctx.createLinearGradient(mx, by, mx, by + mh); g.addColorStop(0, themeSolid); g.addColorStop(1, isFire ? '#aa3300' : (isIce ? '#0066aa' : (isCtrl ? '#3a1a8a' : '#0a3a6c'))); ctx.fillStyle = g; roundRect(mx, by, mw * (mp / 100), mh, 3); ctx.fill(); }
   const divY = py + hh - 4;
-  ctx.strokeStyle = isFire ? 'rgba(255,150,0,0.2)' : (isIce ? 'rgba(0,150,255,0.2)' : 'rgba(80,180,255,0.2)'); ctx.lineWidth = 1;
+  ctx.strokeStyle = isFire ? 'rgba(255,150,0,0.2)' : (isIce ? 'rgba(0,150,255,0.2)' : (isCtrl ? 'rgba(124,92,255,0.3)' : 'rgba(80,180,255,0.2)')); ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(px + 10, divY); ctx.lineTo(px + pw - 10, divY); ctx.stroke();
+  const inZone = isInControlZone(player.x, player.y);
   for (let i = 0; i < abilities.length; i++) {
     const ab = abilities[i];
     const abY = py + hh + i * rh;
     const unlocked = mastery >= ab.requiredMastery;
+    const zoneBlocked = ab.zoneOnly && !inZone;
     const ix = px + 32, iy = abY + rh / 2, ir = 20;
     ctx.beginPath(); ctx.arc(ix, iy, ir, 0, Math.PI * 2);
-    ctx.fillStyle = unlocked ? 'rgba(10,10,10,0.7)' : 'rgba(17,17,17,0.7)'; ctx.fill();
-    ctx.strokeStyle = unlocked ? themeSolid : '#444'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = unlocked && !zoneBlocked ? 'rgba(10,10,10,0.7)' : 'rgba(17,17,17,0.7)'; ctx.fill();
+    ctx.strokeStyle = unlocked && !zoneBlocked ? themeSolid : (zoneBlocked ? '#aa3333' : '#444'); ctx.lineWidth = 2; ctx.stroke();
     ctx.fillStyle = 'white'; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(ab.key, ix, iy);
     const cd = player.cooldowns[ab.id] || 0;
@@ -2457,8 +2769,14 @@ function drawAbilityGuide() {
     ctx.fillText(ab.name, ix + ir + 8, abY + 10);
     ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.font = '10px Arial';
     ctx.fillText(ab.description, ix + ir + 8, abY + 28);
-    ctx.fillStyle = unlocked ? '#66ff66' : '#ff6666'; ctx.font = 'bold 10px Arial';
-    ctx.fillText(unlocked ? `✓ ${ab.requiredMastery} mastery` : `🔒 нужно ${ab.requiredMastery}`, ix + ir + 8, abY + rh - 14);
+    let statusText = unlocked ? `✓ ${ab.requiredMastery} mastery` : `🔒 нужно ${ab.requiredMastery}`;
+    let statusColor = unlocked ? '#66ff66' : '#ff6666';
+    if (ab.zoneOnly) {
+      if (inZone) { statusText = '🌀 В зоне ✓'; statusColor = '#88ff88'; }
+      else { statusText = '❌ Не в зоне'; statusColor = '#ff5555'; }
+    }
+    ctx.fillStyle = statusColor; ctx.font = 'bold 10px Arial';
+    ctx.fillText(statusText, ix + ir + 8, abY + rh - 14);
     if (ab.usesWaterMeter) {
       const wmX = ix + ir + 8;
       const wmY = abY + rh - 30;
@@ -2521,8 +2839,6 @@ function drawPlayerStats() {
   ctx.fillStyle = 'white'; ctx.font = 'bold 13px Arial'; ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
   const st = `⚡ ${Math.ceil(player.stamina)} / ${mst}`;
   ctx.strokeText(st, x + bw / 2, sy + bh / 2); ctx.fillText(st, x + bw / 2, sy + bh / 2);
-
-  // Money panel
   const moneyY = sy + bh + 10;
   ctx.fillStyle = 'rgba(0,0,0,0.6)'; roundRect(x - 4, moneyY - 4, bw + 8, bh + 8, 6); ctx.fill();
   ctx.fillStyle = '#3a2a00'; roundRect(x, moneyY, bw, bh, 4); ctx.fill();
@@ -2532,8 +2848,6 @@ function drawPlayerStats() {
   ctx.fillStyle = 'white'; ctx.font = 'bold 13px Arial'; ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
   const mt = `💰 ${player.money}`;
   ctx.strokeText(mt, x + bw / 2, moneyY + bh / 2); ctx.fillText(mt, x + bw / 2, moneyY + bh / 2);
-
-  // Water meter (если есть сила Акулы в слоте)
   const waterY = moneyY + bh + 10;
   const hasSharkPower = inventory[POWER_SLOT_INDEX] && inventory[POWER_SLOT_INDEX].type === 'power' && inventory[POWER_SLOT_INDEX].name === 'Акула';
   let nextY = waterY;
@@ -2624,29 +2938,23 @@ function drawRollDialog() {
   const p = b.panel;
   ctx.fillStyle = 'rgba(25,15,35,0.96)'; ctx.strokeStyle = 'rgba(200,160,255,0.85)'; ctx.lineWidth = 3;
   roundRect(p.x, p.y, p.w, p.h, 16); ctx.fill(); ctx.stroke();
-
   ctx.fillStyle = '#c4a4ff'; ctx.font = 'bold 26px Arial'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
   ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
   ctx.strokeText('🎰 Nexvertix', p.x + 30, p.y + 22); ctx.fillText('🎰 Nexvertix', p.x + 30, p.y + 22);
-
   ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.font = 'italic 15px Arial'; ctx.strokeStyle = 'transparent';
   ctx.fillText('Крути и получай случайные фрукты!', p.x + 30, p.y + 62);
-
   ctx.fillStyle = '#ffd700'; ctx.font = 'bold 19px Arial'; ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
   const mTxt = `💰 Твои монеты: ${player.money}`;
   ctx.strokeText(mTxt, p.x + 30, p.y + 100); ctx.fillText(mTxt, p.x + 30, p.y + 100);
-
   const cost = getRollCost();
   const canAfford = player.money >= cost;
   ctx.fillStyle = canAfford ? '#88ff88' : '#ff6666';
   const cTxt = `💵 Стоимость: ${cost} монет`;
   ctx.strokeText(cTxt, p.x + 30, p.y + 132); ctx.fillText(cTxt, p.x + 30, p.y + 132);
-
   const lvlOk = stats.level >= ROLL_MIN_LEVEL;
   ctx.fillStyle = lvlOk ? '#88ff88' : '#ff6666';
   const lTxt = `📈 Нужен ${ROLL_MIN_LEVEL}+ уровень (твой: ${stats.level})`;
   ctx.strokeText(lTxt, p.x + 30, p.y + 164); ctx.fillText(lTxt, p.x + 30, p.y + 164);
-
   const now = Date.now();
   const onCooldown = now < rollCooldownUntil;
   let cdText, cdColor;
@@ -2662,20 +2970,17 @@ function drawRollDialog() {
   }
   ctx.fillStyle = cdColor;
   ctx.strokeText(cdText, p.x + 30, p.y + 196); ctx.fillText(cdText, p.x + 30, p.y + 196);
-
   ctx.fillStyle = 'rgba(255,255,255,0.75)'; ctx.font = 'bold 13px Arial';
   ctx.fillText('Шансы:', p.x + 30, p.y + 230);
   ctx.fillStyle = '#dddddd'; ctx.font = '13px Arial';
   ctx.fillText('⚪ Обычный: 50%   🟢 Необычный: 25%   🔵 Редкий: 18%', p.x + 30, p.y + 252);
   ctx.fillText('🟡 Легендарный: 5%   🔴 Мифический: 2%', p.x + 30, p.y + 272);
   ctx.fillStyle = 'rgba(255,200,100,0.7)'; ctx.font = 'italic 11px Arial';
-  ctx.fillText('* Редкий и Мифический — скоро будет!', p.x + 30, p.y + 290);
-
+  ctx.fillText('* Редкий — скоро будет!', p.x + 30, p.y + 290);
   const c = b.close;
   ctx.fillStyle = 'rgba(255,80,80,0.85)'; roundRect(c.x, c.y, c.w, c.h, 6); ctx.fill();
   ctx.fillStyle = 'white'; ctx.font = 'bold 18px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText('✕', c.x + c.w / 2, c.y + c.h / 2);
-
   const btn = b.roll;
   const btnOk = !onCooldown && canAfford && lvlOk;
   ctx.fillStyle = btnOk ? 'rgba(180, 120, 255, 0.95)' : 'rgba(80,60,100,0.6)';
@@ -2775,11 +3080,19 @@ function drawAimCursor() {
   if (!aimingAbility) return;
   const x = mousePos.x, y = mousePos.y;
   const t = performance.now() * 0.005;
-  const r = 24 + Math.sin(t * 3) * 4;
-  const isFire = aimingAbility.powerName === 'Огонь';
-  const isIce = aimingAbility.powerName === 'Лёд';
-  const col = isFire ? 'rgba(255,150,0,0.9)' : (isIce ? 'rgba(100,200,255,0.9)' : 'rgba(80,200,255,0.9)');
-  const colFill = isFire ? 'rgba(255,220,100,0.9)' : (isIce ? 'rgba(200,240,255,0.9)' : 'rgba(180,240,255,0.9)');
+  const isCtrl = aimingAbility.powerName === 'Контроль';
+  const isMeteor = aimingAbility.abilityId === 'control_meteor';
+  const isBeam = aimingAbility.abilityId === 'control_beam';
+  let r, col, colFill;
+  if (isMeteor) { r = 90; col = 'rgba(124,92,255,0.95)'; colFill = 'rgba(180,160,255,0.5)'; }
+  else if (isBeam) { r = 160; col = 'rgba(124,92,255,0.95)'; colFill = 'rgba(180,160,255,0.5)'; }
+  else {
+    r = 24 + Math.sin(t * 3) * 4;
+    const isFire = aimingAbility.powerName === 'Огонь';
+    const isIce = aimingAbility.powerName === 'Лёд';
+    col = isFire ? 'rgba(255,150,0,0.9)' : (isIce ? 'rgba(100,200,255,0.9)' : (isCtrl ? 'rgba(124,92,255,0.9)' : 'rgba(80,200,255,0.9)'));
+    colFill = isFire ? 'rgba(255,220,100,0.9)' : (isIce ? 'rgba(200,240,255,0.9)' : (isCtrl ? 'rgba(200,180,255,0.9)' : 'rgba(180,240,255,0.9)'));
+  }
   ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.strokeStyle = col; ctx.lineWidth = 3; ctx.stroke();
   ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI * 2); ctx.fillStyle = colFill; ctx.fill();
   ctx.strokeStyle = col; ctx.lineWidth = 2;
@@ -2805,18 +3118,88 @@ function drawToast() {
   ctx.fillStyle = `rgba(255,255,255,${a})`; ctx.fillText(toast.text, canvas.width / 2, y + 25);
 }
 
-// ==================== ГЛАВНЫЙ ЦИКЛ ====================
-function gameLoop() {
+// ==================== АДМИН-КОНСОЛЬ (ОТРИСОВКА) ====================
+function drawAdminConsole() {
+  if (!adminOpen) return;
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const pw = 640, ph = 400;
+  const px = (canvas.width - pw) / 2;
+  const py = (canvas.height - ph) / 2;
+  ctx.fillStyle = 'rgba(10, 15, 10, 0.95)';
+  ctx.strokeStyle = adminUnlocked ? '#66ff66' : '#ffaa00';
+  ctx.lineWidth = 3;
+  roundRect(px, py, pw, ph, 12); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = adminUnlocked ? '#66ff66' : '#ffaa00';
+  ctx.font = 'bold 22px Consolas, monospace';
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.fillText(adminUnlocked ? '⚙ АДМИН-КОНСОЛЬ [РАЗБЛОКИРОВАНА]' : '🔒 АДМИН-КОНСОЛЬ [ВВЕДИ ПАРОЛЬ]', px + 20, py + 18);
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  ctx.font = '13px Consolas, monospace';
+  if (adminUnlocked) {
+    ctx.fillText('g [фрукт]          · пример: g огонь', px + 20, py + 50);
+    ctx.fillText('g level X имя      · пример: g level 4 Test1', px + 20, py + 68);
+  } else {
+    ctx.fillText('Введи пароль администратора и нажми Enter', px + 20, py + 50);
+  }
+  const logY = py + 100;
+  const logH = ph - 180;
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  roundRect(px + 20, logY, pw - 40, logH, 6); ctx.fill();
+  ctx.strokeStyle = 'rgba(100,100,100,0.4)';
+  ctx.lineWidth = 1;
+  roundRect(px + 20, logY, pw - 40, logH, 6); ctx.stroke();
+  const now = performance.now();
+  const visibleHistory = adminHistory.filter(h => h.until > now);
+  ctx.font = '14px Consolas, monospace';
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  for (let i = 0; i < visibleHistory.length; i++) {
+    ctx.fillStyle = visibleHistory[i].color;
+    ctx.fillText(visibleHistory[i].text, px + 32, logY + 10 + i * 20);
+  }
+  const inY = py + ph - 60;
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  roundRect(px + 20, inY, pw - 40, 40, 6); ctx.fill();
+  ctx.strokeStyle = adminUnlocked ? '#66ff66' : '#ffaa00';
+  ctx.lineWidth = 2;
+  roundRect(px + 20, inY, pw - 40, 40, 6); ctx.stroke();
+  ctx.fillStyle = '#66ff66';
+  ctx.font = 'bold 16px Consolas, monospace';
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  const promptText = adminUnlocked ? '> ' : '🔑 ';
+  ctx.fillText(promptText, px + 32, inY + 20);
+  ctx.fillStyle = '#ffffff';
+  const inputX = px + 32 + ctx.measureText(promptText).width;
+  const displayInput = adminUnlocked ? adminInput : '•'.repeat(adminInput.length);
+  ctx.fillText(displayInput + (Math.floor(now / 500) % 2 === 0 ? '_' : ''), inputX, inY + 20);
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.font = '11px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText('Esc — закрыть  ·  Enter — выполнить', px + pw / 2, py + ph - 12);
+}
+
+// ==================== ГЛАВНЫЙ ЦИКЛ С FIXED TIMESTEP ====================
+// Логика всегда тикает 60 раз в секунду — независимо от FPS монитора.
+// Кулдауны, регены, скорость — всё одинаково на 60/144/300 Hz.
+const TICK_RATE = 60;
+const TICK_MS = 1000 / TICK_RATE;
+const MAX_TICKS_PER_FRAME = 5;
+let _lastFrameTime = performance.now();
+let _accumulator = 0;
+
+function render() {
   if (currentUser) {
-    update();
     drawWorld();
     drawObstacles();
-    drawCoinsOnGround();
     drawDroppedFruits();
     drawIceFields();
     drawIceZones();
     drawWhirlpools();
     drawWhirlpoolTentacles();
+    drawControlZone();
+    drawControlLasers();
+    drawControlBeams();
+    drawControlMeteors();
     drawQuestNpc();
     drawRollNpc();
     drawNpc();
@@ -2848,10 +3231,28 @@ function gameLoop() {
     ctx.fillStyle = '#0a1a3a';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
+}
+
+function gameLoop(now) {
+  const frameTime = now - _lastFrameTime;
+  _lastFrameTime = now;
+  _accumulator += frameTime;
+
+  // Защита от долгой заморозки вкладки
+  if (_accumulator > 1000) _accumulator = 1000;
+
+  let ticks = 0;
+  while (_accumulator >= TICK_MS && ticks < MAX_TICKS_PER_FRAME) {
+    update();
+    _accumulator -= TICK_MS;
+    ticks++;
+  }
+
+  render();
   requestAnimationFrame(gameLoop);
 }
 
-gameLoop();
+requestAnimationFrame(gameLoop);
 </script>
 </body>
 </html>
