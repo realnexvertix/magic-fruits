@@ -2,19 +2,22 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Magic Fruits</title>
 <style>
-  * { box-sizing: border-box; }
-  body { margin: 0; overflow: hidden; background: #1e3a5f; font-family: Arial, sans-serif; user-select: none; }
-  canvas { display: block; background: #87CEEB; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; overflow: hidden; background: #1e3a5f; font-family: Arial, sans-serif; user-select: none; -webkit-user-select: none; touch-action: none; }
+  canvas { display: block; background: #87CEEB; touch-action: none; }
   canvas.crosshair { cursor: crosshair; }
   #ui { position: absolute; top: 10px; left: 10px; color: white; font-size: 18px; text-shadow: 2px 2px 4px black; pointer-events: none; }
-  #hint { position: absolute; top: 40px; left: 10px; color: white; font-size: 13px; text-shadow: 2px 2px 4px black; pointer-events: none; opacity: 0.8; line-height: 1.4; }
+  #hint { position: absolute; top: 40px; left: 10px; color: white; font-size: 13px; text-shadow: 2px 2px 4px black; pointer-events: none; opacity: 0.8; line-height: 1.4; max-width: 70%; }
   #fsBtn { position: absolute; top: 10px; right: 300px; width: 44px; height: 44px; background: rgba(0,0,0,0.5); border: 2px solid rgba(255,255,255,0.6); border-radius: 8px; color: white; font-size: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 10; }
   #fsBtn:hover { background: rgba(255,255,255,0.2); border-color: #ffd700; }
-  #authOverlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: linear-gradient(135deg, #1a2a4a, #0a1a3a); display: flex; align-items: center; justify-content: center; z-index: 1000; font-family: Arial, sans-serif; }
+  #changeDeviceBtn { position: absolute; top: 10px; right: 355px; padding: 8px 12px; background: rgba(0,0,0,0.5); border: 2px solid rgba(255,255,255,0.6); border-radius: 8px; color: white; font-size: 13px; cursor: pointer; z-index: 10; display: none; }
+  #changeDeviceBtn:hover { background: rgba(255,255,255,0.2); }
+  #authOverlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: linear-gradient(135deg, #1a2a4a, #0a1a3a); display: flex; align-items: center; justify-content: center; z-index: 1000; font-family: Arial, sans-serif; overflow-y: auto; padding: 20px; }
   #authOverlay.hidden { display: none; }
-  #authPanel { width: 420px; background: rgba(20,25,40,0.95); border: 3px solid rgba(255,215,0,0.6); border-radius: 16px; padding: 30px 40px; box-shadow: 0 20px 60px rgba(0,0,0,0.6); }
+  #authPanel { width: 420px; max-width: 100%; background: rgba(20,25,40,0.95); border: 3px solid rgba(255,215,0,0.6); border-radius: 16px; padding: 30px 40px; box-shadow: 0 20px 60px rgba(0,0,0,0.6); }
   #authPanel h1 { color: #ffd700; margin: 0 0 8px; font-size: 34px; text-align: center; }
   #authPanel .subtitle { color: rgba(255,255,255,0.6); text-align: center; font-size: 14px; margin-bottom: 25px; }
   #authTabs { display: flex; margin-bottom: 20px; border-bottom: 2px solid rgba(255,255,255,0.15); }
@@ -32,17 +35,96 @@
   #logoutBtn { position: absolute; bottom: 10px; left: 10px; padding: 6px 12px; background: rgba(255,60,60,0.7); border: 2px solid rgba(255,255,255,0.4); border-radius: 6px; color: white; font-size: 12px; cursor: pointer; z-index: 10; display: none; }
   #logoutBtn:hover { background: rgba(255,60,60,0.95); }
   #playerName { position: absolute; bottom: 55px; left: 10px; padding: 8px 16px; background: rgba(0,0,0,0.55); border: 2px solid rgba(255,215,0,0.6); border-radius: 8px; color: #ffd700; font-size: 16px; font-weight: bold; z-index: 10; display: none; }
+
+  /* ЭКРАН ВЫБОРА УСТРОЙСТВА */
+  #deviceOverlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: linear-gradient(135deg, #1a2a4a, #0a1a3a); display: flex; align-items: center; justify-content: center; z-index: 2000; font-family: Arial, sans-serif; padding: 20px; overflow-y: auto; }
+  #deviceOverlay.hidden { display: none; }
+  #devicePanel { width: 640px; max-width: 100%; text-align: center; }
+  #devicePanel h1 { color: #ffd700; font-size: 40px; margin: 0 0 10px; }
+  #devicePanel .subtitle { color: rgba(255,255,255,0.7); font-size: 16px; margin-bottom: 30px; }
+  #deviceOptions { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; }
+  .deviceOption { flex: 1 1 160px; max-width: 200px; padding: 25px 15px; background: rgba(20,25,40,0.9); border: 3px solid rgba(255,255,255,0.3); border-radius: 16px; cursor: pointer; transition: all 0.2s; color: white; }
+  .deviceOption:hover { border-color: #ffd700; background: rgba(40,50,80,0.9); transform: translateY(-4px); box-shadow: 0 10px 30px rgba(255,215,0,0.2); }
+  .deviceOption .emoji { font-size: 56px; display: block; margin-bottom: 12px; }
+  .deviceOption .name { font-size: 20px; font-weight: bold; color: #ffd700; margin-bottom: 6px; }
+  .deviceOption .hint { font-size: 12px; color: rgba(255,255,255,0.6); line-height: 1.4; }
+
+  /* МОБИЛЬНЫЕ КНОПКИ СПОСОБНОСТЕЙ */
+  #mobileAbilityBar { position: fixed; bottom: 100px; right: 15px; display: none; flex-direction: column; gap: 10px; z-index: 100; pointer-events: auto; }
+  .abilityBtn { width: 68px; height: 68px; border-radius: 50%; background: rgba(20,25,40,0.85); border: 3px solid rgba(255,215,0,0.8); color: white; font-size: 26px; font-weight: bold; display: flex; align-items: center; justify-content: center; cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none; box-shadow: 0 4px 15px rgba(0,0,0,0.6); transition: transform 0.1s, background 0.15s; }
+  .abilityBtn:active { transform: scale(0.92); background: rgba(255,215,0,0.4); }
+  .abilityBtn.disabled { opacity: 0.4; }
+  .abilityBtn.with-cd { position: relative; overflow: hidden; }
+  .abilityBtn .cd-mask { position: absolute; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); border-radius: 50%; pointer-events: none; }
+
+  /* ТАЧ-ДЖОЙСТИК */
+  #joystick { position: fixed; bottom: 30px; left: 30px; width: 140px; height: 140px; border-radius: 50%; background: rgba(0,0,0,0.35); border: 3px solid rgba(255,255,255,0.5); z-index: 100; display: none; touch-action: none; }
+  #joystickStick { position: absolute; left: 50%; top: 50%; width: 60px; height: 60px; border-radius: 50%; background: rgba(255,215,0,0.8); border: 3px solid rgba(255,255,255,0.9); transform: translate(-50%, -50%); pointer-events: none; box-shadow: 0 0 15px rgba(255,215,0,0.6); }
+
+  /* КНОПКА ВЫХОДА / СМЕНА УСТРОЙСТВА на мобилке */
+  @media (max-width: 900px) {
+    #fsBtn { right: 15px; }
+    #changeDeviceBtn { right: 70px; }
+    #playerName { font-size: 14px; padding: 6px 12px; }
+    #ui { font-size: 15px; }
+    #hint { font-size: 11px; }
+    #authPanel { padding: 20px; }
+    #authPanel h1 { font-size: 28px; }
+    #devicePanel h1 { font-size: 28px; }
+    #devicePanel .subtitle { font-size: 14px; }
+    .deviceOption { padding: 18px 12px; flex: 1 1 100px; }
+    .deviceOption .emoji { font-size: 40px; }
+    .deviceOption .name { font-size: 16px; }
+    .deviceOption .hint { font-size: 10px; }
+  }
 </style>
 </head>
 <body>
 <canvas id="game"></canvas>
+
+<!-- ЭКРАН ВЫБОРА УСТРОЙСТВА -->
+<div id="deviceOverlay">
+  <div id="devicePanel">
+    <h1>🍎 Magic Fruits</h1>
+    <div class="subtitle">Выбери своё устройство</div>
+    <div id="deviceOptions">
+      <div class="deviceOption" data-device="pc">
+        <span class="emoji">🖥️</span>
+        <div class="name">ПК</div>
+        <div class="hint">WASD · мышь · клавиши Z X C V R</div>
+      </div>
+      <div class="deviceOption" data-device="tablet">
+        <span class="emoji">📱</span>
+        <div class="name">Планшет</div>
+        <div class="hint">Тач-управление · джойстик</div>
+      </div>
+      <div class="deviceOption" data-device="phone">
+        <span class="emoji">📲</span>
+        <div class="name">Телефон</div>
+        <div class="hint">Тач-управление · джойстик</div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <button id="fsBtn" title="Полный экран">⛶</button>
+<button id="changeDeviceBtn" title="Сменить устройство">📱 Устройство</button>
 <div id="ui">🍎 Фрукты: <span id="fruitCount">0</span> | 💰 Монеты: <span id="moneyCount">0</span></div>
 <div id="hint">WASD — движение | 1-5 — слоты | I — мешок | E — NPC | Tab — статистика | N N — админ<br><b>ЛКМ</b> — кулак | <b>Z / X / C / R / V</b> — способности | ⚠️ В море -30 HP/сек!</div>
 <div id="playerName"></div>
 <button id="logoutBtn">🚪 Выйти</button>
 
-<div id="authOverlay">
+<!-- Мобильные элементы -->
+<div id="joystick"><div id="joystickStick"></div></div>
+<div id="mobileAbilityBar">
+  <div class="abilityBtn" data-key="Z">Z</div>
+  <div class="abilityBtn" data-key="X">X</div>
+  <div class="abilityBtn" data-key="C">C</div>
+  <div class="abilityBtn" data-key="V">V</div>
+  <div class="abilityBtn" data-key="R">R</div>
+</div>
+
+<div id="authOverlay" class="hidden">
   <div id="authPanel">
     <h1>🍎 Magic Fruits</h1>
     <div class="subtitle">Войди, чтобы сохранить прогресс</div>
@@ -62,9 +144,68 @@
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 
-function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+// ==================== ОПРЕДЕЛЕНИЕ УСТРОЙСТВА ====================
+let deviceType = localStorage.getItem('mf_device') || null; // 'pc' | 'tablet' | 'phone'
+function isMobileDevice() { return deviceType === 'phone' || deviceType === 'tablet'; }
+
+const deviceOverlay = document.getElementById('deviceOverlay');
+const changeDeviceBtn = document.getElementById('changeDeviceBtn');
+const mobileAbilityBar = document.getElementById('mobileAbilityBar');
+const joystickEl = document.getElementById('joystick');
+const joystickStick = document.getElementById('joystickStick');
+
+function showDeviceChoice() {
+  deviceOverlay.classList.remove('hidden');
+  document.getElementById('authOverlay').classList.add('hidden');
+  changeDeviceBtn.style.display = 'none';
+}
+function hideDeviceChoice() {
+  deviceOverlay.classList.add('hidden');
+  changeDeviceBtn.style.display = 'block';
+}
+function applyDeviceMode() {
+  if (isMobileDevice()) {
+    mobileAbilityBar.style.display = 'flex';
+    joystickEl.style.display = 'block';
+    document.getElementById('hint').innerHTML = 'Джойстик — движение | Тап по экрану — кулак<br>Кнопки Z X C V R — способности | Свайп сверху-сверху — админ';
+  } else {
+    mobileAbilityBar.style.display = 'none';
+    joystickEl.style.display = 'none';
+    document.getElementById('hint').innerHTML = 'WASD — движение | 1-5 — слоты | I — мешок | E — NPC | Tab — статистика | N N — админ<br><b>ЛКМ</b> — кулак | <b>Z / X / C / R / V</b> — способности | ⚠️ В море -30 HP/сек!';
+  }
+}
+
+document.querySelectorAll('.deviceOption').forEach(el => {
+  el.addEventListener('click', () => {
+    deviceType = el.dataset.device;
+    try { localStorage.setItem('mf_device', deviceType); } catch (e) {}
+    hideDeviceChoice();
+    applyDeviceMode();
+    // если уже залогинен — продолжаем, иначе покажем логин
+    if (!currentUser) showAuth();
+  });
+});
+
+changeDeviceBtn.addEventListener('click', () => {
+  showDeviceChoice();
+});
+
+// при загрузке: если устройство не выбрано — показать выбор
+if (!deviceType) {
+  showDeviceChoice();
+} else {
+  hideDeviceChoice();
+  // authOverlay покажем после того, как отработает авто-логин (см. ниже)
+}
+
+// ==================== АДАПТАЦИЯ ПОД РАЗМЕР ====================
+function resize() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
 resize();
 window.addEventListener('resize', resize);
+window.addEventListener('orientationchange', () => setTimeout(resize, 200));
 
 document.getElementById('fsBtn').addEventListener('click', () => {
   if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
@@ -235,7 +376,8 @@ window.addEventListener('beforeunload', saveNow);
       if (res.ok) return loginAs(username, password, res.data);
     }
   } catch(e) {}
-  showAuth();
+  // Если устройство выбрано — покажем логин
+  if (deviceType) showAuth();
 })();
 
 // ==================== МУЛЬТИПЛЕЕР (клиент) ====================
@@ -370,6 +512,15 @@ function handleWsMessage(msg) {
     showToast('🛡 Респавн');
     return;
   }
+  if (msg.type === 'set_level') {
+    const lvl = Math.max(1, Math.min(20, parseInt(msg.level, 10) || 1));
+    stats.level = lvl;
+    stats.xp = 0;
+    stats.statPoints = Math.max(0, (lvl - 1) * 3);
+    showToast('⭐ ' + (msg.from || 'Админ') + ' поставил тебе ' + lvl + ' уровень!');
+    saveNow();
+    return;
+  }
 }
 
 function syncPositionNow() {
@@ -430,7 +581,7 @@ addFence(-950, -550, 200, 10); addFence(-550, -680, 10, 200); addFence(150, -650
 // ==================== ХОТБАР ====================
 const INVENTORY_SLOTS = 5;
 const POWER_SLOT_INDEX = 1;
-const FRUIT_GIVE_SLOT = 4; // 5-й слот (индекс 4)
+const FRUIT_GIVE_SLOT = 4;
 const inventory = new Array(INVENTORY_SLOTS).fill(null);
 inventory[0] = { type: 'fists', name: 'Кулаки' };
 let heldSlot = 0;
@@ -470,16 +621,13 @@ function getAbilitiesFor(name) {
   return [];
 }
 
-// Редкости фруктов
 const FRUIT_RARITY = {
   'Огонь': 'common',
   'Лёд': 'uncommon',
   'Акула': 'legendary',
   'Контроль': 'mythic'
 };
-function getFruitRarity(name) {
-  return FRUIT_RARITY[name] || 'common';
-}
+function getFruitRarity(name) { return FRUIT_RARITY[name] || 'common'; }
 function getRarityLabel(rar) {
   if (rar === 'common') return '⚪ Обычный';
   if (rar === 'uncommon') return '🟢 Необычный';
@@ -540,7 +688,7 @@ const WATER_METER_PER_KILL = 12.5;
 let waterMeter = 0;
 
 // ==================== ПРОКРУТКА ФРУКТОВ ====================
-const ROLL_COOLDOWN_MS = 30 * 60 * 1000; // 30 минут
+const ROLL_COOLDOWN_MS = 30 * 60 * 1000;
 const ROLL_MIN_LEVEL = 3;
 let rollCooldownUntil = 0;
 
@@ -577,8 +725,6 @@ const HP_REGEN_PER_FRAME = 0.02 / 1.7;
 const HP_REGEN_DELAY_MS = 7000;
 const STAMINA_REGEN_PER_FRAME = 0.3 / 2.5;
 
-// ==================== МОНЕТЫ (только через награды) ====================
-// Разбросанных монет больше нет. Монеты начисляются только за пиратов и квест.
 const droppedFruits = [];
 
 const npc = { x: 400, y: 200, radius: 30, maxHp: 1000, hp: 1000, color: '#d4a373', hitFlash: 0, shakeUntil: 0, shakeOffset: { x: 0, y: 0 }, slowUntil: 0 };
@@ -628,13 +774,11 @@ const sharkBites = [];
 const whirlpools = [];
 const whipTrails = [];
 
-// Контроль-фрукт
-const controlZones = [];      // {x, y, radius, life, maxLife, owner}
-const controlLasers = [];     // {x, y, life, maxLife, damage, hits: Set}
-const controlMeteors = [];    // {targetX, targetY, x, y, fallProgress, duration, radius, damage, impactDone}
-const controlBeams = [];      // {x, y, radius, life, maxLife, damage, activated, hitDone}
-let controlAim = null;        // { abilityId, radius, color, kind } — для C и V
-let controlZoneOwner = null;  // ссылка на активную зону игрока (для requiresZone)
+const controlZones = [];
+const controlLasers = [];
+const controlMeteors = [];
+const controlBeams = [];
+let controlAim = null;
 
 let aimingAbility = null;
 let contextMenu = null;
@@ -652,6 +796,7 @@ let adminInput = '';
 let adminHistory = [];
 let lastNPressTime = 0;
 const ADMIN_N_DOUBLE_PRESS_MS = 450;
+let lastTopTapTime = 0;
 
 function openAdminConsole() {
   adminOpen = true;
@@ -666,7 +811,6 @@ function adminLog(text, color) {
   if (adminHistory.length > 8) adminHistory.shift();
 }
 
-// Дать игроку обычный фрукт в 5-й слот хотбара
 function giveFruitToSlot5(name, color) {
   const slotIdx = FRUIT_GIVE_SLOT;
   const existing = inventory[slotIdx];
@@ -699,11 +843,9 @@ function adminSubmit() {
   const command = parts[0].toLowerCase();
 
   if (command === 'g') {
-    // g <fruit> ИЛИ g level <N> <player>
     const second = (parts[1] || '').toLowerCase();
 
     if (second === 'level') {
-      // g level 4 test1
       const lvlStr = parts[2];
       const playerName = parts.slice(3).join(' ').trim();
       const lvl = parseInt(lvlStr, 10);
@@ -715,14 +857,12 @@ function adminSubmit() {
         adminLog('❌ Укажи имя игрока: g level 4 test1', '#ff5555');
         return;
       }
-      // Если это ты сам
       if (playerName === currentUser.username) {
         applyLevelToSelf(lvl);
         adminLog('⭐ Себе уровень ' + lvl, '#66ff66');
         saveNow();
         return;
       }
-      // Если это другой игрок, который в сети — посылаем ему через WebSocket
       if (ws && ws.readyState === 1) {
         ws.send(JSON.stringify({ type: 'admin_level', target: playerName, level: lvl }));
         adminLog('📡 Запрос: ' + playerName + ' → ' + lvl + ' уровень', '#66ff66');
@@ -732,18 +872,17 @@ function adminSubmit() {
       return;
     }
 
-    // Обычная команда g <фрукт>
     const fruitMap = {
-      'огонь':    { name: 'Огонь',   color: '#ff6600' },
-      'огня':     { name: 'Огонь',   color: '#ff6600' },
-      'fire':     { name: 'Огонь',   color: '#ff6600' },
-      'лёд':      { name: 'Лёд',     color: '#00c8ff' },
-      'лед':      { name: 'Лёд',     color: '#00c8ff' },
-      'льда':     { name: 'Лёд',     color: '#00c8ff' },
-      'ice':      { name: 'Лёд',     color: '#00c8ff' },
-      'акула':    { name: 'Акула',   color: '#1a4f8c' },
-      'акулы':    { name: 'Акула',   color: '#1a4f8c' },
-      'shark':    { name: 'Акула',   color: '#1a4f8c' },
+      'огонь':    { name: 'Огонь',    color: '#ff6600' },
+      'огня':     { name: 'Огонь',    color: '#ff6600' },
+      'fire':     { name: 'Огонь',    color: '#ff6600' },
+      'лёд':      { name: 'Лёд',      color: '#00c8ff' },
+      'лед':      { name: 'Лёд',      color: '#00c8ff' },
+      'льда':     { name: 'Лёд',      color: '#00c8ff' },
+      'ice':      { name: 'Лёд',      color: '#00c8ff' },
+      'акула':    { name: 'Акула',    color: '#1a4f8c' },
+      'акулы':    { name: 'Акула',    color: '#1a4f8c' },
+      'shark':    { name: 'Акула',    color: '#1a4f8c' },
       'контроль': { name: 'Контроль', color: '#5ac8ff' },
       'control':  { name: 'Контроль', color: '#5ac8ff' }
     };
@@ -765,7 +904,6 @@ function adminSubmit() {
 function applyLevelToSelf(lvl) {
   stats.level = Math.max(1, Math.min(MAX_LEVEL, lvl));
   stats.xp = 0;
-  // Начислим очки по стандартной схеме (3 за каждый уровень)
   stats.statPoints = Math.max(0, (stats.level - 1) * 3);
   showToast('⭐ Уровень: ' + stats.level);
 }
@@ -776,7 +914,8 @@ function drawAdminConsole() {
   ctx.fillStyle = 'rgba(0,0,0,0.55)';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  const pw = 640, ph = 400;
+  const pw = Math.min(640, canvas.width - 40);
+  const ph = Math.min(400, canvas.height - 40);
   const px = (canvas.width - pw) / 2;
   const py = (canvas.height - ph) / 2;
   ctx.fillStyle = 'rgba(10, 15, 10, 0.95)';
@@ -785,31 +924,27 @@ function drawAdminConsole() {
   roundRect(px, py, pw, ph, 12); ctx.fill(); ctx.stroke();
 
   ctx.fillStyle = adminUnlocked ? '#66ff66' : '#ffaa00';
-  ctx.font = 'bold 22px Consolas, monospace';
+  ctx.font = 'bold 20px Consolas, monospace';
   ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-  ctx.fillText(adminUnlocked ? '⚙ АДМИН-КОНСОЛЬ [РАЗБЛОКИРОВАНА]' : '🔒 АДМИН-КОНСОЛЬ [ВВЕДИ ПАРОЛЬ]', px + 20, py + 18);
+  ctx.fillText(adminUnlocked ? '⚙ АДМИН-КОНСОЛЬ' : '🔒 АДМИН-КОНСОЛЬ', px + 20, py + 18);
 
   ctx.fillStyle = 'rgba(255,255,255,0.55)';
-  ctx.font = '13px Consolas, monospace';
+  ctx.font = '12px Consolas, monospace';
   if (adminUnlocked) {
-    ctx.fillText('g <фрукт>              — дать фрукт (слот 5)', px + 20, py + 50);
-    ctx.fillText('g level <N> <ник>      — установить уровень игроку', px + 20, py + 68);
-    ctx.fillText('Примеры: g огонь · g level 4 test1', px + 20, py + 86);
+    ctx.fillText('g <фрукт>  —  дать фрукт', px + 20, py + 48);
+    ctx.fillText('g level <N> <ник>  —  уровень игроку', px + 20, py + 66);
   } else {
-    ctx.fillText('Введи пароль администратора и нажми Enter', px + 20, py + 50);
+    ctx.fillText('Введи пароль и нажми Enter', px + 20, py + 48);
   }
 
-  const logY = py + 118;
-  const logH = ph - 198;
+  const logY = py + 96;
+  const logH = ph - 176;
   ctx.fillStyle = 'rgba(0,0,0,0.6)';
   roundRect(px + 20, logY, pw - 40, logH, 6); ctx.fill();
-  ctx.strokeStyle = 'rgba(100,100,100,0.4)';
-  ctx.lineWidth = 1;
-  roundRect(px + 20, logY, pw - 40, logH, 6); ctx.stroke();
 
   const now = performance.now();
   const visibleHistory = adminHistory.filter(h => h.until > now);
-  ctx.font = '14px Consolas, monospace';
+  ctx.font = '13px Consolas, monospace';
   ctx.textAlign = 'left'; ctx.textBaseline = 'top';
   for (let i = 0; i < visibleHistory.length; i++) {
     ctx.fillStyle = visibleHistory[i].color;
@@ -824,7 +959,7 @@ function drawAdminConsole() {
   roundRect(px + 20, inY, pw - 40, 40, 6); ctx.stroke();
 
   ctx.fillStyle = '#66ff66';
-  ctx.font = 'bold 16px Consolas, monospace';
+  ctx.font = 'bold 15px Consolas, monospace';
   ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
   const promptText = adminUnlocked ? '> ' : '🔑 ';
   ctx.fillText(promptText, px + 32, inY + 20);
@@ -860,27 +995,21 @@ function tryMove(ent, dx, dy) {
   if (canBeAt(ent.x + dx, ent.y, ent.radius)) ent.x += dx;
   if (canBeAt(ent.x, ent.y + dy, ent.radius)) ent.y += dy;
 }
-// Проверка, заперт ли игрок внутри зоны контроля
 function isInControlZone(x, y) {
   for (const z of controlZones) {
     if (Math.hypot(x - z.x, y - z.y) < z.radius) return z;
   }
   return null;
 }
-// Движение игрока с учётом зоны (если внутри — не выпускать)
 function tryMovePlayer(dx, dy) {
   const zone = isInControlZone(player.x, player.y);
   if (!zone) {
     tryMove(player, dx, dy);
     return;
   }
-  // пробуем двигаться, но не выходить за радиус
   const nx = player.x + dx;
   const ny = player.y + dy;
-  // если новая точка вне зоны — обрезаем по окружности
   if (Math.hypot(nx - zone.x, ny - zone.y) > zone.radius - player.radius * 0.5) {
-    // двигаемся только если остаёмся внутри
-    // проецируем позицию на границу (мягкий блок)
     const angle = Math.atan2(player.y - zone.y, player.x - zone.x);
     const maxR = zone.radius - player.radius * 0.5;
     const bx = zone.x + Math.cos(angle) * maxR;
@@ -940,8 +1069,6 @@ function getHeldPower() {
   return { slot: heldSlot, power: it, abilities: getAbilitiesFor(it.name) };
 }
 function isInWaterForm() { return performance.now() < player.waterFormUntil; }
-
-// Есть ли у игрока активная зона контроля (созданная им)?
 function getMyControlZone() {
   for (const z of controlZones) {
     if (z.owner === currentUser.username) return z;
@@ -1012,21 +1139,18 @@ function startAbility(powerName, abilityId) {
   if (held.power.mastery < ab.requiredMastery) { showToast(`Нужно ${ab.requiredMastery} mastery!`); return; }
   if (ab.usesWaterMeter) { activateWaterTransform(); return; }
 
-  // Запрет использовать другие способности внутри зоны контроля
   const inZone = isInControlZone(player.x, player.y);
   if (inZone && powerName !== 'Контроль') {
     showToast('❌ В зоне контроля нельзя использовать другие способности!');
     return;
   }
 
-  // Для способностей, требующих зону — проверяем что своя зона существует
   if (ab.requiresZone) {
     const mine = getMyControlZone();
     if (!mine) {
       showToast('❌ Нужно создать купол (Z), чтобы использовать это!');
       return;
     }
-    // И что игрок внутри своей зоны
     if (Math.hypot(player.x - mine.x, player.y - mine.y) > mine.radius) {
       showToast('❌ Ты должен быть внутри своего купола!');
       return;
@@ -1037,12 +1161,10 @@ function startAbility(powerName, abilityId) {
   if (player.stamina < ab.stamina) { showToast('Мало стамины!'); return; }
 
   if (ab.noAim) {
-    // Z, X — без прицела, сразу
     executeAbilityAt(player.x, player.y);
     return;
   }
   if (ab.aiming) {
-    // C, V — включаем прицел
     if (abilityId === 'control_meteor') {
       controlAim = { abilityId: 'control_meteor', radius: 120, color: 'rgba(255,100,50,0.85)' };
       showToast('🎯 Кликни куда упадёт метеорит');
@@ -1054,13 +1176,11 @@ function startAbility(powerName, abilityId) {
       return;
     }
   }
-  // Фоллбэк
   aimingAbility = { powerName, abilityId, ability: ab };
   showToast('Кликни по цели');
 }
 
 function executeAbilityAt(tx, ty) {
-  // Сначала — контроль-способности (у них особый поток)
   const held = getHeldPower();
   if (held && held.power.name === 'Контроль') {
     executeControlAbility(tx, ty);
@@ -1124,25 +1244,18 @@ function executeAbilityAt(tx, ty) {
   aimingAbility = null;
 }
 
-// ==================== КОНТРОЛЬ-СПОСОБНОСТИ ====================
 function executeControlAbility(tx, ty) {
-  const ab = CONTROL_ABILITIES.find(a => (player.cooldowns[a.id] || 0) <= 0 &&
-    ((a.noAim && a.id === 'control_zone') || (controlAim && a.id === controlAim.abilityId)));
-  // Определяем какую именно способность сейчас применяем:
   let ability = null;
   if (controlAim) {
     ability = CONTROL_ABILITIES.find(a => a.id === controlAim.abilityId);
   } else {
-    // Z нажали — сразу выполнение
     ability = CONTROL_ABILITIES.find(a => a.id === 'control_zone');
   }
   if (!ability) { controlAim = null; return; }
 
-  // Проверки
   if ((player.cooldowns[ability.id] || 0) > 0) { controlAim = null; return; }
   if (player.stamina < ability.stamina) { showToast('Мало стамины!'); controlAim = null; return; }
 
-  // Для X/Y/C/V — надо быть в своей зоне
   if (ability.requiresZone) {
     const mine = getMyControlZone();
     if (!mine || Math.hypot(player.x - mine.x, player.y - mine.y) > mine.radius) {
@@ -1156,17 +1269,15 @@ function executeControlAbility(tx, ty) {
   player.stamina = Math.max(0, player.stamina - ability.stamina);
 
   if (ability.id === 'control_zone') {
-    // Ставим купол по центру игрока
     controlZones.push({
       x: player.x, y: player.y,
       radius: 220,
-      life: 900, maxLife: 900, // 15 сек * 60
+      life: 900, maxLife: 900,
       owner: currentUser.username
     });
     showToast('🌀 Купол контроля создан!');
     spawnZoneEffect(player.x, player.y, 220);
   } else if (ability.id === 'control_laser') {
-    // 8 лучей по 22 урона, из центра зоны
     const zone = getMyControlZone();
     if (!zone) { controlAim = null; return; }
     for (let i = 0; i < 8; i++) {
@@ -1202,7 +1313,7 @@ function executeControlAbility(tx, ty) {
     controlBeams.push({
       x: tx, y: ty,
       radius: 200,
-      life: 120, maxLife: 120, // 2 секунды до активации + 0.5с после
+      life: 120, maxLife: 120,
       damage: ability.damage,
       activated: false,
       hitDone: false,
@@ -1290,32 +1401,38 @@ function applySeaDamage() {
   }
 }
 
-// ==================== КЛИКИ ====================
-canvas.addEventListener('click', (e) => {
+// ==================== КЛИКИ / ТАПЫ ====================
+// Общая функция обработки "клика/тапа" в игровой мир
+function handleGameTap(mx, my) {
   if (!currentUser) return;
   if (adminOpen) return;
-  const rect = canvas.getBoundingClientRect();
-  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+
   if (questDialogOpen) { handleQuestDialogClick(mx, my); return; }
   if (rollDialogOpen) { handleRollDialogClick(mx, my); return; }
   if (statsOpen) { handleStatsClick(mx, my); return; }
 
-  // Прицел контроля C / V
+  // Если активен прицел контроля — превращаем в мир
   if (controlAim) {
     const wx = mx + camera.x, wy = my + camera.y;
     executeControlAbility(wx, wy);
     return;
   }
 
+  // Если активен обычный прицел способности
   if (aimingAbility) { executeAbilityAt(mx + camera.x, my + camera.y); return; }
+
   if (bagOpen) { handleBagClick(mx, my); return; }
+
   if (contextMenu) {
     for (const btn of contextMenu.buttons) {
       if (mx >= btn.x && mx <= btn.x + btn.w && my >= btn.y && my <= btn.y + btn.h) { executeMenuAction(btn.action); return; }
     }
     contextMenu = null; return;
   }
+
   if (isClickOnInvButton(mx, my)) { bagOpen = !bagOpen; return; }
+
+  // Тап по слоту хотбара
   const si = getSlotAtPoint(mx, my);
   if (si !== -1) {
     const item = inventory[si];
@@ -1329,20 +1446,116 @@ canvas.addEventListener('click', (e) => {
     if (heldSlot === -1 || (inventory[heldSlot] && inventory[heldSlot].type !== 'power')) abilityGuide = null;
     contextMenu = null; return;
   }
+
+  // Тап по игровому миру
   if (heldSlot !== -1) {
     const held = inventory[heldSlot];
     if (held && held.type === 'fists') { punchFist(); return; }
     if (held && held.type === 'fruit') { openContextMenu(); return; }
   }
+  // Если ничего не в руке — всё равно кулак (на мобилке удобнее)
+  if (isMobileDevice() && heldSlot === -1) {
+    // Найдём слот с кулаками
+    for (let i = 0; i < INVENTORY_SLOTS; i++) {
+      if (inventory[i] && inventory[i].type === 'fists') { heldSlot = i; punchFist(); return; }
+    }
+  }
+}
+
+// Клик мышью (для ПК)
+canvas.addEventListener('click', (e) => {
+  if (isMobileDevice()) return; // на мобилке обрабатываем тачами
+  if (!currentUser) return;
+  if (adminOpen) return;
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  handleGameTap(mx, my);
 });
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 
-// ==================== NPC ДИАЛОГ (КВЕСТ) ====================
+// Тач на канвасе
+let touchStartTime = 0;
+let touchStartX = 0;
+let touchStartY = 0;
+let touchMoved = false;
+
+canvas.addEventListener('touchstart', (e) => {
+  if (!currentUser) return;
+  if (adminOpen) {
+    // обработка тапа внутри админки
+    const t = e.touches[0];
+    if (!t) return;
+    const rect = canvas.getBoundingClientRect();
+    handleAdminTap(t.clientX - rect.left, t.clientY - rect.top);
+    e.preventDefault();
+    return;
+  }
+  const t = e.touches[0];
+  if (!t) return;
+  touchStartTime = performance.now();
+  touchStartX = t.clientX;
+  touchStartY = t.clientY;
+  touchMoved = false;
+  // Проверка двойного тапа по верхней части экрана (для админки на мобилке)
+  if (isMobileDevice() && t.clientY < 60) {
+    const now = performance.now();
+    if (now - lastTopTapTime < 500) {
+      lastTopTapTime = 0;
+      openAdminConsole();
+      e.preventDefault();
+      return;
+    }
+    lastTopTapTime = now;
+  }
+  e.preventDefault();
+}, { passive: false });
+
+canvas.addEventListener('touchmove', (e) => {
+  if (!currentUser || adminOpen) return;
+  const t = e.touches[0];
+  if (!t) return;
+  if (Math.hypot(t.clientX - touchStartX, t.clientY - touchStartY) > 12) touchMoved = true;
+  e.preventDefault();
+}, { passive: false });
+
+canvas.addEventListener('touchend', (e) => {
+  if (!currentUser || adminOpen) return;
+  if (touchMoved) return;
+  const dt = performance.now() - touchStartTime;
+  if (dt > 500) return;
+  const t = e.changedTouches[0];
+  if (!t) return;
+  const rect = canvas.getBoundingClientRect();
+  const mx = t.clientX - rect.left, my = t.clientY - rect.top;
+  handleGameTap(mx, my);
+  e.preventDefault();
+}, { passive: false });
+
+// Обработка тапа по админке на мобилке
+function handleAdminTap(mx, my) {
+  // Кнопка закрытия? Нет — просто ввод идёт через prompt или клавиатуру.
+  // На мобилке будем использовать window.prompt для ввода
+  if (adminUnlocked) {
+    const cmd = prompt('Введи команду:', '');
+    if (cmd !== null) {
+      adminInput = cmd;
+      adminSubmit();
+    }
+  } else {
+    const pwd = prompt('Введи пароль админа:', '');
+    if (pwd !== null) {
+      adminInput = pwd;
+      adminSubmit();
+    }
+  }
+}
+
+// ==================== NPC ДИАЛОГИ ====================
 let questDialogOpen = false;
 function openQuestDialog() { questDialogOpen = true; }
 function closeQuestDialog() { questDialogOpen = false; }
 function getQuestDialogButtons() {
-  const pw = 500, ph = 380;
+  const pw = Math.min(500, canvas.width - 40), ph = Math.min(380, canvas.height - 40);
   const px = (canvas.width - pw) / 2, py = (canvas.height - ph) / 2;
   return {
     panel: { x: px, y: py, w: pw, h: ph },
@@ -1360,12 +1573,11 @@ function handleQuestDialogClick(mx, my) {
   }
 }
 
-// ==================== NPC ДИАЛОГ (ПРОКРУТКА ФРУКТОВ) ====================
 let rollDialogOpen = false;
 function openRollDialog() { rollDialogOpen = true; }
 function closeRollDialog() { rollDialogOpen = false; }
 function getRollDialogButtons() {
-  const pw = 520, ph = 440;
+  const pw = Math.min(520, canvas.width - 40), ph = Math.min(440, canvas.height - 40);
   const px = (canvas.width - pw) / 2, py = (canvas.height - ph) / 2;
   return {
     panel: { x: px, y: py, w: pw, h: ph },
@@ -1424,7 +1636,7 @@ function tryRollFruit() {
 // ==================== СТАТИСТИКА ====================
 function closeStats() { statsOpen = false; }
 function getStatsButtons() {
-  const pw = 560, ph = 460;
+  const pw = Math.min(560, canvas.width - 40), ph = Math.min(460, canvas.height - 40);
   const px = (canvas.width - pw) / 2, py = (canvas.height - ph) / 2;
   const rowH = 100, rowW = pw - 60;
   return {
@@ -1451,12 +1663,22 @@ function handleStatsClick(mx, my) {
 
 // ==================== ХОТБАР ====================
 const HOTBAR_BOTTOM_MARGIN = 15;
-const SLOT_SIZE = 55;
-const SLOT_GAP = 8;
+let SLOT_SIZE = 55;
+let SLOT_GAP = 8;
+function updateSizes() {
+  if (deviceType === 'phone') { SLOT_SIZE = 62; SLOT_GAP = 8; }
+  else if (deviceType === 'tablet') { SLOT_SIZE = 72; SLOT_GAP = 10; }
+  else { SLOT_SIZE = 55; SLOT_GAP = 8; }
+}
+updateSizes();
+window.addEventListener('resize', updateSizes);
+
 function getSlotRect(i) {
   const w = INVENTORY_SLOTS * SLOT_SIZE + (INVENTORY_SLOTS - 1) * SLOT_GAP;
-  const sx = (canvas.width - w) / 2 - 40;
-  const sy = canvas.height - SLOT_SIZE - HOTBAR_BOTTOM_MARGIN;
+  const sx = (canvas.width - w) / 2 - (isMobileDevice() ? 0 : 40);
+  // На мобилке хотбар чуть выше, чтобы не закрывать джойстик/кнопки
+  const bottomMargin = isMobileDevice() ? 95 : HOTBAR_BOTTOM_MARGIN;
+  const sy = canvas.height - SLOT_SIZE - bottomMargin;
   return { x: sx + i * (SLOT_SIZE + SLOT_GAP), y: sy, w: SLOT_SIZE, h: SLOT_SIZE };
 }
 function getSlotAtPoint(mx, my) {
@@ -1547,15 +1769,17 @@ function getBagPanelRect() {
 }
 function getBagGridRect() { const p = getBagPanelRect(); return { x: p.x + 30, y: p.y + 90 }; }
 function getBagCloseRect() { const p = getBagPanelRect(); return { x: p.x + p.w - 44, y: p.y + 15, w: 30, h: 30 }; }
-function getInvButtonRect() { const s = 44, m = 15; return { x: canvas.width - s - m, y: canvas.height - s - m, w: s, h: s }; }
+function getInvButtonRect() {
+  const s = isMobileDevice() ? 52 : 44, m = 15;
+  return { x: canvas.width - s - m, y: canvas.height - s - m - (isMobileDevice() ? 95 : 0), w: s, h: s };
+}
 function isClickOnInvButton(mx, my) { const r = getInvButtonRect(); return mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h; }
 
-// ==================== КЛАВИАТУРА ====================
+// ==================== КЛАВИАТУРА (ПК) ====================
 const keys = {};
 window.addEventListener('keydown', (e) => {
   if (!currentUser) return;
-
-  // === Админ-консоль: двойное нажатие N ===
+  // На мобилке физическая клавиатура не нужна, но если подключена — не мешаем
   if (e.code === 'KeyN' || e.key.toLowerCase() === 'n' || e.key.toLowerCase() === 'т') {
     if (adminOpen) {
       if (e.key.length === 1) { adminInput += e.key; e.preventDefault(); }
@@ -1571,7 +1795,6 @@ window.addEventListener('keydown', (e) => {
     lastNPressTime = now;
   }
 
-  // === Ввод в админ-консоль ===
   if (adminOpen) {
     if (e.key === 'Escape') { closeAdminConsole(); e.preventDefault(); return; }
     if (e.key === 'Enter') { adminSubmit(); e.preventDefault(); return; }
@@ -1629,6 +1852,122 @@ window.addEventListener('keyup', (e) => {
   keys[e.key.toLowerCase()] = false;
 });
 
+// ==================== ТАЧ-ДЖОЙСТИК ====================
+let joyActive = false;
+let joyTouchId = null;
+let joyVec = { x: 0, y: 0 };
+const JOY_MAX_R = 55;
+
+function joyStartTouch(t) {
+  joyActive = true;
+  joyTouchId = t.identifier;
+  const rect = joystickEl.getBoundingClientRect();
+  joyCenter = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+}
+let joyCenter = { x: 0, y: 0 };
+
+joystickEl.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  const t = e.changedTouches[0];
+  if (!t) return;
+  joyStartTouch(t);
+}, { passive: false });
+
+window.addEventListener('touchmove', (e) => {
+  if (!joyActive) return;
+  for (const t of e.changedTouches) {
+    if (t.identifier === joyTouchId) {
+      const dx = t.clientX - joyCenter.x;
+      const dy = t.clientY - joyCenter.y;
+      const dist = Math.hypot(dx, dy);
+      const r = Math.min(dist, JOY_MAX_R);
+      const nx = dist > 0 ? dx / dist : 0;
+      const ny = dist > 0 ? dy / dist : 0;
+      joyVec.x = nx * (r / JOY_MAX_R);
+      joyVec.y = ny * (r / JOY_MAX_R);
+      joystickStick.style.transform = `translate(calc(-50% + ${nx * r}px), calc(-50% + ${ny * r}px))`;
+      e.preventDefault();
+    }
+  }
+}, { passive: false });
+
+window.addEventListener('touchend', (e) => {
+  for (const t of e.changedTouches) {
+    if (t.identifier === joyTouchId) {
+      joyActive = false;
+      joyTouchId = null;
+      joyVec.x = 0; joyVec.y = 0;
+      joystickStick.style.transform = 'translate(-50%, -50%)';
+    }
+  }
+}, { passive: false });
+
+window.addEventListener('touchcancel', (e) => {
+  joyActive = false;
+  joyTouchId = null;
+  joyVec.x = 0; joyVec.y = 0;
+  joystickStick.style.transform = 'translate(-50%, -50%)';
+}, { passive: false });
+
+// ==================== МОБИЛЬНЫЕ КНОПКИ СПОСОБНОСТЕЙ ====================
+document.querySelectorAll('.abilityBtn').forEach(btn => {
+  const press = (e) => {
+    e.preventDefault();
+    if (!currentUser) return;
+    if (adminOpen) return;
+    const key = btn.dataset.key;
+    const held = getHeldPower();
+    if (!held) { showToast('Возьми силу в руки!'); return; }
+    const ab = held.abilities.find(a => a.key === key);
+    if (ab) startAbility(held.power.name, ab.id);
+  };
+  btn.addEventListener('touchstart', press, { passive: false });
+  btn.addEventListener('mousedown', press);
+});
+
+// Обновление состояния кнопок на мобилке (показываем доступные/недоступные)
+function updateMobileAbilityButtons() {
+  if (!isMobileDevice()) return;
+  const held = getHeldPower();
+  document.querySelectorAll('.abilityBtn').forEach(btn => {
+    const key = btn.dataset.key;
+    let shouldShow = true;
+    if (!held) {
+      shouldShow = false;
+    } else {
+      const ab = held.abilities.find(a => a.key === key);
+      if (!ab) shouldShow = false;
+      else if (held.power.mastery < ab.requiredMastery) shouldShow = false;
+    }
+    if (!shouldShow) {
+      btn.classList.add('disabled');
+    } else {
+      btn.classList.remove('disabled');
+    }
+    // Показать КД
+    const cdMask = btn.querySelector('.cd-mask');
+    if (held) {
+      const ab = held.abilities.find(a => a.key === key);
+      if (ab && ab.cooldown > 0) {
+        const cd = player.cooldowns[ab.id] || 0;
+        if (cd > 0) {
+          if (!cdMask) {
+            const m = document.createElement('div');
+            m.className = 'cd-mask';
+            btn.appendChild(m);
+          }
+        } else {
+          if (cdMask) cdMask.remove();
+        }
+      } else {
+        if (cdMask) cdMask.remove();
+      }
+    } else {
+      if (cdMask) cdMask.remove();
+    }
+  });
+}
+
 // ==================== ОБНОВЛЕНИЕ ====================
 function update() {
   if (!currentUser) return;
@@ -1652,12 +1991,10 @@ function update() {
     rp.y += ddy * 0.25;
     if (rp.hitFlash > 0) rp.hitFlash--;
     if (rp.punchAnim > 0) rp.punchAnim = Math.max(0, rp.punchAnim - 0.08);
-    // Удержание удалённых игроков в зонах
     for (const z of controlZones) {
       if (Math.hypot(rp.x - z.x, rp.y - z.y) < z.radius) {
         rp.targetX = Math.max(z.x - z.radius + 5, Math.min(z.x + z.radius - 5, rp.targetX));
         rp.targetY = Math.max(z.y - z.radius + 5, Math.min(z.y + z.radius - 5, rp.targetY));
-        // Дополнительно ограничим радиусом
         const dx = rp.targetX - z.x, dy = rp.targetY - z.y;
         const d = Math.hypot(dx, dy);
         if (d > z.radius - 5) {
@@ -1677,21 +2014,31 @@ function update() {
 
   if (now > player.seaDamageTimer && !blocked) { player.seaDamageTimer = now + 1000; applySeaDamage(); }
 
+  // Движение
   if (!blocked && !aimingAbility && !controlAim) {
     let dx = 0, dy = 0;
-    if (keys['w'] || keys['arrowup'] || keys['ц']) dy -= 1;
-    if (keys['s'] || keys['arrowdown'] || keys['ы']) dy += 1;
-    if (keys['a'] || keys['arrowleft'] || keys['ф']) dx -= 1;
-    if (keys['d'] || keys['arrowright'] || keys['в']) dx += 1;
-    if (dx && dy) { const l = Math.hypot(dx, dy); dx /= l; dy /= l; }
-    tryMovePlayer(dx * spd, dy * spd);
-    if (dx || dy) { player.lookX = dx; player.lookY = dy; }
+    if (isMobileDevice()) {
+      // Джойстик
+      dx = joyVec.x;
+      dy = joyVec.y;
+    } else {
+      if (keys['w'] || keys['arrowup'] || keys['ц']) dy -= 1;
+      if (keys['s'] || keys['arrowdown'] || keys['ы']) dy += 1;
+      if (keys['a'] || keys['arrowleft'] || keys['ф']) dx -= 1;
+      if (keys['d'] || keys['arrowright'] || keys['в']) dx += 1;
+      if (dx && dy) { const l = Math.hypot(dx, dy); dx /= l; dy /= l; }
+    }
+    const dl = Math.hypot(dx, dy);
+    if (dl > 0.01) {
+      tryMovePlayer(dx * spd, dy * spd);
+      player.lookX = dx / Math.max(1, dl);
+      player.lookY = dy / Math.max(1, dl);
+    }
     player.stamina = Math.min(getMaxStamina(), player.stamina + STAMINA_REGEN_PER_FRAME);
   } else {
     player.stamina = Math.min(getMaxStamina(), player.stamina + STAMINA_REGEN_PER_FRAME);
   }
 
-  // Реген HP
   const mh = getMaxHp();
   const sinceDamage = now - player.lastDamageTime;
   if (sinceDamage >= HP_REGEN_DELAY_MS && player.hp < mh) {
@@ -1728,23 +2075,19 @@ function update() {
   if (player.punchCooldown > 0) player.punchCooldown -= 1/60;
   if (player.punchAnim > 0) player.punchAnim = Math.max(0, player.punchAnim - 0.08);
 
-  // ============ ЗОНЫ КОНТРОЛЯ ============
+  // Зоны контроля
   for (let i = controlZones.length - 1; i >= 0; i--) {
     const z = controlZones[i];
     z.life--;
     if (z.life <= 0) controlZones.splice(i, 1);
   }
 
-  // ============ ЛАЗЕРЫ ============
+  // Лазеры
   for (let i = controlLasers.length - 1; i >= 0; i--) {
     const l = controlLasers[i];
     l.life--;
-    // Проверка попадания по пиратам/игрокам/нпс (один раз за луч)
-    // Луч — от центра к краю по углу
     const ex = l.cx + Math.cos(l.angle) * l.len;
     const ey = l.cy + Math.sin(l.angle) * l.len;
-    if (!l.hitPirates) l.hitPirates = new Set();
-    // Пираты
     for (const pir of pirates) {
       if (pir.dead || l.hits.has(pir)) continue;
       if (pointNearSegment(pir.x, pir.y, l.cx, l.cy, ex, ey, 18 + pir.radius)) {
@@ -1752,12 +2095,10 @@ function update() {
         l.hits.add(pir);
       }
     }
-    // НПС
     if (!l.hits.has('npc') && pointNearSegment(npc.x, npc.y, l.cx, l.cy, ex, ey, 18 + npc.radius)) {
       damageNpc(l.damage);
       l.hits.add('npc');
     }
-    // Другие игроки
     for (const rp of remotePlayers.values()) {
       if (l.hits.has(rp.u)) continue;
       if (pointNearSegment(rp.x, rp.y, l.cx, l.cy, ex, ey, 18 + player.radius)) {
@@ -1768,7 +2109,7 @@ function update() {
     if (l.life <= 0) controlLasers.splice(i, 1);
   }
 
-  // ============ МЕТЕОРИТЫ КОНТРОЛЯ ============
+  // Метеориты
   for (let i = controlMeteors.length - 1; i >= 0; i--) {
     const m = controlMeteors[i];
     m.fallProgress++;
@@ -1777,8 +2118,6 @@ function update() {
     if (Math.random() < 0.6) particles.push({ x: m.x + (Math.random() - 0.5) * 30, y: m.y + (Math.random() - 0.5) * 30, vx: (Math.random() - 0.5) * 2, vy: (Math.random() - 0.5) * 2, life: 25, maxLife: 25, radius: 4 + Math.random() * 4, color: '#aaffff' });
     if (t >= 1 && !m.impactDone) {
       m.impactDone = true;
-      // Прямое попадание (в радиусе m.radius от targetX/targetY): 35
-      // Если игрок в зоне, но вне радиуса: 2
       for (const pir of pirates) {
         if (pir.dead) continue;
         const d = Math.hypot(pir.x - m.targetX, pir.y - m.targetY);
@@ -1795,7 +2134,6 @@ function update() {
         if (d < m.radius) sendHit(rp.u, m.damage, 'ranged');
         else if (Math.hypot(rp.x - m.zoneX, rp.y - m.zoneY) < m.zoneR) sendHit(rp.u, 2, 'ranged');
       }
-      // свой урон тоже
       if (Math.hypot(player.x - m.targetX, player.y - m.targetY) < m.radius) damagePlayer(2);
       for (let k = 0; k < 40; k++) { const a = Math.random() * Math.PI * 2; const s = 3 + Math.random() * 8; particles.push({ x: m.targetX, y: m.targetY, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 40, maxLife: 70, radius: 4 + Math.random() * 6, color: '#ffaa66' }); }
       particles.push({ isShockwave: true, x: m.targetX, y: m.targetY, radius: 10, maxRadius: m.radius * 1.2, life: 30, maxLife: 30, color: '#ffaa66' });
@@ -1803,14 +2141,12 @@ function update() {
     if (m.impactDone && m.fallProgress > m.duration + 30) controlMeteors.splice(i, 1);
   }
 
-  // ============ СИНИЕ ЛУЧИ ============
+  // Синие лучи
   for (let i = controlBeams.length - 1; i >= 0; i--) {
     const b = controlBeams[i];
     b.life--;
-    // Активация на 2-й секунде (120 кадров жизни → активируется при life <= 60)
     if (!b.activated && b.life <= 60) {
       b.activated = true;
-      // 70 урона тому, кто под лучом
       for (const pir of pirates) {
         if (pir.dead || b.hitDone) continue;
         if (Math.hypot(pir.x - b.x, pir.y - b.y) < b.radius) damagePirate(pir, b.damage);
@@ -1825,7 +2161,7 @@ function update() {
     if (b.life <= 0) controlBeams.splice(i, 1);
   }
 
-  // СНАРЯДЫ
+  // Снаряды
   for (let i = projectiles.length - 1; i >= 0; i--) {
     const p = projectiles[i];
     p.x += p.vx; p.y += p.vy; p.life--;
@@ -1864,7 +2200,7 @@ function update() {
     if (hit || p.life <= 0) projectiles.splice(i, 1);
   }
 
-  // АКУЛЫ
+  // Акулы
   for (let i = sharkBites.length - 1; i >= 0; i--) {
     const s = sharkBites[i];
     s.x += s.vx; s.y += s.vy; s.life--;
@@ -1900,7 +2236,7 @@ function update() {
     if (hit || s.life <= 0) sharkBites.splice(i, 1);
   }
 
-  // ВОДОВОРОТЫ
+  // Водовороты
   for (let i = whirlpools.length - 1; i >= 0; i--) {
     const w = whirlpools[i];
     w.life--; w.rotation += 0.15;
@@ -1982,7 +2318,7 @@ function update() {
     if (m.impactDone && m.fallProgress > m.duration + 30) meteors.splice(i, 1);
   }
 
-  // ПИРАТЫ
+  // Пираты
   for (let i = pirates.length - 1; i >= 0; i--) {
     const pir = pirates[i];
     if (pir.dead) { if (pir.deathTimer > 0) pir.deathTimer--; if (now >= pir.respawnAt) { const idx = pir.spawnIdx; pirates.splice(i, 1); spawnPirate(idx); } continue; }
@@ -1994,15 +2330,12 @@ function update() {
     if (!pir.aggro && !pir.chasing && dist < PIRATE_AGGRO_RADIUS) pir.aggro = true;
     if (pir.aggro && !pir.chasing && dist > PIRATE_LEASH_RADIUS) pir.aggro = false;
 
-    // Удержание пирата в зоне
     const zone = isInControlZone(pir.x, pir.y);
     if (zone) {
-      // пират внутри — не может выйти
       let nx = pir.x, ny = pir.y;
       if (pir.chasing && dist > 30) { nx += (dx / dist) * spd2; ny += (dy / dist) * spd2; }
       else if (pir.aggro && dist > 30 && dist < PIRATE_LEASH_RADIUS) { nx += (dx / dist) * spd2; ny += (dy / dist) * spd2; }
       else if (!pir.aggro) { const hx = pir.homeX - pir.x, hy = pir.homeY - pir.y, hd = Math.hypot(hx, hy); if (hd > 5) { nx += (hx / hd) * spd2; ny += (hy / hd) * spd2; } }
-      // ограничение радиусом зоны
       if (Math.hypot(nx - zone.x, ny - zone.y) > zone.radius - pir.radius) {
         const ang = Math.atan2(ny - zone.y, nx - zone.x);
         const r = zone.radius - pir.radius;
@@ -2043,9 +2376,11 @@ function update() {
   if (heldSlot === -1 || !inventory[heldSlot] || inventory[heldSlot].type !== 'power') { if (abilityGuide) abilityGuide = null; }
   if (aimingAbility || isInWaterForm() || controlAim) canvas.classList.add('crosshair');
   else canvas.classList.remove('crosshair');
+
+  // Обновляем мобильные кнопки
+  updateMobileAbilityButtons();
 }
 
-// Точка в пределах отрезка
 function pointNearSegment(px, py, x1, y1, x2, y2, threshold) {
   const dx = x2 - x1, dy = y2 - y1;
   const len2 = dx * dx + dy * dy;
@@ -2537,31 +2872,20 @@ function drawWhipTrails() {
   }
 }
 
-// ==================== РИСОВАНИЕ КОНТРОЛЬ-ЭФФЕКТОВ ====================
 function drawControlZones() {
   for (const z of controlZones) {
     const x = z.x - camera.x, y = z.y - camera.y;
     const a = Math.min(1, z.life / 60);
     const t = performance.now() * 0.002;
-
-    // Полупрозрачный купол
     const g = ctx.createRadialGradient(x, y, 0, x, y, z.radius);
     g.addColorStop(0, `rgba(90,200,255,${0.10 * a})`);
     g.addColorStop(0.7, `rgba(90,200,255,${0.15 * a})`);
     g.addColorStop(1, `rgba(90,200,255,${0.35 * a})`);
     ctx.beginPath(); ctx.arc(x, y, z.radius, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
-
-    // Кольцо по краю
     ctx.beginPath(); ctx.arc(x, y, z.radius, 0, Math.PI * 2);
-    ctx.strokeStyle = `rgba(140,220,255,${0.85 * a})`;
-    ctx.lineWidth = 4; ctx.stroke();
-
-    // Пульсация
+    ctx.strokeStyle = `rgba(140,220,255,${0.85 * a})`; ctx.lineWidth = 4; ctx.stroke();
     ctx.beginPath(); ctx.arc(x, y, z.radius * (0.98 + Math.sin(t * 3) * 0.01), 0, Math.PI * 2);
-    ctx.strokeStyle = `rgba(180,240,255,${0.5 * a})`;
-    ctx.lineWidth = 2; ctx.stroke();
-
-    // Надпись владельца
+    ctx.strokeStyle = `rgba(180,240,255,${0.5 * a})`; ctx.lineWidth = 2; ctx.stroke();
     ctx.font = 'bold 14px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
     const label = '🌀 ' + z.owner;
@@ -2576,17 +2900,10 @@ function drawControlLasers() {
     const cx = l.cx - camera.x, cy = l.cy - camera.y;
     const ex = cx + Math.cos(l.angle) * l.len;
     const ey = cy + Math.sin(l.angle) * l.len;
-    // Луч
     ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(ex, ey);
-    ctx.strokeStyle = `rgba(120,220,255,${a})`;
-    ctx.lineWidth = 14;
-    ctx.lineCap = 'round';
-    ctx.stroke();
-    // Яркое ядро
+    ctx.strokeStyle = `rgba(120,220,255,${a})`; ctx.lineWidth = 14; ctx.lineCap = 'round'; ctx.stroke();
     ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(ex, ey);
-    ctx.strokeStyle = `rgba(255,255,255,${a})`;
-    ctx.lineWidth = 4;
-    ctx.stroke();
+    ctx.strokeStyle = `rgba(255,255,255,${a})`; ctx.lineWidth = 4; ctx.stroke();
   }
 }
 
@@ -2594,11 +2911,9 @@ function drawControlMeteors() {
   for (const m of controlMeteors) {
     const x = m.x - camera.x, y = m.y - camera.y;
     const tx = m.targetX - camera.x, ty = m.targetY - camera.y;
-    // Круг цели
     ctx.beginPath(); ctx.arc(tx, ty, m.radius, 0, Math.PI * 2);
     ctx.strokeStyle = 'rgba(255,140,80,0.85)'; ctx.lineWidth = 3;
     ctx.setLineDash([12, 8]); ctx.stroke(); ctx.setLineDash([]);
-    // Метеорит
     if (!m.impactDone) {
       const gr = ctx.createRadialGradient(x, y, 0, x, y, 90);
       gr.addColorStop(0, 'rgba(255,255,255,1)');
@@ -2614,17 +2929,14 @@ function drawControlBeams() {
   for (const b of controlBeams) {
     const x = b.x - camera.x, y = b.y - camera.y;
     const a = b.life / b.maxLife;
-    // Прицельная зона
     ctx.beginPath(); ctx.arc(x, y, b.radius, 0, Math.PI * 2);
     ctx.fillStyle = b.activated ? `rgba(80,180,255,${0.25 * a})` : `rgba(80,180,255,${0.10 * a})`;
     ctx.fill();
     ctx.strokeStyle = `rgba(140,220,255,${0.85 * a})`; ctx.lineWidth = 4; ctx.stroke();
-    // Зарядка
     if (!b.activated) {
       const t = performance.now() * 0.005;
       ctx.beginPath(); ctx.arc(x, y, b.radius * (0.3 + 0.7 * (1 - a)), 0, Math.PI * 2);
       ctx.strokeStyle = `rgba(255,255,255,${0.6 * a})`; ctx.lineWidth = 3; ctx.stroke();
-      // Молнии/искры по центру
       for (let i = 0; i < 6; i++) {
         const ang = t + i * (Math.PI * 2 / 6);
         const r = 20 + Math.sin(t * 4 + i) * 10;
@@ -2633,13 +2945,11 @@ function drawControlBeams() {
         ctx.fillStyle = `rgba(200,240,255,${a})`; ctx.fill();
       }
     } else {
-      // Активированный луч — яркая вспышка
       const gr = ctx.createRadialGradient(x, y, 0, x, y, b.radius);
       gr.addColorStop(0, `rgba(255,255,255,${a})`);
       gr.addColorStop(0.4, `rgba(120,220,255,${a})`);
       gr.addColorStop(1, `rgba(30,100,200,0)`);
       ctx.beginPath(); ctx.arc(x, y, b.radius, 0, Math.PI * 2); ctx.fillStyle = gr; ctx.fill();
-      // Молния вверх
       ctx.beginPath();
       ctx.moveTo(x, y - b.radius * 1.4);
       ctx.lineTo(x + 20, y - b.radius * 0.7);
@@ -2761,17 +3071,13 @@ function drawPowerIcon(cx, cy, radius, name) {
     ctx.beginPath(); ctx.moveTo(cx, cy - radius * 0.8); ctx.bezierCurveTo(cx + radius * 0.5, cy - radius * 0.3, cx + radius * 0.3, cy + radius * 0.5, cx, cy + radius * 0.5); ctx.bezierCurveTo(cx - radius * 0.3, cy + radius * 0.5, cx - radius * 0.5, cy - radius * 0.3, cx, cy - radius * 0.8); ctx.closePath();
     const g = ctx.createLinearGradient(cx, cy - radius, cx, cy + radius); g.addColorStop(0, '#4a6e9c'); g.addColorStop(0.5, '#1a3a5c'); g.addColorStop(1, '#0a1a3a'); ctx.fillStyle = g; ctx.fill();
   } else if (name === 'Контроль') {
-    // Иконка контроля — щит/купол
     const bg = ctx.createRadialGradient(cx, cy, 1, cx, cy, radius * 1.2); bg.addColorStop(0, '#0a2a3a'); bg.addColorStop(1, '#000a14');
     ctx.beginPath(); ctx.arc(cx, cy, radius * 1.1, 0, Math.PI * 2); ctx.fillStyle = bg; ctx.fill(); ctx.strokeStyle = '#5ac8ff'; ctx.lineWidth = 2; ctx.stroke();
-    // Купол
     const cg = ctx.createRadialGradient(cx, cy + radius * 0.2, 1, cx, cy + radius * 0.2, radius * 0.85);
     cg.addColorStop(0, 'rgba(180,240,255,0.3)'); cg.addColorStop(1, 'rgba(90,200,255,0.9)');
-    ctx.beginPath();
-    ctx.arc(cx, cy + radius * 0.15, radius * 0.8, Math.PI, Math.PI * 2);
+    ctx.beginPath(); ctx.arc(cx, cy + radius * 0.15, radius * 0.8, Math.PI, Math.PI * 2);
     ctx.closePath(); ctx.fillStyle = cg; ctx.fill();
     ctx.strokeStyle = '#aaddff'; ctx.lineWidth = 2; ctx.stroke();
-    // Внутренний шар
     ctx.beginPath(); ctx.arc(cx, cy + radius * 0.1, radius * 0.35, 0, Math.PI * 2);
     ctx.fillStyle = '#5ac8ff'; ctx.fill();
     ctx.strokeStyle = 'white'; ctx.lineWidth = 1.5; ctx.stroke();
@@ -2799,7 +3105,9 @@ function roundRect(x, y, w, h, r) {
 
 function drawInventory() {
   const sw = INVENTORY_SLOTS * SLOT_SIZE + (INVENTORY_SLOTS - 1) * SLOT_GAP;
-  const sx = (canvas.width - sw) / 2 - 40, sy = canvas.height - SLOT_SIZE - HOTBAR_BOTTOM_MARGIN;
+  const sx = (canvas.width - sw) / 2 - (isMobileDevice() ? 0 : 40);
+  const bottomMargin = isMobileDevice() ? 95 : HOTBAR_BOTTOM_MARGIN;
+  const sy = canvas.height - SLOT_SIZE - bottomMargin;
   const pad = 10;
   ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 2;
   roundRect(sx - pad, sy - pad, sw + pad * 2, SLOT_SIZE + pad * 2, 12); ctx.fill(); ctx.stroke();
@@ -3189,7 +3497,6 @@ canvas.addEventListener('mousemove', (e) => {
 });
 
 function drawAimCursor() {
-  // Прицел обычной способности
   if (aimingAbility && !controlAim) {
     const x = mousePos.x, y = mousePos.y;
     const t = performance.now() * 0.005;
@@ -3208,23 +3515,19 @@ function drawAimCursor() {
     ctx.moveTo(x, y + r - 4); ctx.lineTo(x, y + r + 8);
     ctx.stroke();
   }
-  // Большой прицел для метеорита / луча
   if (controlAim) {
     const x = mousePos.x, y = mousePos.y;
     const r = controlAim.radius;
     const t = performance.now() * 0.004;
     const pulse = 1 + Math.sin(t * 3) * 0.03;
-    // Заливка
     ctx.beginPath(); ctx.arc(x, y, r * pulse, 0, Math.PI * 2);
     ctx.fillStyle = controlAim.abilityId === 'control_meteor'
       ? 'rgba(255,120,60,0.18)'
       : 'rgba(80,180,255,0.18)';
     ctx.fill();
-    // Кольцо
     ctx.beginPath(); ctx.arc(x, y, r * pulse, 0, Math.PI * 2);
     ctx.strokeStyle = controlAim.color;
     ctx.lineWidth = 4; ctx.stroke();
-    // Перекрестие
     ctx.strokeStyle = controlAim.color; ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(x - r - 14, y); ctx.lineTo(x - r + 10, y);
@@ -3232,10 +3535,8 @@ function drawAimCursor() {
     ctx.moveTo(x, y - r - 14); ctx.lineTo(x, y - r + 10);
     ctx.moveTo(x, y + r - 10); ctx.lineTo(x, y + r + 14);
     ctx.stroke();
-    // Центр
     ctx.beginPath(); ctx.arc(x, y, 8, 0, Math.PI * 2);
     ctx.fillStyle = controlAim.color; ctx.fill();
-    // Подпись
     ctx.font = 'bold 14px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
     const label = controlAim.abilityId === 'control_meteor' ? '☄️ Клик — метеорит' : '🔵 Клик — луч';
     ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
