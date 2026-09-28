@@ -92,13 +92,6 @@ app.post('/api/save', async (req, res) => {
 const wss = new WebSocketServer({ server });
 const players = new Map();
 
-// Общий список дропнутых фруктов (синхронизируется для всех игроков)
-// { id, x, y, name, color, droppedBy, droppedAt }
-const sharedDroppedFruits = [];
-
-// Активные зоны контроля: username -> { x, y, radius, until }
-const activeZones = new Map();
-
 const COLORS = ['#ffb300','#ff5566','#66ff99','#aaddff','#ffaaee','#ffdd88','#88ddff','#dd88ff','#c8ff88','#ffcc66','#88ffcc','#ff8844'];
 function pickColor(username) {
   let h = 0;
@@ -124,30 +117,14 @@ function snapshotExcept(exceptUsername) {
   for (const [u, p] of players) {
     if (u === exceptUsername) continue;
     list.push({
-      u,
-      x: Math.round(p.x),
-      y: Math.round(p.y),
-      lx: +p.lx.toFixed(2),
-      ly: +p.ly.toFixed(2),
-      hp: Math.round(p.hp),
-      mhp: p.mhp,
-      c: p.color,
-      wf: p.waterForm,
+      u, x: Math.round(p.x), y: Math.round(p.y),
+      lx: +p.lx.toFixed(2), ly: +p.ly.toFixed(2),
+      hp: Math.round(p.hp), mhp: p.mhp,
+      c: p.color, wf: p.waterForm,
       held: p.held || null
     });
   }
   return list;
-}
-function pruneZones() {
-  const now = Date.now();
-  for (const [u, z] of activeZones) {
-    if (z.until <= now) activeZones.delete(u);
-  }
-  for (const p of players.values()) {
-    if (!activeZones.has(p.username) && p.zoneUntil && p.zoneUntil <= now) {
-      p.zoneUntil = 0;
-    }
-  }
 }
 
 wss.on('connection', (ws) => {
@@ -159,7 +136,6 @@ wss.on('connection', (ws) => {
     let msg;
     try { msg = JSON.parse(buf.toString()); } catch { return; }
 
-    // -------- АВТОРИЗАЦИЯ --------
     if (msg.type === 'hello') {
       if (typeof msg.username !== 'string' || typeof msg.password !== 'string') {
         ws.send(JSON.stringify({ type: 'hello_err', error: 'Неверные данные' }));
@@ -195,36 +171,21 @@ wss.on('connection', (ws) => {
         invulnUntil: 0,
         lastMoveTime: Date.now(),
         kills: 0, deaths: 0,
-        hitCount: 0, hitResetAt: 0,
-        zoneUntil: 0
+        hitCount: 0, hitResetAt: 0
       };
       players.set(username, me);
-
-      // Очистка устаревших зон
-      pruneZones();
-
-      // Список активных зон для нового игрока
-      const zonesList = [];
-      for (const [u, z] of activeZones) {
-        zonesList.push({ from: u, x: z.x, y: z.y, radius: z.radius, until: z.until });
-      }
 
       ws.send(JSON.stringify({
         type: 'hello_ok',
         you: { u: username, c: me.color },
-        players: snapshotExcept(username),
-        droppedFruits: sharedDroppedFruits,
-        activeZones: zonesList
+        players: snapshotExcept(username)
       }));
 
       broadcastExcept({
-        type: 'join',
-        u: username,
-        x: me.x, y: me.y,
-        lx: me.lx, ly: me.ly,
-        hp: me.hp, mhp: me.mhp,
-        c: me.color, wf: me.waterForm,
-        held: null
+        type: 'join', u: username,
+        x: me.x, y: me.y, lx: me.lx, ly: me.ly,
+        hp: me.hp, mhp: me.mhp, c: me.color, wf: me.waterForm,
+        held: me.held
       }, username);
 
       console.log(`[ws] + ${username} (online ${players.size})`);
@@ -300,7 +261,7 @@ wss.on('connection', (ws) => {
       if (typeof msg.hp === 'number' && Number.isFinite(msg.hp)) me.hp = Math.max(0, Math.min(msg.hp, me.mhp));
       if (typeof msg.mhp === 'number' && Number.isFinite(msg.mhp)) me.mhp = msg.mhp;
       if (typeof msg.wf === 'boolean') me.waterForm = msg.wf;
-      if (typeof msg.held !== 'undefined') me.held = msg.held;
+      if (msg.held === null || (typeof msg.held === 'string' && msg.held.length > 0)) me.held = msg.held;
 
       broadcastExcept({
         type: 'pos', u: username,
@@ -313,73 +274,55 @@ wss.on('connection', (ws) => {
       return;
     }
 
-    // -------- DROP FRUIT (сброс фрукта на землю) --------
-    if (msg.type === 'drop_fruit') {
-      const id = String(msg.id || '').slice(0, 60);
-      if (!id) return;
-      // Не даём дубликаты
-      if (sharedDroppedFruits.find(f => f.id === id)) return;
-      const fruit = {
-        id,
-        x: Number(msg.x) || 0,
-        y: Number(msg.y) || 0,
-        name: String(msg.name || '').slice(0, 30),
-        color: String(msg.color || '#888888').slice(0, 20),
-        droppedBy: username,
-        droppedAt: Date.now()
-      };
-      sharedDroppedFruits.push(fruit);
-      if (sharedDroppedFruits.length > 200) sharedDroppedFruits.shift();
-      broadcastExcept({ type: 'fruit_dropped', fruit }, username);
-      return;
-    }
-
-    // -------- PICKUP FRUIT (подобрать фрукт) --------
-    if (msg.type === 'pickup_fruit') {
-      const id = String(msg.id || '');
-      const idx = sharedDroppedFruits.findIndex(f => f.id === id);
-      if (idx >= 0) {
-        sharedDroppedFruits.splice(idx, 1);
-        broadcastAll({ type: 'fruit_picked', id, by: username });
-      }
-      return;
-    }
-
-    // -------- ATTACK_USE (ретрансляция атаки другим игрокам) --------
+    // -------- ВИЗУАЛ АТАКИ (рассылаем всем) --------
     if (msg.type === 'attack_use') {
-      const data = {
+      broadcastExcept({
         type: 'remote_attack',
         from: username,
-        abilityId: String(msg.abilityId || '').slice(0, 40),
+        abilityId: String(msg.abilityId || ''),
         x: Number(msg.x) || 0,
         y: Number(msg.y) || 0,
-        tx: Number(msg.tx) || 0,
-        ty: Number(msg.ty) || 0,
-        angle: Number(msg.angle) || 0,
-        ts: Date.now()
-      };
-      broadcastExcept(data, username);
+        dirX: Number(msg.dirX) || 0,
+        dirY: Number(msg.dirY) || 0
+      }, username);
       return;
     }
 
-    // -------- ZONE_ACTIVATE (зона контроля) --------
-    if (msg.type === 'zone_activate') {
-      const until = Date.now() + (Number(msg.duration) || 20000);
-      activeZones.set(username, {
-        x: Number(msg.x) || 0,
-        y: Number(msg.y) || 0,
-        radius: Number(msg.radius) || 320,
-        until
-      });
-      me.zoneUntil = until;
+    // -------- ФРУКТ В РУКЕ --------
+    if (msg.type === 'held_change') {
+      me.held = (msg.held === null || typeof msg.held === 'string') ? msg.held : me.held;
       broadcastExcept({
-        type: 'zone_spawned',
-        from: username,
-        x: Number(msg.x) || 0,
-        y: Number(msg.y) || 0,
-        radius: Number(msg.radius) || 320,
-        until
+        type: 'pos', u: username,
+        x: Math.round(me.x), y: Math.round(me.y),
+        lx: +me.lx.toFixed(2), ly: +me.ly.toFixed(2),
+        hp: Math.round(me.hp), mhp: me.mhp,
+        c: me.color, wf: me.waterForm,
+        held: me.held
       }, username);
+      return;
+    }
+
+    // -------- БРОСОК ФРУКТА --------
+    if (msg.type === 'drop_fruit') {
+      broadcastAll({
+        type: 'fruit_dropped',
+        from: username,
+        fruitId: String(msg.fruitId || ''),
+        name: String(msg.name || ''),
+        color: String(msg.color || '#888'),
+        x: Number(msg.x) || me.x,
+        y: Number(msg.y) || me.y
+      });
+      return;
+    }
+
+    // -------- ПОДБОР ФРУКТА (сообщаем всем, чтобы убрали у себя) --------
+    if (msg.type === 'fruit_picked') {
+      broadcastAll({
+        type: 'fruit_picked',
+        from: username,
+        fruitId: String(msg.fruitId || '')
+      });
       return;
     }
 
@@ -449,10 +392,7 @@ wss.on('connection', (ws) => {
       const p = players.get(username);
       if (p && p.ws === ws) {
         players.delete(username);
-        // Убираем зону игрока
-        activeZones.delete(username);
         broadcastAll({ type: 'leave', u: username });
-        broadcastAll({ type: 'zone_gone', from: username });
         console.log(`[ws] - ${username} (online ${players.size})`);
       }
     }
@@ -467,22 +407,7 @@ setInterval(() => {
     ws.isAlive = false;
     try { ws.ping(); } catch (e) {}
   }
-  pruneZones();
 }, 30000);
-
-// Автоочистка старых фруктов на земле (старше 10 минут)
-setInterval(() => {
-  const now = Date.now();
-  const before = sharedDroppedFruits.length;
-  for (let i = sharedDroppedFruits.length - 1; i >= 0; i--) {
-    if (now - sharedDroppedFruits[i].droppedAt > 10 * 60 * 1000) {
-      sharedDroppedFruits.splice(i, 1);
-    }
-  }
-  if (sharedDroppedFruits.length !== before) {
-    broadcastAll({ type: 'fruit_list_reset', fruits: sharedDroppedFruits });
-  }
-}, 60000);
 
 initDb().then(() => {
   server.listen(PORT, () => {
