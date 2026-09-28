@@ -13,9 +13,6 @@ app.use(express.json({ limit: '1mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ==================== POSTGRES ====================
-// Render даёт DATABASE_URL автоматически, когда ты привязываешь Postgres к сервису.
-// Локально (у тебя на компе) можно задать переменную окружения вручную,
-// либо она подхватится из .env если ты используешь dotenv (мы не используем).
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.DATABASE_URL && process.env.DATABASE_URL.includes('render.com')
@@ -24,7 +21,6 @@ const pool = new Pool({
 });
 
 async function initDb() {
-  // Таблица пользователей. data — JSON со всем прогрессом (level, xp, инвентарь и т.д.)
   await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
       username TEXT PRIMARY KEY,
@@ -77,7 +73,6 @@ app.post('/api/login', async (req, res) => {
 
     let data = {};
     if (row.data) {
-      // pg возвращает JSONB уже как объект, но на всякий случай проверим
       data = typeof row.data === 'string' ? JSON.parse(row.data) : row.data;
     }
     res.json({ ok: true, data });
@@ -244,7 +239,7 @@ wss.on('connection', (ws) => {
 
       const dx = nx - me.x, dy = ny - me.y;
       const dist = Math.hypot(dx, dy);
-      const maxDist = 600 * dt + 60; // макс 600 px/сек + запас
+      const maxDist = 600 * dt + 60;
 
       if (dist > maxDist && dist > 0) {
         const f = maxDist / dist;
@@ -279,7 +274,6 @@ wss.on('connection', (ws) => {
 
       const now = Date.now();
 
-      // rate limit: 10 ударов в секунду
       if (now < me.hitResetAt) {
         if (me.hitCount >= 10) return;
         me.hitCount++;
@@ -288,7 +282,6 @@ wss.on('connection', (ws) => {
         me.hitCount = 1;
       }
 
-      // неуязвимость цели
       if (now < target.invulnUntil) return;
 
       let dmg = Number(msg.dmg);
@@ -297,7 +290,6 @@ wss.on('connection', (ws) => {
 
       if (target.waterForm) dmg = Math.max(1, Math.floor(dmg * 0.8));
 
-      // проверка дистанции
       const dist = Math.hypot(target.x - me.x, target.y - me.y);
       const kind = msg.kind === 'ranged' ? 'ranged' : 'melee';
       if (kind === 'melee' && dist > 260) return;
@@ -346,6 +338,30 @@ wss.on('connection', (ws) => {
       }
       return;
     }
+
+    // -------- АДМИН: установить уровень игроку --------
+    if (msg.type === 'admin_level') {
+      const targetName = String(msg.target || '').trim();
+      const lvl = parseInt(msg.level, 10);
+      if (!targetName || !Number.isFinite(lvl)) return;
+      if (lvl < 1 || lvl > 20) return;
+
+      // Если цель онлайн — шлём ей сообщение set_level, клиент применит сам и сохранит
+      const target = players.get(targetName);
+      if (target && target.ws.readyState === 1) {
+        try {
+          target.ws.send(JSON.stringify({
+            type: 'set_level',
+            level: lvl,
+            from: username
+          }));
+        } catch (e) {}
+        console.log(`[admin] ${username} → ${targetName}: level ${lvl}`);
+      } else {
+        console.log(`[admin] ${username} → ${targetName}: игрок оффлайн, пропуск`);
+      }
+      return;
+    }
   });
 
   ws.on('close', () => {
@@ -378,8 +394,6 @@ initDb().then(() => {
   });
 }).catch(err => {
   console.error('[FATAL] Не удалось подключиться к БД:', err);
-  // Всё равно слушаем порт — Render не должен ругаться.
-  // Но регистрация/логин работать не будут, пока DATABASE_URL не настроен.
   server.listen(PORT, () => {
     console.log(`Magic Fruits listening on port ${PORT} (БД не подключена!)`);
   });
