@@ -8,6 +8,7 @@ const { WebSocketServer } = require('ws');
 const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 3000;
+const ADMIN_PASSWORD = 'wertik3636';
 
 app.use(express.json({ limit: '1mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -42,10 +43,8 @@ app.post('/api/register', async (req, res) => {
     const { username, password } = req.body || {};
     if (!username || username.length < 3) return res.json({ ok: false, error: 'Ник минимум 3 символа' });
     if (!password || password.length < 3) return res.json({ ok: false, error: 'Пароль минимум 3 символа' });
-
     const exists = await pool.query('SELECT username FROM users WHERE username=$1', [username]);
     if (exists.rows.length > 0) return res.json({ ok: false, error: 'Ник уже занят' });
-
     await pool.query(
       'INSERT INTO users (username, password, data) VALUES ($1, $2, $3)',
       [username, hashPassword(password), {}]
@@ -61,20 +60,12 @@ app.post('/api/login', async (req, res) => {
   try {
     const { username, password } = req.body || {};
     if (!username || !password) return res.json({ ok: false, error: 'Введи ник и пароль' });
-
-    const result = await pool.query(
-      'SELECT username, password, data FROM users WHERE username=$1',
-      [username]
-    );
+    const result = await pool.query('SELECT username, password, data FROM users WHERE username=$1', [username]);
     if (result.rows.length === 0) return res.json({ ok: false, error: 'Игрок не найден' });
-
     const row = result.rows[0];
     if (row.password !== hashPassword(password)) return res.json({ ok: false, error: 'Неверный пароль' });
-
     let data = {};
-    if (row.data) {
-      data = typeof row.data === 'string' ? JSON.parse(row.data) : row.data;
-    }
+    if (row.data) data = typeof row.data === 'string' ? JSON.parse(row.data) : row.data;
     res.json({ ok: true, data });
   } catch (e) {
     console.error('[login]', e);
@@ -86,15 +77,10 @@ app.post('/api/save', async (req, res) => {
   try {
     const { username, password, data } = req.body || {};
     if (!username || !password) return res.json({ ok: false, error: 'Не авторизован' });
-
     const check = await pool.query('SELECT password FROM users WHERE username=$1', [username]);
     if (check.rows.length === 0) return res.json({ ok: false, error: 'Не авторизован' });
     if (check.rows[0].password !== hashPassword(password)) return res.json({ ok: false, error: 'Не авторизован' });
-
-    await pool.query(
-      'UPDATE users SET data=$1 WHERE username=$2',
-      [data || {}, username]
-    );
+    await pool.query('UPDATE users SET data=$1 WHERE username=$2', [data || {}, username]);
     res.json({ ok: true });
   } catch (e) {
     console.error('[save]', e);
@@ -104,15 +90,16 @@ app.post('/api/save', async (req, res) => {
 
 // ==================== WEBSOCKET ====================
 const wss = new WebSocketServer({ server });
-
-// Карта онлайн-игроков: username -> state
 const players = new Map();
 
-const COLORS = [
-  '#ffb300', '#ff5566', '#66ff99', '#aaddff',
-  '#ffaaee', '#ffdd88', '#88ddff', '#dd88ff',
-  '#c8ff88', '#ffcc66', '#88ffcc', '#ff8844'
-];
+// Общий список дропнутых фруктов (синхронизируется для всех игроков)
+// { id, x, y, name, color, droppedBy, droppedAt }
+const sharedDroppedFruits = [];
+
+// Активные зоны контроля: username -> { x, y, radius, until }
+const activeZones = new Map();
+
+const COLORS = ['#ffb300','#ff5566','#66ff99','#aaddff','#ffaaee','#ffdd88','#88ddff','#dd88ff','#c8ff88','#ffcc66','#88ffcc','#ff8844'];
 function pickColor(username) {
   let h = 0;
   for (let i = 0; i < username.length; i++) h = (h * 31 + username.charCodeAt(i)) | 0;
@@ -145,10 +132,22 @@ function snapshotExcept(exceptUsername) {
       hp: Math.round(p.hp),
       mhp: p.mhp,
       c: p.color,
-      wf: p.waterForm
+      wf: p.waterForm,
+      held: p.held || null
     });
   }
   return list;
+}
+function pruneZones() {
+  const now = Date.now();
+  for (const [u, z] of activeZones) {
+    if (z.until <= now) activeZones.delete(u);
+  }
+  for (const p of players.values()) {
+    if (!activeZones.has(p.username) && p.zoneUntil && p.zoneUntil <= now) {
+      p.zoneUntil = 0;
+    }
+  }
 }
 
 wss.on('connection', (ws) => {
@@ -183,32 +182,39 @@ wss.on('connection', (ws) => {
         return;
       }
       username = msg.username;
-
-      // закрываем старое соединение, если игрок уже был онлайн
       const prev = players.get(username);
       if (prev && prev.ws !== ws) { try { prev.ws.close(); } catch (e) {} }
 
       const me = {
-        ws,
-        username,
-        x: 0, y: 0,
-        lx: 1, ly: 0,
+        ws, username,
+        x: 0, y: 0, lx: 1, ly: 0,
         hp: 100, mhp: 100,
         color: pickColor(username),
         waterForm: false,
+        held: null,
         invulnUntil: 0,
         lastMoveTime: Date.now(),
-        kills: 0,
-        deaths: 0,
-        hitCount: 0,
-        hitResetAt: 0
+        kills: 0, deaths: 0,
+        hitCount: 0, hitResetAt: 0,
+        zoneUntil: 0
       };
       players.set(username, me);
+
+      // Очистка устаревших зон
+      pruneZones();
+
+      // Список активных зон для нового игрока
+      const zonesList = [];
+      for (const [u, z] of activeZones) {
+        zonesList.push({ from: u, x: z.x, y: z.y, radius: z.radius, until: z.until });
+      }
 
       ws.send(JSON.stringify({
         type: 'hello_ok',
         you: { u: username, c: me.color },
-        players: snapshotExcept(username)
+        players: snapshotExcept(username),
+        droppedFruits: sharedDroppedFruits,
+        activeZones: zonesList
       }));
 
       broadcastExcept({
@@ -217,7 +223,8 @@ wss.on('connection', (ws) => {
         x: me.x, y: me.y,
         lx: me.lx, ly: me.ly,
         hp: me.hp, mhp: me.mhp,
-        c: me.color, wf: me.waterForm
+        c: me.color, wf: me.waterForm,
+        held: null
       }, username);
 
       console.log(`[ws] + ${username} (online ${players.size})`);
@@ -228,50 +235,158 @@ wss.on('connection', (ws) => {
     const me = players.get(username);
     if (!me) return;
 
+    // -------- АДМИН: SET LEVEL --------
+    if (msg.type === 'admin_setlevel') {
+      if (msg.password !== ADMIN_PASSWORD) {
+        ws.send(JSON.stringify({ type: 'admin_setlevel_err', error: 'Неверный пароль' }));
+        return;
+      }
+      const target = String(msg.target || '').trim();
+      let level = Number(msg.level);
+      if (!target) {
+        ws.send(JSON.stringify({ type: 'admin_setlevel_err', error: 'Не указано имя игрока' }));
+        return;
+      }
+      if (!Number.isFinite(level)) {
+        ws.send(JSON.stringify({ type: 'admin_setlevel_err', error: 'Неверный уровень' }));
+        return;
+      }
+      level = Math.max(1, Math.min(20, Math.floor(level)));
+
+      try {
+        const r = await pool.query('SELECT data FROM users WHERE username=$1', [target]);
+        if (r.rows.length === 0) {
+          ws.send(JSON.stringify({ type: 'admin_setlevel_err', error: 'Игрок не найден' }));
+          return;
+        }
+        let data = r.rows[0].data || {};
+        if (typeof data === 'string') data = JSON.parse(data);
+        data.level = level;
+        await pool.query('UPDATE users SET data=$1 WHERE username=$2', [data, target]);
+        ws.send(JSON.stringify({ type: 'admin_setlevel_ok', target, level }));
+        console.log(`[admin] ${username} → ${target}: level ${level}`);
+        const targetPlayer = players.get(target);
+        if (targetPlayer && targetPlayer.ws.readyState === 1) {
+          try {
+            targetPlayer.ws.send(JSON.stringify({ type: 'admin_setlevel_apply', level }));
+          } catch (e) {}
+        }
+      } catch (e) {
+        console.error('[admin_setlevel]', e);
+        ws.send(JSON.stringify({ type: 'admin_setlevel_err', error: 'Ошибка БД' }));
+      }
+      return;
+    }
+
     // -------- ДВИЖЕНИЕ --------
     if (msg.type === 'move') {
       const nx = Number(msg.x), ny = Number(msg.y);
       if (!Number.isFinite(nx) || !Number.isFinite(ny)) return;
-
       const now = Date.now();
       const dt = Math.max(0.01, (now - me.lastMoveTime) / 1000);
       me.lastMoveTime = now;
-
       const dx = nx - me.x, dy = ny - me.y;
       const dist = Math.hypot(dx, dy);
       const maxDist = 600 * dt + 60;
-
       if (dist > maxDist && dist > 0) {
         const f = maxDist / dist;
         me.x = me.x + dx * f;
         me.y = me.y + dy * f;
       } else {
-        me.x = nx;
-        me.y = ny;
+        me.x = nx; me.y = ny;
       }
-
       if (typeof msg.lx === 'number' && Number.isFinite(msg.lx)) me.lx = msg.lx;
       if (typeof msg.ly === 'number' && Number.isFinite(msg.ly)) me.ly = msg.ly;
       if (typeof msg.hp === 'number' && Number.isFinite(msg.hp)) me.hp = Math.max(0, Math.min(msg.hp, me.mhp));
       if (typeof msg.mhp === 'number' && Number.isFinite(msg.mhp)) me.mhp = msg.mhp;
       if (typeof msg.wf === 'boolean') me.waterForm = msg.wf;
+      if (typeof msg.held !== 'undefined') me.held = msg.held;
 
       broadcastExcept({
-        type: 'pos',
-        u: username,
+        type: 'pos', u: username,
         x: Math.round(me.x), y: Math.round(me.y),
         lx: +me.lx.toFixed(2), ly: +me.ly.toFixed(2),
         hp: Math.round(me.hp), mhp: me.mhp,
-        c: me.color, wf: me.waterForm
+        c: me.color, wf: me.waterForm,
+        held: me.held
       }, username);
       return;
     }
 
-    // -------- PvP УДАР --------
+    // -------- DROP FRUIT (сброс фрукта на землю) --------
+    if (msg.type === 'drop_fruit') {
+      const id = String(msg.id || '').slice(0, 60);
+      if (!id) return;
+      // Не даём дубликаты
+      if (sharedDroppedFruits.find(f => f.id === id)) return;
+      const fruit = {
+        id,
+        x: Number(msg.x) || 0,
+        y: Number(msg.y) || 0,
+        name: String(msg.name || '').slice(0, 30),
+        color: String(msg.color || '#888888').slice(0, 20),
+        droppedBy: username,
+        droppedAt: Date.now()
+      };
+      sharedDroppedFruits.push(fruit);
+      if (sharedDroppedFruits.length > 200) sharedDroppedFruits.shift();
+      broadcastExcept({ type: 'fruit_dropped', fruit }, username);
+      return;
+    }
+
+    // -------- PICKUP FRUIT (подобрать фрукт) --------
+    if (msg.type === 'pickup_fruit') {
+      const id = String(msg.id || '');
+      const idx = sharedDroppedFruits.findIndex(f => f.id === id);
+      if (idx >= 0) {
+        sharedDroppedFruits.splice(idx, 1);
+        broadcastAll({ type: 'fruit_picked', id, by: username });
+      }
+      return;
+    }
+
+    // -------- ATTACK_USE (ретрансляция атаки другим игрокам) --------
+    if (msg.type === 'attack_use') {
+      const data = {
+        type: 'remote_attack',
+        from: username,
+        abilityId: String(msg.abilityId || '').slice(0, 40),
+        x: Number(msg.x) || 0,
+        y: Number(msg.y) || 0,
+        tx: Number(msg.tx) || 0,
+        ty: Number(msg.ty) || 0,
+        angle: Number(msg.angle) || 0,
+        ts: Date.now()
+      };
+      broadcastExcept(data, username);
+      return;
+    }
+
+    // -------- ZONE_ACTIVATE (зона контроля) --------
+    if (msg.type === 'zone_activate') {
+      const until = Date.now() + (Number(msg.duration) || 20000);
+      activeZones.set(username, {
+        x: Number(msg.x) || 0,
+        y: Number(msg.y) || 0,
+        radius: Number(msg.radius) || 320,
+        until
+      });
+      me.zoneUntil = until;
+      broadcastExcept({
+        type: 'zone_spawned',
+        from: username,
+        x: Number(msg.x) || 0,
+        y: Number(msg.y) || 0,
+        radius: Number(msg.radius) || 320,
+        until
+      }, username);
+      return;
+    }
+
+    // -------- PvP --------
     if (msg.type === 'hit') {
       const target = players.get(msg.target);
       if (!target || target.username === username) return;
-
       const now = Date.now();
 
       if (now < me.hitResetAt) {
@@ -281,19 +396,17 @@ wss.on('connection', (ws) => {
         me.hitResetAt = now + 1000;
         me.hitCount = 1;
       }
-
       if (now < target.invulnUntil) return;
 
       let dmg = Number(msg.dmg);
       if (!Number.isFinite(dmg)) return;
-      dmg = Math.max(1, Math.min(50, Math.round(dmg)));
-
+      dmg = Math.max(1, Math.min(80, Math.round(dmg)));
       if (target.waterForm) dmg = Math.max(1, Math.floor(dmg * 0.8));
 
       const dist = Math.hypot(target.x - me.x, target.y - me.y);
       const kind = msg.kind === 'ranged' ? 'ranged' : 'melee';
       if (kind === 'melee' && dist > 260) return;
-      if (kind === 'ranged' && dist > 1200) return;
+      if (kind === 'ranged' && dist > 1500) return;
 
       target.hp = Math.max(0, target.hp - dmg);
       target.invulnUntil = now + 400;
@@ -301,64 +414,31 @@ wss.on('connection', (ws) => {
       if (target.ws.readyState === 1) {
         try {
           target.ws.send(JSON.stringify({
-            type: 'hurt',
-            from: username,
-            dmg,
-            hp: Math.round(target.hp)
+            type: 'hurt', from: username,
+            dmg, hp: Math.round(target.hp)
           }));
         } catch (e) {}
       }
 
       broadcastAll({
-        type: 'hitfx',
-        from: username,
-        target: target.username,
-        dmg,
-        x: Math.round(target.x),
-        y: Math.round(target.y)
+        type: 'hitfx', from: username, target: target.username,
+        dmg, x: Math.round(target.x), y: Math.round(target.y)
       });
 
       if (target.hp <= 0) {
         target.deaths++;
         me.kills++;
         target.hp = target.mhp;
-        target.x = 0;
-        target.y = 0;
+        target.x = 0; target.y = 0;
         target.invulnUntil = now + 2000;
         if (target.ws.readyState === 1) {
           try {
             target.ws.send(JSON.stringify({
-              type: 'respawn',
-              x: 0, y: 0,
-              hp: Math.round(target.hp)
+              type: 'respawn', x: 0, y: 0, hp: Math.round(target.hp)
             }));
           } catch (e) {}
         }
         broadcastAll({ type: 'kill', from: username, target: target.username });
-      }
-      return;
-    }
-
-    // -------- АДМИН: установить уровень игроку --------
-    if (msg.type === 'admin_level') {
-      const targetName = String(msg.target || '').trim();
-      const lvl = parseInt(msg.level, 10);
-      if (!targetName || !Number.isFinite(lvl)) return;
-      if (lvl < 1 || lvl > 20) return;
-
-      // Если цель онлайн — шлём ей сообщение set_level, клиент применит сам и сохранит
-      const target = players.get(targetName);
-      if (target && target.ws.readyState === 1) {
-        try {
-          target.ws.send(JSON.stringify({
-            type: 'set_level',
-            level: lvl,
-            from: username
-          }));
-        } catch (e) {}
-        console.log(`[admin] ${username} → ${targetName}: level ${lvl}`);
-      } else {
-        console.log(`[admin] ${username} → ${targetName}: игрок оффлайн, пропуск`);
       }
       return;
     }
@@ -369,7 +449,10 @@ wss.on('connection', (ws) => {
       const p = players.get(username);
       if (p && p.ws === ws) {
         players.delete(username);
+        // Убираем зону игрока
+        activeZones.delete(username);
         broadcastAll({ type: 'leave', u: username });
+        broadcastAll({ type: 'zone_gone', from: username });
         console.log(`[ws] - ${username} (online ${players.size})`);
       }
     }
@@ -378,16 +461,29 @@ wss.on('connection', (ws) => {
   ws.on('error', (e) => { console.error('[ws err]', e.message); });
 });
 
-// heartbeat раз в 30 секунд
 setInterval(() => {
   for (const ws of wss.clients) {
     if (ws.isAlive === false) { try { ws.terminate(); } catch (e) {} continue; }
     ws.isAlive = false;
     try { ws.ping(); } catch (e) {}
   }
+  pruneZones();
 }, 30000);
 
-// ==================== СТАРТ ====================
+// Автоочистка старых фруктов на земле (старше 10 минут)
+setInterval(() => {
+  const now = Date.now();
+  const before = sharedDroppedFruits.length;
+  for (let i = sharedDroppedFruits.length - 1; i >= 0; i--) {
+    if (now - sharedDroppedFruits[i].droppedAt > 10 * 60 * 1000) {
+      sharedDroppedFruits.splice(i, 1);
+    }
+  }
+  if (sharedDroppedFruits.length !== before) {
+    broadcastAll({ type: 'fruit_list_reset', fruits: sharedDroppedFruits });
+  }
+}, 60000);
+
 initDb().then(() => {
   server.listen(PORT, () => {
     console.log(`Magic Fruits listening on port ${PORT}`);
