@@ -85,7 +85,7 @@ const remoteZones = [];
 const remoteLasers = [];
 const remoteMeteors = [];
 const remoteBeams = [];
-const remoteSlashes = [];       // НОВОЕ (задача 1): чужие ЛКМ-разрезы Контроля
+const remoteSlashes = [];
 const sharedDroppedFruits = new Map();
 
 function updateMoneyUi() { document.getElementById('moneyCount').textContent = player.money; }
@@ -168,24 +168,38 @@ function masteryThreshold(level) {
   return Math.floor(100 * Math.pow(1.1, level));
 }
 
+// ЗАДАЧА 4: отдельное хранилище mastery для каждой силы.
+// Формат: powerMastery = { 'Акула': { xp, level }, 'Огонь': { xp, level }, ... }
+const powerMastery = {};
+
+function getMasteryFor(name) {
+  if (!powerMastery[name]) powerMastery[name] = { xp: 0, level: 0 };
+  return powerMastery[name];
+}
+
 function addMasteryXp(power, amount) {
   if (!power || power.type !== 'power') return 0;
-  if (!Number.isFinite(power.masteryXp)) power.masteryXp = 0;
-  if (!Number.isFinite(power.masteryLevel)) power.masteryLevel = 0;
-  power.masteryXp += amount;
+  // ЗАДАЧА 4: пишем XP в powerMastery[power.name], чтобы сохранялось между сменами фрукта
+  const m = getMasteryFor(power.name);
+  m.xp += amount;
+  // синхронизируем со слотом (для UI прогресс-бара)
+  power.masteryXp = m.xp;
+  power.masteryLevel = m.level;
   let ups = 0;
   let guard = 0;
   while (guard < 200) {
     guard++;
-    const need = masteryThreshold(power.masteryLevel);
-    if (power.masteryXp >= need) {
-      power.masteryXp -= need;
-      power.masteryLevel++;
+    const need = masteryThreshold(m.level);
+    if (m.xp >= need) {
+      m.xp -= need;
+      m.level++;
       ups++;
     } else break;
   }
   if (ups > 0) {
-    showToast(`🌟 ${power.name}: Mastery Lv.${power.masteryLevel}!`);
+    power.masteryXp = m.xp;
+    power.masteryLevel = m.level;
+    showToast(`🌟 ${power.name}: Mastery Lv.${m.level}!`);
     for (let i = 0; i < 40; i++) {
       const a = Math.random() * Math.PI * 2;
       const s = 3 + Math.random() * 5;
@@ -201,10 +215,6 @@ function addMasteryXp(power, amount) {
   return ups;
 }
 
-// ЗАДАЧА 5: восстановление инвентаря из сохранения.
-// Формат нового сохранения: d.inventory = массив слотов (как в игре),
-// но без функций — только { type, name, color, masteryXp, masteryLevel }.
-// Старые сохранения (только d.power) тоже поддерживаются.
 function applySave(d) {
   if (!d) return;
   stats.level = d.level || 1;
@@ -222,23 +232,40 @@ function applySave(d) {
   updateFruitUi();
   updateMoneyUi();
 
-  // Сброс инвентаря в базовое состояние
+  // ЗАДАЧА 4: восстанавливаем mastery каждой силы
+  for (const k of Object.keys(powerMastery)) delete powerMastery[k];
+  if (d.powerMastery && typeof d.powerMastery === 'object') {
+    for (const k of Object.keys(d.powerMastery)) {
+      const m = d.powerMastery[k] || {};
+      powerMastery[k] = { xp: m.xp || 0, level: m.level || 0 };
+    }
+  }
+  // совместимость со старым форматом: d.power был в слоте, в нём masteryXp/masteryLevel
+  if (d.power && d.power.name && !powerMastery[d.power.name]) {
+    powerMastery[d.power.name] = {
+      xp: d.power.masteryXp || 0,
+      level: d.power.masteryLevel || 0
+    };
+  }
+
+  // Сброс инвентаря
   for (let i = 0; i < INVENTORY_SLOTS; i++) inventory[i] = null;
   inventory[0] = { type: 'fists', name: 'Кулаки' };
 
-  // ЗАДАЧА 5: новое сохранение — массив слотов
+  // Восстанавливаем из d.inventory
   if (Array.isArray(d.inventory)) {
     for (let i = 0; i < INVENTORY_SLOTS; i++) {
       const slot = d.inventory[i];
       if (!slot) { inventory[i] = null; continue; }
       if (slot.type === 'fists') { inventory[i] = { type: 'fists', name: 'Кулаки' }; continue; }
       if (slot.type === 'power') {
+        const m = getMasteryFor(slot.name);
         inventory[i] = {
           type: 'power',
           name: slot.name,
           color: slot.color || '#888',
-          masteryXp: slot.masteryXp || 0,
-          masteryLevel: slot.masteryLevel || 0
+          masteryXp: m.xp,
+          masteryLevel: m.level
         };
         continue;
       }
@@ -248,13 +275,13 @@ function applySave(d) {
       }
     }
   } else if (d.power && d.power.name) {
-    // Старый формат: сила была только в слоте 1
+    const m = getMasteryFor(d.power.name);
     inventory[POWER_SLOT_INDEX] = {
       type: 'power',
       name: d.power.name,
       color: d.power.color || '#888',
-      masteryXp: d.power.masteryXp || 0,
-      masteryLevel: d.power.masteryLevel || 0
+      masteryXp: m.xp,
+      masteryLevel: m.level
     };
   }
 
@@ -270,14 +297,10 @@ async function saveNow() {
   if (!currentUser || saving) return;
   saving = true;
 
-  // ЗАДАЧА 5: сохраняем ВЕСЬ инвентарь (все слоты) и мешок.
-  // Убираем лишние поля типа power (для обратной совместимости оставляем power тоже).
   const powerSlot = inventory[POWER_SLOT_INDEX];
   const powerData = (powerSlot && powerSlot.type === 'power') ? {
     name: powerSlot.name,
-    color: powerSlot.color,
-    masteryXp: powerSlot.masteryXp || 0,
-    masteryLevel: powerSlot.masteryLevel || 0
+    color: powerSlot.color
   } : null;
 
   const inventoryData = [];
@@ -289,9 +312,7 @@ async function saveNow() {
       inventoryData.push({
         type: 'power',
         name: it.name,
-        color: it.color,
-        masteryXp: it.masteryXp || 0,
-        masteryLevel: it.masteryLevel || 0
+        color: it.color
       });
       continue;
     }
@@ -300,6 +321,12 @@ async function saveNow() {
       continue;
     }
     inventoryData.push(null);
+  }
+
+  // ЗАДАЧА 4: сохраняем mastery каждой силы отдельно
+  const powerMasteryData = {};
+  for (const k of Object.keys(powerMastery)) {
+    powerMasteryData[k] = { xp: powerMastery[k].xp, level: powerMastery[k].level };
   }
 
   const data = {
@@ -311,6 +338,7 @@ async function saveNow() {
     money: player.money,
     rollCooldownUntil: rollCooldownUntil,
     power: powerData,
+    powerMastery: powerMasteryData,
     inventory: inventoryData,
     bag: bag.map(i => ({ ...i })),
     quest: quest.active
@@ -560,12 +588,11 @@ function spawnRemoteAttack(msg) {
   } else if (id === 'control_beam') {
     remoteBeams.push({ x: ox + dx * 300, y: oy + dy * 300, radius: 160, life: 180, maxLife: 180, from: msg.from });
   } else if (id === 'control_lmb') {
-    // ЗАДАЧА 1: чужой ЛКМ-разрез Контроля — сине-фиолетовая линия
     const angle = Math.atan2(dy, dx);
     remoteSlashes.push({
       x: ox, y: oy,
       angle: angle,
-      length: 200,
+      length: 220,
       life: 18, maxLife: 18,
       from: msg.from
     });
@@ -687,8 +714,6 @@ let abilityGuide = null;
 let statsOpen = false;
 
 // ==================== СПОСОБНОСТИ ====================
-// Z — всегда 0 mastery.
-// X-контроль — теперь тоже 0 mastery (твоя правка).
 const FIRE_ABILITIES = [
   { id: 'fire_charge', name: 'Огненный заряд', key: 'Z', requiredMasteryLevel: 0, cooldown: 4.5, stamina: 10, damage: 10, description: 'Огненный шар · 10 урона · кд 4.5с' },
   { id: 'flame_dash', name: 'Рывок пламени', key: 'X', requiredMasteryLevel: 5, cooldown: 1.8, stamina: 25, damage: 0, description: 'Рывок вперёд · кд 1.8с' }
@@ -769,10 +794,15 @@ function spawnLevelUpEffect(x, y) {
   }
 }
 
-function getDamageMultiplier() { return Math.pow(1.1, Math.floor(stats.points.damage / 3)); }
-function getFruitDamageMultiplier() { return Math.pow(1.1, Math.floor(stats.points.fruit / 3)); }
+// ==================== ФОРМУЛЫ ПРОКАЧКИ (ЗАДАЧА 1) ====================
+// ЗА 2 ОЧКА — эффект.
+// damage: 1.1^floor(damage/2) урона кулака + каждые 2 очка +5 энергии
+// health: floor(health/2) * 5 HP
+// fruit:  1.1^floor(fruit/2) урона фрукта
+function getDamageMultiplier() { return Math.pow(1.1, Math.floor(stats.points.damage / 2)); }
+function getFruitDamageMultiplier() { return Math.pow(1.1, Math.floor(stats.points.fruit / 2)); }
 function getBonusStamina() { return Math.floor(stats.points.damage / 2) * 5; }
-function getBonusHp() { return stats.points.health * 5; }
+function getBonusHp() { return Math.floor(stats.points.health / 2) * 5; }
 function getMaxHp() { return 100 + getBonusHp(); }
 function getMaxStamina() { return 100 + getBonusStamina(); }
 
@@ -824,7 +854,7 @@ let controlZone = null;
 const controlLasers = [];
 const controlBeams = [];
 const controlMeteors = [];
-const controlSlashes = [];        // ЗАДАЧА 1: визуал ЛКМ-разрезов Контроля
+const controlSlashes = [];
 
 const CONTROL_ZONE_RADIUS = 320;
 const CONTROL_ZONE_DURATION_MS = 20000;
@@ -855,7 +885,7 @@ const pirates = [];
 const PIRATE_HP = 100;
 const PIRATE_DAMAGE = 5;
 const PIRATE_ATTACK_INTERVAL = 2000;
-const PIRATE_SPEED = 0.5;
+const PIRATE_SPEED = 1.0;                 // ЗАДАЧА 2: было 0.5, теперь ×2
 const PIRATE_RADIUS = 22;
 const PIRATE_XP_REWARD = 25;
 const PIRATE_COIN_REWARD = 5;
@@ -1034,23 +1064,32 @@ function tryMoveWithZone(ent, dx, dy) {
 }
 
 // ==================== СЪЕСТЬ ФРУКТ ====================
+// ЗАДАЧА 4: при поедании фрукта-силы берём mastery из powerMastery[name].
 function consumeFruit(item) {
   const powers = ['Огонь', 'Лёд', 'Акула', 'Контроль'];
   if (powers.includes(item.name)) {
     const oldPower = inventory[POWER_SLOT_INDEX];
     if (oldPower && oldPower.type === 'power') {
+      // сохраняем mastery старой силы в powerMastery (на случай если что-то изменилось)
+      if (typeof oldPower.masteryXp === 'number' || typeof oldPower.masteryLevel === 'number') {
+        const m = getMasteryFor(oldPower.name);
+        m.xp = oldPower.masteryXp || m.xp;
+        m.level = oldPower.masteryLevel || m.level;
+      }
       showToast(`🔁 ${oldPower.name} → ${item.name}`);
       spawnReplaceEffect(player.x, player.y, oldPower.color, item.color);
     } else {
       showToast(`✨ Получена сила: ${item.name}!`);
       spawnEatEffect(player.x, player.y, item.color);
     }
+    // ЗАДАЧА 4: восстанавливаем mastery этой силы
+    const m = getMasteryFor(item.name);
     inventory[POWER_SLOT_INDEX] = {
       type: 'power',
       name: item.name,
       color: item.color,
-      masteryXp: 0,
-      masteryLevel: 0
+      masteryXp: m.xp,
+      masteryLevel: m.level
     };
     player.cooldowns = {};
     player.waterFormUntil = 0;
@@ -1126,14 +1165,12 @@ function punchFist() {
   }
 }
 
-// ==================== ЗАДАЧА 1: ЛКМ-АТАКА КОНТРОЛЯ ====================
-// Сине-фиолетовые разрезы в направлении курсора. Урон 6, кд 1с.
+// ==================== ЛКМ-АТАКА КОНТРОЛЯ ====================
 function controlLmbAttack() {
   const held = getHeldPower();
   if (!held || held.power.name !== 'Контроль') return;
   if (player.controlLmbCooldown > 0) return;
 
-  // Направление: смотрим либо на курсор, либо на lookX/lookY
   let dx = player.lookX, dy = player.lookY;
   if (dx === 0 && dy === 0) { dx = 1; dy = 0; }
   const dl = Math.hypot(dx, dy);
@@ -1142,7 +1179,6 @@ function controlLmbAttack() {
   player.controlLmbCooldown = CONTROL_LMB_COOLDOWN;
   const angle = Math.atan2(dy, dx);
 
-  // Визуал: разрез летит в направлении курсора
   controlSlashes.push({
     x: player.x, y: player.y,
     angle: angle,
@@ -1151,30 +1187,22 @@ function controlLmbAttack() {
     maxLife: CONTROL_LMB_SLASH_DURATION
   });
 
-  // Точка попадания — конец разреза
-  const hitX = player.x + dx * CONTROL_LMB_RANGE * 0.7;
-  const hitY = player.y + dy * CONTROL_LMB_RANGE * 0.7;
-
   let dm = getDamageMultiplier();
   if (isInWaterForm()) dm *= 1.2;
   const dmg = Math.max(1, Math.round(CONTROL_LMB_DAMAGE * dm));
 
-  // Пираты
   for (const pir of pirates) {
     if (pir.dead) continue;
-    // Проверяем расстояние до отрезка разреза
     const hit = distToSegment(pir.x, pir.y, player.x, player.y, player.x + dx * CONTROL_LMB_RANGE, player.y + dy * CONTROL_LMB_RANGE);
     if (hit < CONTROL_LMB_HIT_RADIUS) {
       damagePirate(pir, dmg);
       pir.chasing = true;
     }
   }
-  // NPC
   {
     const hit = distToSegment(npc.x, npc.y, player.x, player.y, player.x + dx * CONTROL_LMB_RANGE, player.y + dy * CONTROL_LMB_RANGE);
     if (hit < CONTROL_LMB_HIT_RADIUS) damageNpc(dmg);
   }
-  // Другие игроки
   for (const rp of remotePlayers.values()) {
     const hit = distToSegment(rp.x, rp.y, player.x, player.y, player.x + dx * CONTROL_LMB_RANGE, player.y + dy * CONTROL_LMB_RANGE);
     if (hit < CONTROL_LMB_HIT_RADIUS + player.radius) {
@@ -1183,7 +1211,6 @@ function controlLmbAttack() {
     }
   }
 
-  // Частицы разреза
   for (let i = 0; i < 12; i++) {
     const t = Math.random();
     const px = player.x + dx * CONTROL_LMB_RANGE * t;
@@ -1204,7 +1231,6 @@ function controlLmbAttack() {
   sendAttackUse('control_lmb', player.x, player.y, dx, dy);
 }
 
-// Вспомогательная: расстояние от точки до отрезка
 function distToSegment(px, py, x1, y1, x2, y2) {
   const dx = x2 - x1, dy = y2 - y1;
   const len2 = dx * dx + dy * dy;
@@ -1533,7 +1559,6 @@ canvas.addEventListener('click', (e) => {
   if (heldSlot !== -1) {
     const held = inventory[heldSlot];
     if (held && held.type === 'fists') { punchFist(); return; }
-    // ЗАДАЧА 1: ЛКМ при взятом Контроле — сине-фиолетовый разрез
     if (held && held.type === 'power' && held.name === 'Контроль') { controlLmbAttack(); return; }
     if (held && held.type === 'fruit') { openContextMenu(); return; }
   }
@@ -1541,7 +1566,6 @@ canvas.addEventListener('click', (e) => {
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 
 // ==================== ПОДТВЕРЖДЕНИЕ ЕДЫ ====================
-// ЗАДАЧА 4: стабильное открытие + использование слота из контекстного меню.
 function getEatConfirmButtons() {
   const pw = 460, ph = 240;
   const px = (canvas.width - pw) / 2;
@@ -1565,7 +1589,6 @@ function handleEatConfirmClick(mx, my) {
     if (eatConfirm) {
       const item = eatConfirm.item;
       const slotIndex = eatConfirm.slotIndex;
-      // Проверяем, что в слоте всё ещё тот же фрукт
       const current = inventory[slotIndex];
       if (current && current.type === 'fruit') {
         consumeFruit(current);
@@ -1669,6 +1692,7 @@ function tryRollFruit() {
 }
 
 // ==================== СТАТИСТИКА ====================
+// ЗАДАЧА 1: показываем текущие значения и что даст следующее очко.
 function closeStats() { statsOpen = false; }
 function getStatsButtons() {
   const pw = 560, ph = 460;
@@ -1713,7 +1737,6 @@ function getSlotAtPoint(mx, my) {
   }
   return -1;
 }
-// ЗАДАЧА 4: запоминаем слот, на котором открыли меню
 function openContextMenu() {
   const sx = player.x - camera.x + player.radius * 1.3, sy = player.y - camera.y;
   const bw = 140, bh = 38, gap = 6, pad = 8;
@@ -1728,11 +1751,9 @@ function openContextMenu() {
     btns.push({ label: menuButtons[i].label, action: menuButtons[i].action, color: menuButtons[i].color,
       x: mX + pad, y: mY + pad + i * (bh + gap), w: bw, h: bh });
   }
-  // ЗАДАЧА 4: фиксируем слот на момент открытия меню
   contextMenu = { x: mX, y: mY, w: tw, h: th, buttons: btns, slotIndex: heldSlot };
 }
 function executeMenuAction(action) {
-  // ЗАДАЧА 4: используем slotIndex из меню, а не текущий heldSlot
   const slotIdx = (contextMenu && typeof contextMenu.slotIndex === 'number') ? contextMenu.slotIndex : heldSlot;
   if (slotIdx === -1 || !inventory[slotIdx]) { contextMenu = null; return; }
   const item = inventory[slotIdx];
@@ -1804,7 +1825,7 @@ function getBagPanelRect() {
 function getBagGridRect() { const p = getBagPanelRect(); return { x: p.x + 30, y: p.y + 90 }; }
 function getBagCloseRect() { const p = getBagPanelRect(); return { x: p.x + p.w - 44, y: p.y + 15, w: 30, h: 30 }; }
 
-// ЗАДАЧА 3: БОЛЬШАЯ КНОПКА "🎒 Инвентарь" (140×50) вместо "INV" 44×44
+// Большая кнопка "🎒 Инвентарь"
 function getInvButtonRect() {
   const w = 140, h = 50, m = 15;
   return { x: canvas.width - w - m, y: canvas.height - h - m, w: w, h: h };
@@ -1993,15 +2014,12 @@ function update() {
   for (const k of Object.keys(player.cooldowns)) { if (player.cooldowns[k] > 0) player.cooldowns[k] -= 1/60; }
   if (player.punchCooldown > 0) player.punchCooldown -= 1/60;
   if (player.punchAnim > 0) player.punchAnim = Math.max(0, player.punchAnim - 0.08);
-  // ЗАДАЧА 1: кулдаун ЛКМ-разреза Контроля
   if (player.controlLmbCooldown > 0) player.controlLmbCooldown -= 1/60;
 
-  // ЗАДАЧА 1: обновление локальных слайсов Контроля
   for (let i = controlSlashes.length - 1; i >= 0; i--) {
     controlSlashes[i].life--;
     if (controlSlashes[i].life <= 0) controlSlashes.splice(i, 1);
   }
-  // ЗАДАЧА 1: обновление чужих слайсов Контроля
   for (let i = remoteSlashes.length - 1; i >= 0; i--) {
     remoteSlashes[i].life--;
     if (remoteSlashes[i].life <= 0) remoteSlashes.splice(i, 1);
@@ -2455,7 +2473,6 @@ function drawSharedDroppedFruits() {
   }
 }
 
-// ЗАДАЧА 1: отрисовка локальных разрезов Контроля
 function drawControlSlashes() {
   for (const s of controlSlashes) {
     const a = s.life / s.maxLife;
@@ -2469,7 +2486,6 @@ function drawControlSlashes() {
     g.addColorStop(0.8, `rgba(120, 200, 255, ${a * 0.7})`);
     g.addColorStop(1, 'rgba(120, 200, 255, 0)');
     ctx.fillStyle = g;
-    // Основной разрез — тонкая полоса, сужается к концу
     const thickness = 10 * (0.5 + a * 0.5);
     ctx.beginPath();
     ctx.moveTo(0, -thickness / 2);
@@ -2479,14 +2495,12 @@ function drawControlSlashes() {
     ctx.lineTo(0, thickness / 2);
     ctx.closePath();
     ctx.fill();
-    // Белая сердцевина
     ctx.fillStyle = `rgba(255, 255, 255, ${a * 0.85})`;
     ctx.fillRect(0, -1.5, s.length * 0.9, 3);
     ctx.restore();
   }
 }
 
-// ЗАДАЧА 1: отрисовка чужих разрезов Контроля
 function drawRemoteSlashes() {
   for (const s of remoteSlashes) {
     const a = s.life / s.maxLife;
@@ -3330,14 +3344,14 @@ function drawFruitIcon(cx, cy, radius, color) {
   ctx.stroke();
 }
 
-// ЗАДАЧА 6: цвет фона ячейки по редкости фрукта
+// ==================== РЕДКОСТЬ: ФОН ЯЧЕЙКИ ====================
 function getRarityBgColor(name) {
   const rar = getFruitRarity(name);
-  if (rar === 'mythic')    return 'rgba(200, 40, 40, 0.40)';   // мифический — красный
-  if (rar === 'legendary') return 'rgba(255, 105, 180, 0.38)'; // легендарный — розовый
-  if (rar === 'rare')      return 'rgba(150, 80, 220, 0.38)';  // редкий — фиолетовый
-  if (rar === 'uncommon')  return 'rgba(80, 180, 240, 0.35)';  // необычный — голубой
-  return 'rgba(120, 120, 120, 0.32)';                          // обычный — серый
+  if (rar === 'mythic')    return 'rgba(200, 40, 40, 0.40)';
+  if (rar === 'legendary') return 'rgba(255, 105, 180, 0.38)';
+  if (rar === 'rare')      return 'rgba(150, 80, 220, 0.38)';
+  if (rar === 'uncommon')  return 'rgba(80, 180, 240, 0.35)';
+  return 'rgba(120, 120, 120, 0.32)';
 }
 function getRarityBorderColor(name) {
   const rar = getFruitRarity(name);
@@ -3361,7 +3375,6 @@ function drawInventory() {
     let fc = isPowerSlot ? 'rgba(80,60,100,0.25)' : 'rgba(255,255,255,0.15)';
     let sc = isPowerSlot ? 'rgba(180,140,255,0.7)' : 'rgba(255,255,255,0.6)';
     let lw = 2;
-    // ЗАДАЧА 6: фон и рамка по редкости для фруктов и силы
     if (item && (item.type === 'fruit' || item.type === 'power')) {
       fc = getRarityBgColor(item.name);
       sc = getRarityBorderColor(item.name);
@@ -3384,7 +3397,6 @@ function drawInventory() {
     ctx.fillStyle = isPowerSlot ? 'rgba(200,180,255,1)' : 'rgba(255,255,255,0.9)'; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
     ctx.fillText(String(i + 1), r.x + 4, r.y + 3);
   }
-  // ЗАДАЧА 3: БОЛЬШАЯ КНОПКА "🎒 Инвентарь"
   const ir = getInvButtonRect();
   ctx.fillStyle = bagOpen ? 'rgba(255,215,0,0.55)' : 'rgba(30,30,40,0.7)';
   ctx.strokeStyle = bagOpen ? '#ffd700' : 'rgba(255,255,255,0.7)';
@@ -3713,7 +3725,13 @@ function drawStatsWindow() {
     ctx.fillText(r.icon, btn.x + 15, btn.y + btn.h / 2);
     ctx.fillStyle = r.color; ctx.font = 'bold 18px Arial'; ctx.textBaseline = 'top';
     ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
-    ctx.strokeText(r.name, btn.x + 65, btn.y + 20); ctx.fillText(r.name, btn.x + 65, btn.y + 20);
+    ctx.strokeText(r.name, btn.x + 65, btn.y + 18); ctx.fillText(r.name, btn.x + 65, btn.y + 18);
+    // подпись про 2 очка
+    ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.font = '11px Arial';
+    const dsc = (r.btn === b.damage) ? 'каждые 2 очка → ×1.1 урона + 5 энергии'
+              : (r.btn === b.health) ? 'каждые 2 очка → +5 HP'
+              : 'каждые 2 очка → ×1.1 урона фрукта';
+    ctx.fillText(dsc, btn.x + 65, btn.y + 42);
     ctx.fillStyle = '#ffd700'; ctx.font = 'bold 24px Arial'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
     ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
     ctx.strokeText(`${r.value}`, btn.x + btn.w - 20, btn.y + btn.h / 2);
@@ -3738,12 +3756,22 @@ function drawBag() {
     for (let col = 0; col < bagCols; col++) {
       const x = g.x + col * (bagSlotSize + bagGap), y = g.y + r * (bagSlotSize + bagGap);
       const i = r * bagCols + col;
-      ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 2;
+      // ЗАДАЧА 3: фон по редкости для фруктов в мешке
+      let fc = 'rgba(255,255,255,0.08)';
+      let sc = 'rgba(255,255,255,0.35)';
+      if (i < bag.length) {
+        const item = bag[i];
+        fc = getRarityBgColor(item.name);
+        sc = getRarityBorderColor(item.name);
+      }
+      ctx.fillStyle = fc; ctx.strokeStyle = sc; ctx.lineWidth = 2;
       roundRect(x, y, bagSlotSize, bagSlotSize, 10); ctx.fill(); ctx.stroke();
       if (i < bag.length) {
         const item = bag[i];
         drawFruitIcon(x + bagSlotSize / 2, y + bagSlotSize / 2, bagSlotSize * 0.3, item.color);
         ctx.fillStyle = 'white'; ctx.font = '11px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+        ctx.strokeStyle = 'black'; ctx.lineWidth = 2;
+        ctx.strokeText(item.name, x + bagSlotSize / 2, y + bagSlotSize - 16);
         ctx.fillText(item.name, x + bagSlotSize / 2, y + bagSlotSize - 16);
       }
     }
@@ -3918,8 +3946,8 @@ function render() {
     drawControlLasers();
     drawControlBeams();
     drawControlMeteors();
-    drawControlSlashes();          // ЗАДАЧА 1: локальные разрезы Контроля
-    drawRemoteSlashes();           // ЗАДАЧА 1: чужие разрезы Контроля
+    drawControlSlashes();
+    drawRemoteSlashes();
     drawRemoteAttacks();
     drawQuestNpc();
     drawRollNpc();
