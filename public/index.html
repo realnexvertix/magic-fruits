@@ -38,7 +38,7 @@
 <canvas id="game"></canvas>
 <button id="fsBtn" title="Полный экран">⛶</button>
 <div id="ui">🍎 Фрукты: <span id="fruitCount">0</span> | 💰 Монеты: <span id="moneyCount">0</span></div>
-<div id="hint">WASD — движение | 1-5 — слоты | I — мешок | E — NPC | Tab — статистика | N N — админ<br><b>ЛКМ</b> — кулак | <b>Z / X / C / R / V</b> — способности | ⚠️ В море -30 HP/сек!</div>
+<div id="hint">WASD — движение | 1-5 — слоты | I — мешок | E — NPC | Tab — статистика | N N — админ<br><b>ЛКМ</b> — кулак / разрез | <b>Z / X / C / R / V</b> — способности | ⚠️ В море -30 HP/сек!</div>
 <div id="playerName"></div>
 <button id="logoutBtn">🚪 Выйти</button>
 
@@ -85,6 +85,7 @@ const remoteZones = [];
 const remoteLasers = [];
 const remoteMeteors = [];
 const remoteBeams = [];
+const remoteSlashes = [];       // НОВОЕ (задача 1): чужие ЛКМ-разрезы Контроля
 const sharedDroppedFruits = new Map();
 
 function updateMoneyUi() { document.getElementById('moneyCount').textContent = player.money; }
@@ -200,6 +201,10 @@ function addMasteryXp(power, amount) {
   return ups;
 }
 
+// ЗАДАЧА 5: восстановление инвентаря из сохранения.
+// Формат нового сохранения: d.inventory = массив слотов (как в игре),
+// но без функций — только { type, name, color, masteryXp, masteryLevel }.
+// Старые сохранения (только d.power) тоже поддерживаются.
 function applySave(d) {
   if (!d) return;
   stats.level = d.level || 1;
@@ -216,9 +221,34 @@ function applySave(d) {
   rollCooldownUntil = d.rollCooldownUntil || 0;
   updateFruitUi();
   updateMoneyUi();
+
+  // Сброс инвентаря в базовое состояние
+  for (let i = 0; i < INVENTORY_SLOTS; i++) inventory[i] = null;
   inventory[0] = { type: 'fists', name: 'Кулаки' };
-  for (let i = 1; i < INVENTORY_SLOTS; i++) inventory[i] = null;
-  if (d.power && d.power.name) {
+
+  // ЗАДАЧА 5: новое сохранение — массив слотов
+  if (Array.isArray(d.inventory)) {
+    for (let i = 0; i < INVENTORY_SLOTS; i++) {
+      const slot = d.inventory[i];
+      if (!slot) { inventory[i] = null; continue; }
+      if (slot.type === 'fists') { inventory[i] = { type: 'fists', name: 'Кулаки' }; continue; }
+      if (slot.type === 'power') {
+        inventory[i] = {
+          type: 'power',
+          name: slot.name,
+          color: slot.color || '#888',
+          masteryXp: slot.masteryXp || 0,
+          masteryLevel: slot.masteryLevel || 0
+        };
+        continue;
+      }
+      if (slot.type === 'fruit') {
+        inventory[i] = { type: 'fruit', name: slot.name, color: slot.color || '#888' };
+        continue;
+      }
+    }
+  } else if (d.power && d.power.name) {
+    // Старый формат: сила была только в слоте 1
     inventory[POWER_SLOT_INDEX] = {
       type: 'power',
       name: d.power.name,
@@ -227,6 +257,7 @@ function applySave(d) {
       masteryLevel: d.power.masteryLevel || 0
     };
   }
+
   bag.length = 0;
   if (Array.isArray(d.bag)) for (const it of d.bag) bag.push(it);
   if (d.quest) quest.active = d.quest;
@@ -238,6 +269,9 @@ let saving = false;
 async function saveNow() {
   if (!currentUser || saving) return;
   saving = true;
+
+  // ЗАДАЧА 5: сохраняем ВЕСЬ инвентарь (все слоты) и мешок.
+  // Убираем лишние поля типа power (для обратной совместимости оставляем power тоже).
   const powerSlot = inventory[POWER_SLOT_INDEX];
   const powerData = (powerSlot && powerSlot.type === 'power') ? {
     name: powerSlot.name,
@@ -245,6 +279,29 @@ async function saveNow() {
     masteryXp: powerSlot.masteryXp || 0,
     masteryLevel: powerSlot.masteryLevel || 0
   } : null;
+
+  const inventoryData = [];
+  for (let i = 0; i < INVENTORY_SLOTS; i++) {
+    const it = inventory[i];
+    if (!it) { inventoryData.push(null); continue; }
+    if (it.type === 'fists') { inventoryData.push({ type: 'fists', name: 'Кулаки' }); continue; }
+    if (it.type === 'power') {
+      inventoryData.push({
+        type: 'power',
+        name: it.name,
+        color: it.color,
+        masteryXp: it.masteryXp || 0,
+        masteryLevel: it.masteryLevel || 0
+      });
+      continue;
+    }
+    if (it.type === 'fruit') {
+      inventoryData.push({ type: 'fruit', name: it.name, color: it.color });
+      continue;
+    }
+    inventoryData.push(null);
+  }
+
   const data = {
     level: stats.level, xp: stats.xp, statPoints: stats.statPoints,
     points: { ...stats.points }, waterMeter,
@@ -254,6 +311,7 @@ async function saveNow() {
     money: player.money,
     rollCooldownUntil: rollCooldownUntil,
     power: powerData,
+    inventory: inventoryData,
     bag: bag.map(i => ({ ...i })),
     quest: quest.active
   };
@@ -293,9 +351,7 @@ window.addEventListener('beforeunload', saveNow);
     }
   } catch(e) {}
   showAuth();
-})();
-
-// ==================== МУЛЬТИПЛЕЕР (клиент) ====================
+})();// ==================== МУЛЬТИПЛЕЕР (клиент) ====================
 function connectWebSocket() {
   if (ws && (ws.readyState === 0 || ws.readyState === 1)) return;
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -503,6 +559,16 @@ function spawnRemoteAttack(msg) {
     remoteMeteors.push({ kind: 'control_meteor', targetX: ox + dx * 300, targetY: oy + dy * 300, x: ox + dx * 300, y: oy + dy * 300 - 1200, startY: oy + dy * 300 - 1200, progress: 0, duration: 40, radius: 90, impactDone: false, from: msg.from });
   } else if (id === 'control_beam') {
     remoteBeams.push({ x: ox + dx * 300, y: oy + dy * 300, radius: 160, life: 180, maxLife: 180, from: msg.from });
+  } else if (id === 'control_lmb') {
+    // ЗАДАЧА 1: чужой ЛКМ-разрез Контроля — сине-фиолетовая линия
+    const angle = Math.atan2(dy, dx);
+    remoteSlashes.push({
+      x: ox, y: oy,
+      angle: angle,
+      length: 200,
+      life: 18, maxLife: 18,
+      from: msg.from
+    });
   }
 }
 
@@ -733,7 +799,7 @@ function isNearRollNpc() { return Math.hypot(player.x - rollNpc.x, player.y - ro
 // ==================== ИГРОК ====================
 const player = {
   x: 0, y: 0, radius: 25,
-  speedWalk: 1.6,
+  speedWalk: 4.8,
   lookX: 0, lookY: 0, fruitCount: 0,
   hp: 100, stamina: 100,
   money: 0,
@@ -744,7 +810,8 @@ const player = {
   punchCooldown: 0, punchAnim: 0,
   punchDir: { x: 1, y: 0 },
   waterFormUntil: 0, waterRage: 0,
-  seaDamageTimer: 0
+  seaDamageTimer: 0,
+  controlLmbCooldown: 0
 };
 const TRANSFORM_DURATION = 90000;
 const HP_REGEN_PER_TICK = 0.02 / 1.7;
@@ -757,6 +824,7 @@ let controlZone = null;
 const controlLasers = [];
 const controlBeams = [];
 const controlMeteors = [];
+const controlSlashes = [];        // ЗАДАЧА 1: визуал ЛКМ-разрезов Контроля
 
 const CONTROL_ZONE_RADIUS = 320;
 const CONTROL_ZONE_DURATION_MS = 20000;
@@ -767,6 +835,12 @@ const CONTROL_BEAM_DELAY_MS = 2000;
 const CONTROL_BEAM_DURATION_MS = 3000;
 const CONTROL_METEOR_DAMAGE = 35;
 const CONTROL_METEOR_ZONE_DAMAGE = 2;
+
+const CONTROL_LMB_DAMAGE = 6;
+const CONTROL_LMB_COOLDOWN = 1.0;
+const CONTROL_LMB_RANGE = 220;
+const CONTROL_LMB_HIT_RADIUS = 45;
+const CONTROL_LMB_SLASH_DURATION = 18;
 
 function isInControlZone(x, y) {
   if (!controlZone) return false;
@@ -923,6 +997,7 @@ function adminSubmit() {
   adminLog('❌ Неизвестная команда: ' + command, '#ff5555');
   adminLog('Доступно: g [фрукт] | g level X имя', '#ffdd66');
 }
+
 // ==================== КОЛЛИЗИИ ====================
 function isOnIsland(x, y) {
   return x >= ISLAND.x && x <= ISLAND.x + ISLAND.width && y >= ISLAND.y && y <= ISLAND.y + ISLAND.height;
@@ -1049,6 +1124,94 @@ function punchFist() {
     const s = 3 + Math.random() * 3;
     particles.push({ x: px, y: py, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 15, maxLife: 15, radius: 3, color: '#cccccc' });
   }
+}
+
+// ==================== ЗАДАЧА 1: ЛКМ-АТАКА КОНТРОЛЯ ====================
+// Сине-фиолетовые разрезы в направлении курсора. Урон 6, кд 1с.
+function controlLmbAttack() {
+  const held = getHeldPower();
+  if (!held || held.power.name !== 'Контроль') return;
+  if (player.controlLmbCooldown > 0) return;
+
+  // Направление: смотрим либо на курсор, либо на lookX/lookY
+  let dx = player.lookX, dy = player.lookY;
+  if (dx === 0 && dy === 0) { dx = 1; dy = 0; }
+  const dl = Math.hypot(dx, dy);
+  dx /= dl; dy /= dl;
+
+  player.controlLmbCooldown = CONTROL_LMB_COOLDOWN;
+  const angle = Math.atan2(dy, dx);
+
+  // Визуал: разрез летит в направлении курсора
+  controlSlashes.push({
+    x: player.x, y: player.y,
+    angle: angle,
+    length: CONTROL_LMB_RANGE,
+    life: CONTROL_LMB_SLASH_DURATION,
+    maxLife: CONTROL_LMB_SLASH_DURATION
+  });
+
+  // Точка попадания — конец разреза
+  const hitX = player.x + dx * CONTROL_LMB_RANGE * 0.7;
+  const hitY = player.y + dy * CONTROL_LMB_RANGE * 0.7;
+
+  let dm = getDamageMultiplier();
+  if (isInWaterForm()) dm *= 1.2;
+  const dmg = Math.max(1, Math.round(CONTROL_LMB_DAMAGE * dm));
+
+  // Пираты
+  for (const pir of pirates) {
+    if (pir.dead) continue;
+    // Проверяем расстояние до отрезка разреза
+    const hit = distToSegment(pir.x, pir.y, player.x, player.y, player.x + dx * CONTROL_LMB_RANGE, player.y + dy * CONTROL_LMB_RANGE);
+    if (hit < CONTROL_LMB_HIT_RADIUS) {
+      damagePirate(pir, dmg);
+      pir.chasing = true;
+    }
+  }
+  // NPC
+  {
+    const hit = distToSegment(npc.x, npc.y, player.x, player.y, player.x + dx * CONTROL_LMB_RANGE, player.y + dy * CONTROL_LMB_RANGE);
+    if (hit < CONTROL_LMB_HIT_RADIUS) damageNpc(dmg);
+  }
+  // Другие игроки
+  for (const rp of remotePlayers.values()) {
+    const hit = distToSegment(rp.x, rp.y, player.x, player.y, player.x + dx * CONTROL_LMB_RANGE, player.y + dy * CONTROL_LMB_RANGE);
+    if (hit < CONTROL_LMB_HIT_RADIUS + player.radius) {
+      sendHit(rp.u, dmg, 'melee');
+      spawnImpactEffect(rp.x, rp.y);
+    }
+  }
+
+  // Частицы разреза
+  for (let i = 0; i < 12; i++) {
+    const t = Math.random();
+    const px = player.x + dx * CONTROL_LMB_RANGE * t;
+    const py = player.y + dy * CONTROL_LMB_RANGE * t;
+    const spread = (Math.random() - 0.5) * 30;
+    const nx = -dy, ny = dx;
+    particles.push({
+      x: px + nx * spread,
+      y: py + ny * spread,
+      vx: (Math.random() - 0.5) * 3,
+      vy: (Math.random() - 0.5) * 3,
+      life: 20, maxLife: 20,
+      radius: 3 + Math.random() * 3,
+      color: Math.random() < 0.5 ? '#7c5cff' : '#88ddff'
+    });
+  }
+
+  sendAttackUse('control_lmb', player.x, player.y, dx, dy);
+}
+
+// Вспомогательная: расстояние от точки до отрезка
+function distToSegment(px, py, x1, y1, x2, y2) {
+  const dx = x2 - x1, dy = y2 - y1;
+  const len2 = dx * dx + dy * dy;
+  if (len2 === 0) return Math.hypot(px - x1, py - y1);
+  let t = ((px - x1) * dx + (py - y1) * dy) / len2;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
 }
 
 // ==================== ТРАНСФОРМАЦИЯ (Акула) ====================
@@ -1314,8 +1477,7 @@ function damagePlayer(dmg) {
   player.lastDamageTime = performance.now();
   damageNumbers.push({ x: player.x, y: player.y - player.radius, vy: -1.6, life: 60, maxLife: 60, text: '-' + dmg, color: '#ff4444' });
   if (player.hp <= 0) { showToast('Ты погиб!'); player.hp = getMaxHp(); player.x = 0; player.y = 0; }
-}
-
+}// ==================== МОРСКОЙ УРОН ====================
 function applySeaDamage() {
   if (!isOnIsland(player.x, player.y) && !isInWaterForm()) {
     player.hp = Math.max(0, player.hp - 30);
@@ -1371,12 +1533,15 @@ canvas.addEventListener('click', (e) => {
   if (heldSlot !== -1) {
     const held = inventory[heldSlot];
     if (held && held.type === 'fists') { punchFist(); return; }
+    // ЗАДАЧА 1: ЛКМ при взятом Контроле — сине-фиолетовый разрез
+    if (held && held.type === 'power' && held.name === 'Контроль') { controlLmbAttack(); return; }
     if (held && held.type === 'fruit') { openContextMenu(); return; }
   }
 });
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 
 // ==================== ПОДТВЕРЖДЕНИЕ ЕДЫ ====================
+// ЗАДАЧА 4: стабильное открытие + использование слота из контекстного меню.
 function getEatConfirmButtons() {
   const pw = 460, ph = 240;
   const px = (canvas.width - pw) / 2;
@@ -1388,9 +1553,10 @@ function getEatConfirmButtons() {
   };
 }
 function openEatConfirm(slotIndex) {
+  if (slotIndex === -1 || slotIndex === null || slotIndex === undefined) return;
   const item = inventory[slotIndex];
   if (!item || item.type !== 'fruit') return;
-  eatConfirm = { slotIndex, item };
+  eatConfirm = { slotIndex, item: { type: 'fruit', name: item.name, color: item.color } };
 }
 function closeEatConfirm() { eatConfirm = null; }
 function handleEatConfirmClick(mx, my) {
@@ -1399,14 +1565,18 @@ function handleEatConfirmClick(mx, my) {
     if (eatConfirm) {
       const item = eatConfirm.item;
       const slotIndex = eatConfirm.slotIndex;
-      consumeFruit(item);
-      inventory[slotIndex] = null;
-      if (heldSlot === slotIndex) heldSlot = -1;
-      player.fruitCount = Math.max(0, player.fruitCount - 1);
-      updateFruitUi();
-      const held = getHeldPower();
-      sendHeldChange(held ? held.power.name : null);
-      saveNow();
+      // Проверяем, что в слоте всё ещё тот же фрукт
+      const current = inventory[slotIndex];
+      if (current && current.type === 'fruit') {
+        consumeFruit(current);
+        inventory[slotIndex] = null;
+        if (heldSlot === slotIndex) heldSlot = -1;
+        player.fruitCount = Math.max(0, player.fruitCount - 1);
+        updateFruitUi();
+        const held = getHeldPower();
+        sendHeldChange(held ? held.power.name : null);
+        saveNow();
+      }
     }
     closeEatConfirm();
     return;
@@ -1543,6 +1713,7 @@ function getSlotAtPoint(mx, my) {
   }
   return -1;
 }
+// ЗАДАЧА 4: запоминаем слот, на котором открыли меню
 function openContextMenu() {
   const sx = player.x - camera.x + player.radius * 1.3, sy = player.y - camera.y;
   const bw = 140, bh = 38, gap = 6, pad = 8;
@@ -1557,14 +1728,18 @@ function openContextMenu() {
     btns.push({ label: menuButtons[i].label, action: menuButtons[i].action, color: menuButtons[i].color,
       x: mX + pad, y: mY + pad + i * (bh + gap), w: bw, h: bh });
   }
-  contextMenu = { x: mX, y: mY, w: tw, h: th, buttons: btns };
+  // ЗАДАЧА 4: фиксируем слот на момент открытия меню
+  contextMenu = { x: mX, y: mY, w: tw, h: th, buttons: btns, slotIndex: heldSlot };
 }
 function executeMenuAction(action) {
-  if (heldSlot === -1 || !inventory[heldSlot]) { contextMenu = null; return; }
-  const item = inventory[heldSlot];
+  // ЗАДАЧА 4: используем slotIndex из меню, а не текущий heldSlot
+  const slotIdx = (contextMenu && typeof contextMenu.slotIndex === 'number') ? contextMenu.slotIndex : heldSlot;
+  if (slotIdx === -1 || !inventory[slotIdx]) { contextMenu = null; return; }
+  const item = inventory[slotIdx];
   if (item.type !== 'fruit') { contextMenu = null; return; }
+
   if (action === 'eat') {
-    openEatConfirm(heldSlot);
+    openEatConfirm(slotIdx);
   } else if (action === 'drop') {
     let lx = player.lookX, ly = player.lookY;
     if (lx === 0 && ly === 0) { lx = 1; ly = 0; }
@@ -1581,7 +1756,8 @@ function executeMenuAction(action) {
       from: currentUser ? currentUser.username : 'me'
     });
     sendFruitDrop(fruitId, item.name, item.color, fx, fy);
-    inventory[heldSlot] = null; heldSlot = -1;
+    inventory[slotIdx] = null;
+    if (heldSlot === slotIdx) heldSlot = -1;
     player.fruitCount = Math.max(0, player.fruitCount - 1);
     updateFruitUi();
     const held = getHeldPower();
@@ -1590,7 +1766,8 @@ function executeMenuAction(action) {
     saveNow();
   } else if (action === 'save') {
     bag.push({ type: 'fruit', color: item.color, name: item.name });
-    inventory[heldSlot] = null; heldSlot = -1;
+    inventory[slotIdx] = null;
+    if (heldSlot === slotIdx) heldSlot = -1;
     player.fruitCount = Math.max(0, player.fruitCount - 1);
     updateFruitUi();
     const held = getHeldPower();
@@ -1626,7 +1803,12 @@ function getBagPanelRect() {
 }
 function getBagGridRect() { const p = getBagPanelRect(); return { x: p.x + 30, y: p.y + 90 }; }
 function getBagCloseRect() { const p = getBagPanelRect(); return { x: p.x + p.w - 44, y: p.y + 15, w: 30, h: 30 }; }
-function getInvButtonRect() { const s = 44, m = 15; return { x: canvas.width - s - m, y: canvas.height - s - m, w: s, h: s }; }
+
+// ЗАДАЧА 3: БОЛЬШАЯ КНОПКА "🎒 Инвентарь" (140×50) вместо "INV" 44×44
+function getInvButtonRect() {
+  const w = 140, h = 50, m = 15;
+  return { x: canvas.width - w - m, y: canvas.height - h - m, w: w, h: h };
+}
 function isClickOnInvButton(mx, my) { const r = getInvButtonRect(); return mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h; }
 
 // ==================== КЛАВИАТУРА ====================
@@ -1721,8 +1903,7 @@ window.addEventListener('keydown', (e) => {
 });
 window.addEventListener('keyup', (e) => {
   keys[e.key.toLowerCase()] = false;
-});
-// ==================== ОБНОВЛЕНИЕ ====================
+});// ==================== ОБНОВЛЕНИЕ ====================
 function update() {
   if (!currentUser) return;
   if (particles.length > 1500) particles.splice(0, particles.length - 1500);
@@ -1739,6 +1920,8 @@ function update() {
   if (remoteLasers.length > 40) remoteLasers.splice(0, remoteLasers.length - 40);
   if (remoteMeteors.length > 15) remoteMeteors.splice(0, remoteMeteors.length - 15);
   if (remoteBeams.length > 15) remoteBeams.splice(0, remoteBeams.length - 15);
+  if (remoteSlashes.length > 30) remoteSlashes.splice(0, remoteSlashes.length - 30);
+  if (controlSlashes.length > 20) controlSlashes.splice(0, controlSlashes.length - 20);
 
   let g = 0;
   while (pendingXp.length > 0 && g < 50) { g++; addXp(pendingXp.shift()); }
@@ -1810,6 +1993,19 @@ function update() {
   for (const k of Object.keys(player.cooldowns)) { if (player.cooldowns[k] > 0) player.cooldowns[k] -= 1/60; }
   if (player.punchCooldown > 0) player.punchCooldown -= 1/60;
   if (player.punchAnim > 0) player.punchAnim = Math.max(0, player.punchAnim - 0.08);
+  // ЗАДАЧА 1: кулдаун ЛКМ-разреза Контроля
+  if (player.controlLmbCooldown > 0) player.controlLmbCooldown -= 1/60;
+
+  // ЗАДАЧА 1: обновление локальных слайсов Контроля
+  for (let i = controlSlashes.length - 1; i >= 0; i--) {
+    controlSlashes[i].life--;
+    if (controlSlashes[i].life <= 0) controlSlashes.splice(i, 1);
+  }
+  // ЗАДАЧА 1: обновление чужих слайсов Контроля
+  for (let i = remoteSlashes.length - 1; i >= 0; i--) {
+    remoteSlashes[i].life--;
+    if (remoteSlashes[i].life <= 0) remoteSlashes.splice(i, 1);
+  }
 
   // Чужие атаки
   for (let i = remoteProjectiles.length - 1; i >= 0; i--) {
@@ -2247,7 +2443,6 @@ function drawFruitShape(x, y, radius, color, phase = 0, bob = false, glow = fals
 function drawSharedDroppedFruits() {
   for (const f of sharedDroppedFruits.values()) {
     drawFruitShape(f.x - camera.x, f.y - camera.y, f.radius, f.color, f.bobPhase, true, f.glow);
-    // Подсказка об имени выбросившего
     if (Math.hypot(player.x - f.x, player.y - f.y) < 200) {
       ctx.font = 'bold 11px Arial';
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -2257,6 +2452,66 @@ function drawSharedDroppedFruits() {
       ctx.fillStyle = '#aaddff';
       ctx.fillText(txt, f.x - camera.x, f.y - camera.y - 30);
     }
+  }
+}
+
+// ЗАДАЧА 1: отрисовка локальных разрезов Контроля
+function drawControlSlashes() {
+  for (const s of controlSlashes) {
+    const a = s.life / s.maxLife;
+    const x = s.x - camera.x, y = s.y - camera.y;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(s.angle);
+    const g = ctx.createLinearGradient(0, 0, s.length, 0);
+    g.addColorStop(0, `rgba(180, 140, 255, ${a * 0.95})`);
+    g.addColorStop(0.4, `rgba(124, 92, 255, ${a * 0.85})`);
+    g.addColorStop(0.8, `rgba(120, 200, 255, ${a * 0.7})`);
+    g.addColorStop(1, 'rgba(120, 200, 255, 0)');
+    ctx.fillStyle = g;
+    // Основной разрез — тонкая полоса, сужается к концу
+    const thickness = 10 * (0.5 + a * 0.5);
+    ctx.beginPath();
+    ctx.moveTo(0, -thickness / 2);
+    ctx.lineTo(s.length * 0.85, -thickness * 0.3);
+    ctx.lineTo(s.length, 0);
+    ctx.lineTo(s.length * 0.85, thickness * 0.3);
+    ctx.lineTo(0, thickness / 2);
+    ctx.closePath();
+    ctx.fill();
+    // Белая сердцевина
+    ctx.fillStyle = `rgba(255, 255, 255, ${a * 0.85})`;
+    ctx.fillRect(0, -1.5, s.length * 0.9, 3);
+    ctx.restore();
+  }
+}
+
+// ЗАДАЧА 1: отрисовка чужих разрезов Контроля
+function drawRemoteSlashes() {
+  for (const s of remoteSlashes) {
+    const a = s.life / s.maxLife;
+    const x = s.x - camera.x, y = s.y - camera.y;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(s.angle);
+    const g = ctx.createLinearGradient(0, 0, s.length, 0);
+    g.addColorStop(0, `rgba(180, 140, 255, ${a * 0.95})`);
+    g.addColorStop(0.4, `rgba(124, 92, 255, ${a * 0.85})`);
+    g.addColorStop(0.8, `rgba(120, 200, 255, ${a * 0.7})`);
+    g.addColorStop(1, 'rgba(120, 200, 255, 0)');
+    ctx.fillStyle = g;
+    const thickness = 10 * (0.5 + a * 0.5);
+    ctx.beginPath();
+    ctx.moveTo(0, -thickness / 2);
+    ctx.lineTo(s.length * 0.85, -thickness * 0.3);
+    ctx.lineTo(s.length, 0);
+    ctx.lineTo(s.length * 0.85, thickness * 0.3);
+    ctx.lineTo(0, thickness / 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = `rgba(255, 255, 255, ${a * 0.85})`;
+    ctx.fillRect(0, -1.5, s.length * 0.9, 3);
+    ctx.restore();
   }
 }
 
@@ -2541,6 +2796,7 @@ function drawRemoteAttacks() {
     }
   }
 }
+
 function drawQuestNpc() {
   const x = questNpc.x - camera.x, y = questNpc.y - camera.y;
   const t = performance.now() * 0.003;
@@ -2956,7 +3212,9 @@ function drawPlayer() {
   if (inWater) {
     const ar = 65 + Math.sin(t * 3) * 6;
     const ag = ctx.createRadialGradient(x, y, player.radius * 0.7, x, y, ar);
-    ag.addColorStop(0, 'rgba(80,200,255,0.4)'); ag.addColorStop(0.5, 'rgba(30,100,200,0.25)'); ag.addColorStop(1, 'rgba(0,50,120,0)');
+    ag.addColorStop(0, 'rgba(80,200,255,0.4)');
+    ag.addColorStop(0.5, 'rgba(30,100,200,0.25)');
+    ag.addColorStop(1, 'rgba(0,50,120,0)');
     ctx.beginPath(); ctx.arc(x, y, ar, 0, Math.PI * 2); ctx.fillStyle = ag; ctx.fill();
     const cy = y - player.radius - 15;
     for (let i = 0; i < 5; i++) { const cx = x + (i - 2) * 8; const ccy = cy + Math.sin(t * 4 + i) * 3; const h = 8 + Math.sin(t * 5 + i) * 4; const cg = ctx.createLinearGradient(cx, ccy - h, cx, ccy + 4); cg.addColorStop(0, 'rgba(200,240,255,0.9)'); cg.addColorStop(1, 'rgba(80,180,255,0)'); ctx.beginPath(); ctx.moveTo(cx, ccy - h); ctx.lineTo(cx - 3, ccy + 4); ctx.lineTo(cx + 3, ccy + 4); ctx.closePath(); ctx.fillStyle = cg; ctx.fill(); }
@@ -3072,6 +3330,24 @@ function drawFruitIcon(cx, cy, radius, color) {
   ctx.stroke();
 }
 
+// ЗАДАЧА 6: цвет фона ячейки по редкости фрукта
+function getRarityBgColor(name) {
+  const rar = getFruitRarity(name);
+  if (rar === 'mythic')    return 'rgba(200, 40, 40, 0.40)';   // мифический — красный
+  if (rar === 'legendary') return 'rgba(255, 105, 180, 0.38)'; // легендарный — розовый
+  if (rar === 'rare')      return 'rgba(150, 80, 220, 0.38)';  // редкий — фиолетовый
+  if (rar === 'uncommon')  return 'rgba(80, 180, 240, 0.35)';  // необычный — голубой
+  return 'rgba(120, 120, 120, 0.32)';                          // обычный — серый
+}
+function getRarityBorderColor(name) {
+  const rar = getFruitRarity(name);
+  if (rar === 'mythic')    return 'rgba(255, 90, 90, 0.9)';
+  if (rar === 'legendary') return 'rgba(255, 160, 210, 0.9)';
+  if (rar === 'rare')      return 'rgba(190, 130, 255, 0.9)';
+  if (rar === 'uncommon')  return 'rgba(130, 210, 255, 0.9)';
+  return 'rgba(200, 200, 200, 0.75)';
+}
+
 function drawInventory() {
   const sw = INVENTORY_SLOTS * SLOT_SIZE + (INVENTORY_SLOTS - 1) * SLOT_GAP;
   const sx = (canvas.width - sw) / 2 - 40, sy = canvas.height - SLOT_SIZE - HOTBAR_BOTTOM_MARGIN;
@@ -3085,6 +3361,11 @@ function drawInventory() {
     let fc = isPowerSlot ? 'rgba(80,60,100,0.25)' : 'rgba(255,255,255,0.15)';
     let sc = isPowerSlot ? 'rgba(180,140,255,0.7)' : 'rgba(255,255,255,0.6)';
     let lw = 2;
+    // ЗАДАЧА 6: фон и рамка по редкости для фруктов и силы
+    if (item && (item.type === 'fruit' || item.type === 'power')) {
+      fc = getRarityBgColor(item.name);
+      sc = getRarityBorderColor(item.name);
+    }
     if (isHeld) { fc = 'rgba(255,215,0,0.35)'; sc = '#ffd700'; lw = 3; }
     if (isGuideOpen) { fc = 'rgba(255,100,0,0.35)'; sc = '#ff6600'; lw = 3; }
     ctx.fillStyle = fc; ctx.strokeStyle = sc; ctx.lineWidth = lw;
@@ -3103,11 +3384,14 @@ function drawInventory() {
     ctx.fillStyle = isPowerSlot ? 'rgba(200,180,255,1)' : 'rgba(255,255,255,0.9)'; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
     ctx.fillText(String(i + 1), r.x + 4, r.y + 3);
   }
+  // ЗАДАЧА 3: БОЛЬШАЯ КНОПКА "🎒 Инвентарь"
   const ir = getInvButtonRect();
-  ctx.fillStyle = bagOpen ? 'rgba(255,215,0,0.45)' : 'rgba(30,30,40,0.5)'; ctx.strokeStyle = bagOpen ? '#ffd700' : 'rgba(255,255,255,0.6)'; ctx.lineWidth = 2;
-  roundRect(ir.x, ir.y, ir.w, ir.h, 8); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = 'white'; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText('INV', ir.x + ir.w / 2, ir.y + ir.h / 2);
+  ctx.fillStyle = bagOpen ? 'rgba(255,215,0,0.55)' : 'rgba(30,30,40,0.7)';
+  ctx.strokeStyle = bagOpen ? '#ffd700' : 'rgba(255,255,255,0.7)';
+  ctx.lineWidth = 2.5;
+  roundRect(ir.x, ir.y, ir.w, ir.h, 10); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = 'white'; ctx.font = 'bold 18px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('🎒 Инвентарь', ir.x + ir.w / 2, ir.y + ir.h / 2);
 }
 
 function drawAbilityGuide() {
@@ -3634,6 +3918,8 @@ function render() {
     drawControlLasers();
     drawControlBeams();
     drawControlMeteors();
+    drawControlSlashes();          // ЗАДАЧА 1: локальные разрезы Контроля
+    drawRemoteSlashes();           // ЗАДАЧА 1: чужие разрезы Контроля
     drawRemoteAttacks();
     drawQuestNpc();
     drawRollNpc();
