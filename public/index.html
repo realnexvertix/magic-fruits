@@ -168,8 +168,8 @@ function masteryThreshold(level) {
   return Math.floor(100 * Math.pow(1.1, level));
 }
 
-// ЗАДАЧА 4: отдельное хранилище mastery для каждой силы.
-// Формат: powerMastery = { 'Акула': { xp, level }, 'Огонь': { xp, level }, ... }
+// Отдельное хранилище mastery для каждой силы.
+// Формат: powerMastery = { 'Акула': { xp, level }, ... }
 const powerMastery = {};
 
 function getMasteryFor(name) {
@@ -179,10 +179,8 @@ function getMasteryFor(name) {
 
 function addMasteryXp(power, amount) {
   if (!power || power.type !== 'power') return 0;
-  // ЗАДАЧА 4: пишем XP в powerMastery[power.name], чтобы сохранялось между сменами фрукта
   const m = getMasteryFor(power.name);
   m.xp += amount;
-  // синхронизируем со слотом (для UI прогресс-бара)
   power.masteryXp = m.xp;
   power.masteryLevel = m.level;
   let ups = 0;
@@ -232,7 +230,7 @@ function applySave(d) {
   updateFruitUi();
   updateMoneyUi();
 
-  // ЗАДАЧА 4: восстанавливаем mastery каждой силы
+  // Mastery каждой силы отдельно
   for (const k of Object.keys(powerMastery)) delete powerMastery[k];
   if (d.powerMastery && typeof d.powerMastery === 'object') {
     for (const k of Object.keys(d.powerMastery)) {
@@ -240,7 +238,6 @@ function applySave(d) {
       powerMastery[k] = { xp: m.xp || 0, level: m.level || 0 };
     }
   }
-  // совместимость со старым форматом: d.power был в слоте, в нём masteryXp/masteryLevel
   if (d.power && d.power.name && !powerMastery[d.power.name]) {
     powerMastery[d.power.name] = {
       xp: d.power.masteryXp || 0,
@@ -248,11 +245,9 @@ function applySave(d) {
     };
   }
 
-  // Сброс инвентаря
   for (let i = 0; i < INVENTORY_SLOTS; i++) inventory[i] = null;
   inventory[0] = { type: 'fists', name: 'Кулаки' };
 
-  // Восстанавливаем из d.inventory
   if (Array.isArray(d.inventory)) {
     for (let i = 0; i < INVENTORY_SLOTS; i++) {
       const slot = d.inventory[i];
@@ -309,11 +304,7 @@ async function saveNow() {
     if (!it) { inventoryData.push(null); continue; }
     if (it.type === 'fists') { inventoryData.push({ type: 'fists', name: 'Кулаки' }); continue; }
     if (it.type === 'power') {
-      inventoryData.push({
-        type: 'power',
-        name: it.name,
-        color: it.color
-      });
+      inventoryData.push({ type: 'power', name: it.name, color: it.color });
       continue;
     }
     if (it.type === 'fruit') {
@@ -323,7 +314,6 @@ async function saveNow() {
     inventoryData.push(null);
   }
 
-  // ЗАДАЧА 4: сохраняем mastery каждой силы отдельно
   const powerMasteryData = {};
   for (const k of Object.keys(powerMastery)) {
     powerMasteryData[k] = { xp: powerMastery[k].xp, level: powerMastery[k].level };
@@ -643,6 +633,19 @@ function sendAdminSetLevel(target, level) {
   } catch (e) {}
 }
 
+function sendAdminSetMastery(target, fruitName, masteryLevel) {
+  if (!ws || ws.readyState !== 1) return;
+  try {
+    ws.send(JSON.stringify({
+      type: 'admin_setmastery',
+      password: ADMIN_PASSWORD,
+      target: target,
+      fruit: fruitName,
+      mastery: masteryLevel
+    }));
+  } catch (e) {}
+}
+
 function sendAttackUse(abilityId, x, y, dirX, dirY) {
   if (!ws || ws.readyState !== 1) return;
   try {
@@ -712,28 +715,31 @@ const bag = [];
 let bagOpen = false;
 let abilityGuide = null;
 let statsOpen = false;
+// НОВОЕ: индекс слота мешка, по которому открыто ПКМ-меню (для фруктов в мешке)
+let bagContextMenu = null;
 
 // ==================== СПОСОБНОСТИ ====================
+// НОВЫЕ ЦИФРЫ (правки Тимофея)
 const FIRE_ABILITIES = [
-  { id: 'fire_charge', name: 'Огненный заряд', key: 'Z', requiredMasteryLevel: 0, cooldown: 4.5, stamina: 10, damage: 10, description: 'Огненный шар · 10 урона · кд 4.5с' },
+  { id: 'fire_charge', name: 'Огненный заряд', key: 'Z', requiredMasteryLevel: 0, cooldown: 4.5, stamina: 10, damage: 7, description: 'Огненный шар · 7 урона · кд 4.5с' },
   { id: 'flame_dash', name: 'Рывок пламени', key: 'X', requiredMasteryLevel: 5, cooldown: 1.8, stamina: 25, damage: 0, description: 'Рывок вперёд · кд 1.8с' }
 ];
 const ICE_ABILITIES = [
-  { id: 'ice_spear', name: 'Ледяное копьё', key: 'Z', requiredMasteryLevel: 0, cooldown: 4.2, stamina: 15, damage: 6.5, description: 'Копьё · 6.5 урона · кд 4.2с' },
-  { id: 'ice_prison', name: 'Ледяная тюрьма', key: 'X', requiredMasteryLevel: 5, cooldown: 1.5, stamina: 40, damage: 12, description: 'Зона заморозки · 12 урона · кд 1.5с' },
-  { id: 'ice_meteor', name: 'Метеоритный лёд', key: 'C', requiredMasteryLevel: 10, cooldown: 7.5, stamina: 60, damage: 20, description: 'Глыба с неба · 20 урона · кд 7.5с' }
+  { id: 'ice_spear', name: 'Ледяное копьё', key: 'Z', requiredMasteryLevel: 0, cooldown: 4.2, stamina: 15, damage: 6, description: 'Копьё · 6 урона · кд 4.2с' },
+  { id: 'ice_prison', name: 'Ледяная тюрьма', key: 'X', requiredMasteryLevel: 5, cooldown: 16, stamina: 40, damage: 4, description: 'Зона заморозки · 4 урона · кд 16с' },
+  { id: 'ice_meteor', name: 'Метеоритный лёд', key: 'C', requiredMasteryLevel: 10, cooldown: 15, stamina: 60, damage: 10, description: 'Глыба с неба · 10 урона · кд 15с' }
 ];
 const SHARK_ABILITIES = [
-  { id: 'shark_bite', name: 'Акулий укус', key: 'Z', requiredMasteryLevel: 0, cooldown: 4.5, stamina: 20, damage: 15, description: 'Акула бросается · 15 урона · кд 4.5с' },
-  { id: 'shark_torrent', name: 'Поток акул', key: 'X', requiredMasteryLevel: 10, cooldown: 6, stamina: 45, damage: 5, description: 'Веер из 5 акул · 5 урона каждая · кд 6с' },
-  { id: 'shark_whirlpool', name: 'Водоворот', key: 'C', requiredMasteryLevel: 20, cooldown: 9, stamina: 55, damage: 27, description: 'Водоворот · 27 урона · кд 9с' },
+  { id: 'shark_bite', name: 'Акулий укус', key: 'Z', requiredMasteryLevel: 0, cooldown: 7, stamina: 20, damage: 8.5, description: 'Акула бросается · 8.5 урона · кд 7с' },
+  { id: 'shark_torrent', name: 'Поток акул', key: 'X', requiredMasteryLevel: 10, cooldown: 14, stamina: 45, damage: 5, description: 'Веер из 5 акул · 5 урона каждая · кд 14с' },
+  { id: 'shark_whirlpool', name: 'Водоворот', key: 'C', requiredMasteryLevel: 20, cooldown: 17, stamina: 55, damage: 15, description: 'Водоворот · 15 урона · кд 17с' },
   { id: 'shark_transform', name: 'Трансформация', key: 'R', requiredMasteryLevel: 20, cooldown: 0, stamina: 0, damage: 0, description: 'Нужна шкала воды. 90с водного облика', usesWaterMeter: true }
 ];
 const CONTROL_ABILITIES = [
-  { id: 'control_zone', name: 'Зона контроля', key: 'Z', requiredMasteryLevel: 0, cooldown: 9, stamina: 30, damage: 0, description: 'Круглая зона 20с · кд 9с', aiming: false },
-  { id: 'control_lasers', name: 'Лазерная пицца', key: 'X', requiredMasteryLevel: 0, cooldown: 13.5, stamina: 40, damage: 22, description: '8 лучей по 22 урона · кд 13.5с (в зоне)', aiming: false, zoneOnly: true },
-  { id: 'control_meteor', name: 'Метеор контроля', key: 'C', requiredMasteryLevel: 30, cooldown: 18, stamina: 50, damage: 35, description: '35 урона, +2 по зоне · кд 18с (в зоне)', zoneOnly: true },
-  { id: 'control_beam', name: 'Луч контроля', key: 'V', requiredMasteryLevel: 45, cooldown: 27, stamina: 70, damage: 70, description: '70 урона через 2с · кд 27с (в зоне)', zoneOnly: true }
+  { id: 'control_zone', name: 'Зона контроля', key: 'Z', requiredMasteryLevel: 0, cooldown: 5, stamina: 30, damage: 0, description: 'Круглая зона 20с · кд 5с (после закрытия)', aiming: false },
+  { id: 'control_lasers', name: 'Лазерная пицца', key: 'X', requiredMasteryLevel: 0, cooldown: 10, stamina: 40, damage: 20, description: '8 лучей по 20 урона · кд 10с (в зоне)', aiming: false, zoneOnly: true },
+  { id: 'control_meteor', name: 'Метеор контроля', key: 'C', requiredMasteryLevel: 30, cooldown: 12, stamina: 50, damage: 30, description: '30 урона, +2 по зоне · кд 12с (в зоне)', zoneOnly: true },
+  { id: 'control_beam', name: 'Луч контроля', key: 'V', requiredMasteryLevel: 45, cooldown: 20, stamina: 70, damage: 45, description: '45 урона через 2с · кд 20с (в зоне)', zoneOnly: true }
 ];
 
 function getAbilitiesFor(name) {
@@ -774,14 +780,14 @@ function addXp(amount) {
     if (stats.xp >= need) {
       stats.xp -= need;
       stats.level++;
-      stats.statPoints += 3;
+      stats.statPoints += 2;               // ЗАДАЧА: было 3, стало 2
       leveledUp = true;
     } else break;
   }
   if (stats.level >= MAX_LEVEL) stats.xp = 0;
   if (leveledUp) {
     spawnLevelUpEffect(player.x, player.y);
-    showToast('🎉 УРОВЕНЬ ' + stats.level + '! +3 очка');
+    showToast('🎉 УРОВЕНЬ ' + stats.level + '! +2 очка');   // ЗАДАЧА: было +3
   }
 }
 
@@ -794,11 +800,8 @@ function spawnLevelUpEffect(x, y) {
   }
 }
 
-// ==================== ФОРМУЛЫ ПРОКАЧКИ (ЗАДАЧА 1) ====================
+// ==================== ФОРМУЛЫ ПРОКАЧКИ ====================
 // ЗА 2 ОЧКА — эффект.
-// damage: 1.1^floor(damage/2) урона кулака + каждые 2 очка +5 энергии
-// health: floor(health/2) * 5 HP
-// fruit:  1.1^floor(fruit/2) урона фрукта
 function getDamageMultiplier() { return Math.pow(1.1, Math.floor(stats.points.damage / 2)); }
 function getFruitDamageMultiplier() { return Math.pow(1.1, Math.floor(stats.points.fruit / 2)); }
 function getBonusStamina() { return Math.floor(stats.points.damage / 2) * 5; }
@@ -851,6 +854,9 @@ const PIRATE_MASTERY_XP_REWARD = 70;
 
 // ==================== КОНТРОЛЬ ====================
 let controlZone = null;
+// НОВОЕ: ЗАДАЧА — кд зоны начинается только после закрытия предыдущей.
+// zoneClosedAt — метка времени, когда последняя зона закрылась (для отложенного старта кд)
+let zoneClosedAt = 0;
 const controlLasers = [];
 const controlBeams = [];
 const controlMeteors = [];
@@ -858,12 +864,12 @@ const controlSlashes = [];
 
 const CONTROL_ZONE_RADIUS = 320;
 const CONTROL_ZONE_DURATION_MS = 20000;
-const CONTROL_LASER_DAMAGE = 22;
+const CONTROL_LASER_DAMAGE = 20;
 const CONTROL_LASER_DURATION_MS = 600;
-const CONTROL_BEAM_DAMAGE = 70;
+const CONTROL_BEAM_DAMAGE = 45;
 const CONTROL_BEAM_DELAY_MS = 2000;
 const CONTROL_BEAM_DURATION_MS = 3000;
-const CONTROL_METEOR_DAMAGE = 35;
+const CONTROL_METEOR_DAMAGE = 30;
 const CONTROL_METEOR_ZONE_DAMAGE = 2;
 
 const CONTROL_LMB_DAMAGE = 6;
@@ -885,7 +891,7 @@ const pirates = [];
 const PIRATE_HP = 100;
 const PIRATE_DAMAGE = 5;
 const PIRATE_ATTACK_INTERVAL = 2000;
-const PIRATE_SPEED = 1.0;                 // ЗАДАЧА 2: было 0.5, теперь ×2
+const PIRATE_SPEED = 1.0;
 const PIRATE_RADIUS = 22;
 const PIRATE_XP_REWARD = 25;
 const PIRATE_COIN_REWARD = 5;
@@ -929,6 +935,7 @@ let contextMenu = null;
 let eatConfirm = null;
 const menuButtons = [
   { label: 'Съесть', action: 'eat', color: '#4caf50' },
+  { label: 'Взять в руки', action: 'take', color: '#ff9800' },   // НОВОЕ
   { label: 'Выбросить', action: 'drop', color: '#f44336' },
   { label: 'Сохранить', action: 'save', color: '#2196f3' }
 ];
@@ -980,6 +987,7 @@ function adminSubmit() {
   const parts = cmd.split(/\s+/);
   const command = parts[0].toLowerCase();
 
+  // g [фрукт]
   if (command === 'g' && parts.length === 2) {
     const arg = parts[1].toLowerCase();
     const fruitMap = {
@@ -1008,6 +1016,7 @@ function adminSubmit() {
     return;
   }
 
+  // g level X имя
   if (command === 'g' && parts.length >= 4 && parts[1].toLowerCase() === 'level') {
     const lvl = parseInt(parts[2], 10);
     const targetName = parts.slice(3).join(' ');
@@ -1024,8 +1033,38 @@ function adminSubmit() {
     return;
   }
 
+  // НОВОЕ: g mastery N фрукт имя
+  // Пример: g mastery 5 акула Test1
+  if (command === 'g' && parts.length >= 5 && parts[1].toLowerCase() === 'mastery') {
+    const masteryLvl = parseInt(parts[2], 10);
+    const fruitArg = parts[3].toLowerCase();
+    const targetName = parts.slice(4).join(' ');
+    if (!Number.isFinite(masteryLvl) || masteryLvl < 0 || masteryLvl > 100) {
+      adminLog('❌ Mastery должен быть 0-100', '#ff5555');
+      return;
+    }
+    const fruitMap = {
+      'огонь': 'Огонь', 'огня': 'Огонь', 'fire': 'Огонь',
+      'лёд': 'Лёд', 'лед': 'Лёд', 'льда': 'Лёд', 'ice': 'Лёд',
+      'акула': 'Акула', 'акулы': 'Акула', 'shark': 'Акула',
+      'контроль': 'Контроль', 'контроля': 'Контроль', 'control': 'Контроль'
+    };
+    const fruitName = fruitMap[fruitArg];
+    if (!fruitName) {
+      adminLog('❌ Фрукт не найден: ' + fruitArg, '#ff5555');
+      return;
+    }
+    if (!targetName) {
+      adminLog('❌ Укажи имя: g mastery 5 акула Test1', '#ff5555');
+      return;
+    }
+    sendAdminSetMastery(targetName, fruitName, masteryLvl);
+    adminLog('📤 Запрос: ' + targetName + ' ' + fruitName + ' → mastery ' + masteryLvl, '#aaddff');
+    return;
+  }
+
   adminLog('❌ Неизвестная команда: ' + command, '#ff5555');
-  adminLog('Доступно: g [фрукт] | g level X имя', '#ffdd66');
+  adminLog('g [фрукт] | g level X имя | g mastery N фрукт имя', '#ffdd66');
 }
 
 // ==================== КОЛЛИЗИИ ====================
@@ -1064,13 +1103,11 @@ function tryMoveWithZone(ent, dx, dy) {
 }
 
 // ==================== СЪЕСТЬ ФРУКТ ====================
-// ЗАДАЧА 4: при поедании фрукта-силы берём mastery из powerMastery[name].
 function consumeFruit(item) {
   const powers = ['Огонь', 'Лёд', 'Акула', 'Контроль'];
   if (powers.includes(item.name)) {
     const oldPower = inventory[POWER_SLOT_INDEX];
     if (oldPower && oldPower.type === 'power') {
-      // сохраняем mastery старой силы в powerMastery (на случай если что-то изменилось)
       if (typeof oldPower.masteryXp === 'number' || typeof oldPower.masteryLevel === 'number') {
         const m = getMasteryFor(oldPower.name);
         m.xp = oldPower.masteryXp || m.xp;
@@ -1082,7 +1119,6 @@ function consumeFruit(item) {
       showToast(`✨ Получена сила: ${item.name}!`);
       spawnEatEffect(player.x, player.y, item.color);
     }
-    // ЗАДАЧА 4: восстанавливаем mastery этой силы
     const m = getMasteryFor(item.name);
     inventory[POWER_SLOT_INDEX] = {
       type: 'power',
@@ -1166,6 +1202,7 @@ function punchFist() {
 }
 
 // ==================== ЛКМ-АТАКА КОНТРОЛЯ ====================
+// ЗАДАЧА: на ЛКМ теперь действуют очки прокачки (× множитель урона кулака)
 function controlLmbAttack() {
   const held = getHeldPower();
   if (!held || held.power.name !== 'Контроль') return;
@@ -1187,6 +1224,7 @@ function controlLmbAttack() {
     maxLife: CONTROL_LMB_SLASH_DURATION
   });
 
+  // Прокачка урона (damage) действует на ЛКМ
   let dm = getDamageMultiplier();
   if (isInWaterForm()) dm *= 1.2;
   const dmg = Math.max(1, Math.round(CONTROL_LMB_DAMAGE * dm));
@@ -1279,10 +1317,24 @@ function startAbility(powerName, abilityId) {
 }
 
 // ==================== КОНТРОЛЬ: ЗОНА ====================
+// ЗАДАЧА: кд 5с, но отсчёт начинается только после закрытия предыдущей зоны.
 function activateControlZone() {
-  if (player.cooldowns['control_zone'] > 0) return;
+  // Если зона активна — нельзя
+  if (controlZone && performance.now() < controlZone.until) {
+    showToast('⏳ Зона ещё активна!');
+    return;
+  }
+  // Если зона недавно закрылась — проверяем кулдаун 5с от момента закрытия
+  if (zoneClosedAt > 0) {
+    const cdRemaining = (zoneClosedAt + 5000 - performance.now()) / 1000;
+    if (cdRemaining > 0) {
+      showToast(`⏳ Кд зоны: ${cdRemaining.toFixed(1)}с`);
+      return;
+    }
+  }
   if (player.stamina < 30) { showToast('Мало стамины!'); return; }
-  player.cooldowns['control_zone'] = 9;
+  // Ставим "визуальный" cooldown в UI (для прогресс-круга): показываем только после закрытия
+  player.cooldowns['control_zone'] = 0;
   player.stamina = Math.max(0, player.stamina - 30);
   controlZone = {
     x: player.x, y: player.y,
@@ -1310,7 +1362,7 @@ function activateControlZone() {
 function activateControlLasers() {
   if (player.cooldowns['control_lasers'] > 0) return;
   if (player.stamina < 40) { showToast('Мало стамины!'); return; }
-  player.cooldowns['control_lasers'] = 13.5;
+  player.cooldowns['control_lasers'] = 10;
   player.stamina = Math.max(0, player.stamina - 40);
   const now = performance.now();
   const cx = player.x, cy = player.y;
@@ -1332,7 +1384,7 @@ function activateControlMeteorAt(tx, ty) {
   if (player.cooldowns['control_meteor'] > 0) return;
   if (player.stamina < 50) { showToast('Мало стамины!'); return; }
   if (!isInControlZone(tx, ty)) { showToast('❌ Целься внутри зоны!'); return; }
-  player.cooldowns['control_meteor'] = 18;
+  player.cooldowns['control_meteor'] = 12;
   player.stamina = Math.max(0, player.stamina - 50);
   controlMeteors.push({
     targetX: tx, targetY: ty,
@@ -1353,7 +1405,7 @@ function activateControlBeamAt(tx, ty) {
   if (player.cooldowns['control_beam'] > 0) return;
   if (player.stamina < 70) { showToast('Мало стамины!'); return; }
   if (!isInControlZone(tx, ty)) { showToast('❌ Целься внутри зоны!'); return; }
-  player.cooldowns['control_beam'] = 27;
+  player.cooldowns['control_beam'] = 20;
   player.stamina = Math.max(0, player.stamina - 70);
   const now = performance.now();
   controlBeams.push({
@@ -1409,7 +1461,8 @@ function executeAbilityAt(tx, ty) {
     if (canBeAt(fx, fy, player.radius)) { player.x = fx; player.y = fy; }
     sendAttackUse('flame_dash', player.x, player.y, nx, ny);
   } else if (abilityId === 'ice_spear') {
-    projectiles.push({ kind: 'ice_spear', x: player.x + nx * (player.radius + 10), y: player.y + ny * (player.radius + 10), vx: nx * 15, vy: ny * 15, radius: 12, life: 80, damage: finalDmg, trail: [], pierced: new Set(), angle: Math.atan2(ny, nx) });
+    // ЗАДАЧА: НЕ пронзает. Убираем pierced-set, добавляем флаг noPierce.
+    projectiles.push({ kind: 'ice_spear', x: player.x + nx * (player.radius + 10), y: player.y + ny * (player.radius + 10), vx: nx * 15, vy: ny * 15, radius: 12, life: 80, damage: finalDmg, trail: [], pierced: new Set(), angle: Math.atan2(ny, nx), noPierce: true });
     sendAttackUse('ice_spear', player.x, player.y, nx, ny);
   } else if (abilityId === 'ice_prison') {
     const maxDist = 500;
@@ -1419,7 +1472,8 @@ function executeAbilityAt(tx, ty) {
     const rdx = fx - player.x, rdy = fy - player.y;
     sendAttackUse('ice_prison', player.x, player.y, rdx / 500, rdy / 500);
   } else if (abilityId === 'ice_meteor') {
-    meteors.push({ targetX: tx, targetY: ty, x: tx, y: ty - 900, fallProgress: 0, duration: 36, radius: 60, damage: finalDmg, impactDone: false });
+    // ЗАДАЧА: без стана
+    meteors.push({ targetX: tx, targetY: ty, x: tx, y: ty - 900, fallProgress: 0, duration: 36, radius: 60, damage: finalDmg, impactDone: false, noStun: true });
     const rdx = tx - player.x, rdy = ty - player.y;
     const rl = Math.hypot(rdx, rdy) || 1;
     sendAttackUse('ice_meteor', player.x, player.y, (rdx / rl) * 300, (rdy / rl) * 300);
@@ -1524,6 +1578,18 @@ canvas.addEventListener('click', (e) => {
   if (adminOpen) return;
   const rect = canvas.getBoundingClientRect();
   const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+
+  // ПКМ-меню мешка (ПОКАЗЫВАЕТСЯ, только когда bagOpen)
+  if (bagContextMenu) {
+    for (const btn of bagContextMenu.buttons) {
+      if (mx >= btn.x && mx <= btn.x + btn.w && my >= btn.y && my <= btn.y + btn.h) {
+        executeBagMenuAction(btn.action);
+        return;
+      }
+    }
+    bagContextMenu = null;
+    return;
+  }
   if (eatConfirm) { handleEatConfirmClick(mx, my); return; }
   if (questDialogOpen) { handleQuestDialogClick(mx, my); return; }
   if (rollDialogOpen) { handleRollDialogClick(mx, my); return; }
@@ -1565,6 +1631,29 @@ canvas.addEventListener('click', (e) => {
 });
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 
+// ПКМ в мешке — обрабатываем как правый клик на фрукт в мешке
+canvas.addEventListener('mousedown', (e) => {
+  if (!currentUser) return;
+  if (adminOpen) return;
+  if (e.button !== 2) return; // только ПКМ
+  if (!bagOpen) return;
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  const g = getBagGridRect();
+  for (let r = 0; r < bagRows; r++) {
+    for (let col = 0; col < bagCols; col++) {
+      const x = g.x + col * (bagSlotSize + bagGap), y = g.y + r * (bagSlotSize + bagGap);
+      if (mx >= x && mx <= x + bagSlotSize && my >= y && my <= y + bagSlotSize) {
+        const idx = r * bagCols + col;
+        if (idx < bag.length) {
+          openBagContextMenu(idx, mx, my);
+        }
+        return;
+      }
+    }
+  }
+});
+
 // ==================== ПОДТВЕРЖДЕНИЕ ЕДЫ ====================
 function getEatConfirmButtons() {
   const pw = 460, ph = 240;
@@ -1587,7 +1676,6 @@ function handleEatConfirmClick(mx, my) {
   const b = getEatConfirmButtons();
   if (mx >= b.yes.x && mx <= b.yes.x + b.yes.w && my >= b.yes.y && my <= b.yes.y + b.yes.h) {
     if (eatConfirm) {
-      const item = eatConfirm.item;
       const slotIndex = eatConfirm.slotIndex;
       const current = inventory[slotIndex];
       if (current && current.type === 'fruit') {
@@ -1692,7 +1780,6 @@ function tryRollFruit() {
 }
 
 // ==================== СТАТИСТИКА ====================
-// ЗАДАЧА 1: показываем текущие значения и что даст следующее очко.
 function closeStats() { statsOpen = false; }
 function getStatsButtons() {
   const pw = 560, ph = 460;
@@ -1737,9 +1824,11 @@ function getSlotAtPoint(mx, my) {
   }
   return -1;
 }
+
+// Контекстное меню для фрукта в ХОТБАРЕ
 function openContextMenu() {
   const sx = player.x - camera.x + player.radius * 1.3, sy = player.y - camera.y;
-  const bw = 140, bh = 38, gap = 6, pad = 8;
+  const bw = 160, bh = 38, gap = 6, pad = 8;
   const tw = bw + pad * 2;
   const th = menuButtons.length * bh + (menuButtons.length - 1) * gap + pad * 2;
   let mX = sx + 20, mY = sy - th / 2;
@@ -1761,6 +1850,12 @@ function executeMenuAction(action) {
 
   if (action === 'eat') {
     openEatConfirm(slotIdx);
+  } else if (action === 'take') {
+    // НОВОЕ: взять в руки (то же, что клик по слоту)
+    heldSlot = slotIdx;
+    const held = getHeldPower();
+    sendHeldChange(held ? held.power.name : null);
+    showToast('🍎 Взял фрукт в руки');
   } else if (action === 'drop') {
     let lx = player.lookX, ly = player.lookY;
     if (lx === 0 && ly === 0) { lx = 1; ly = 0; }
@@ -1803,7 +1898,7 @@ function executeMenuAction(action) {
 const bagCols = 5, bagRows = 4, bagSlotSize = 80, bagGap = 12;
 function handleBagClick(mx, my) {
   const c = getBagCloseRect();
-  if (mx >= c.x && mx <= c.x + c.w && my >= c.y && my <= c.y + c.h) { bagOpen = false; return; }
+  if (mx >= c.x && mx <= c.x + c.w && my >= c.y && my <= c.y + c.h) { bagOpen = false; bagContextMenu = null; return; }
   const g = getBagGridRect();
   for (let r = 0; r < bagRows; r++) {
     for (let col = 0; col < bagCols; col++) {
@@ -1824,6 +1919,80 @@ function getBagPanelRect() {
 }
 function getBagGridRect() { const p = getBagPanelRect(); return { x: p.x + 30, y: p.y + 90 }; }
 function getBagCloseRect() { const p = getBagPanelRect(); return { x: p.x + p.w - 44, y: p.y + 15, w: 30, h: 30 }; }
+
+// НОВОЕ: ПКМ-меню для фрукта в МЕШКЕ
+function openBagContextMenu(bagIdx, mx, my) {
+  const bw = 160, bh = 38, gap = 6, pad = 8;
+  const tw = bw + pad * 2;
+  const th = menuButtons.length * bh + (menuButtons.length - 1) * gap + pad * 2;
+  let mX = mx + 5, mY = my + 5;
+  if (mX + tw > canvas.width - 10) mX = canvas.width - tw - 10;
+  if (mY + th > canvas.height - 10) mY = canvas.height - th - 10;
+  const btns = [];
+  for (let i = 0; i < menuButtons.length; i++) {
+    btns.push({ label: menuButtons[i].label, action: menuButtons[i].action, color: menuButtons[i].color,
+      x: mX + pad, y: mY + pad + i * (bh + gap), w: bw, h: bh });
+  }
+  bagContextMenu = { x: mX, y: mY, w: tw, h: th, buttons: btns, bagIndex: bagIdx };
+}
+
+function executeBagMenuAction(action) {
+  if (!bagContextMenu) return;
+  const idx = bagContextMenu.bagIndex;
+  if (idx < 0 || idx >= bag.length) { bagContextMenu = null; return; }
+  const item = bag[idx];
+  if (!item || item.type !== 'fruit') { bagContextMenu = null; return; }
+
+  if (action === 'eat') {
+    // Съесть прямо из мешка
+    bag.splice(idx, 1);
+    consumeFruit(item);
+    saveNow();
+  } else if (action === 'take') {
+    // Взять в руки — ищем свободный слот в хотбаре
+    let free = -1;
+    for (let s = 0; s < INVENTORY_SLOTS; s++) {
+      if (s === POWER_SLOT_INDEX) continue;
+      if (inventory[s] === null) { free = s; break; }
+    }
+    if (free === -1) {
+      showToast('❌ Хотбар полон!');
+    } else {
+      inventory[free] = { type: 'fruit', name: item.name, color: item.color };
+      bag.splice(idx, 1);
+      player.fruitCount++;
+      updateFruitUi();
+      heldSlot = free;
+      const held = getHeldPower();
+      sendHeldChange(held ? held.power.name : null);
+      showToast('🍎 Фрукт взят в слот ' + (free + 1));
+      saveNow();
+    }
+  } else if (action === 'drop') {
+    let lx = player.lookX, ly = player.lookY;
+    if (lx === 0 && ly === 0) { lx = 1; ly = 0; }
+    const l = Math.hypot(lx, ly) || 1; lx /= l; ly /= l;
+    const fruitId = 'f_' + Date.now() + '_' + Math.floor(Math.random() * 100000) + '_' + (currentUser ? currentUser.username : 'anon');
+    const fx = player.x + lx * 70;
+    const fy = player.y + ly * 70;
+    sharedDroppedFruits.set(fruitId, {
+      id: fruitId, x: fx, y: fy,
+      name: item.name, color: item.color,
+      bobPhase: Math.random() * 6,
+      glow: item.name === 'Акула' || item.name === 'Контроль',
+      radius: 20,
+      from: currentUser ? currentUser.username : 'me'
+    });
+    sendFruitDrop(fruitId, item.name, item.color, fx, fy);
+    bag.splice(idx, 1);
+    player.fruitCount = Math.max(0, player.fruitCount - 1);
+    updateFruitUi();
+    showToast('Фрукт выброшен из мешка!');
+    saveNow();
+  }
+  // save для мешка не имеет смысла
+  bagContextMenu = null;
+}
 
 // Большая кнопка "🎒 Инвентарь"
 function getInvButtonRect() {
@@ -1877,7 +2046,7 @@ window.addEventListener('keydown', (e) => {
     return;
   }
   const k = e.key.toLowerCase(), code = e.code;
-  if (k === 'i' || k === 'ш' || code === 'KeyI') { bagOpen = !bagOpen; contextMenu = null; return; }
+  if (k === 'i' || k === 'ш' || code === 'KeyI') { bagOpen = !bagOpen; contextMenu = null; bagContextMenu = null; return; }
   if (code === 'Tab' || e.key === 'Tab') { e.preventDefault(); statsOpen = !statsOpen; questDialogOpen = false; rollDialogOpen = false; return; }
   if (code === 'KeyE' || k === 'e' || k === 'у') {
     if (isNearRollNpc() && !rollDialogOpen && !questDialogOpen && !statsOpen) { openRollDialog(); return; }
@@ -1896,6 +2065,7 @@ window.addEventListener('keydown', (e) => {
   if (code === 'KeyR' || k === 'r' || k === 'к') { tc('R'); return; }
   if (code === 'KeyV' || k === 'v' || k === 'м') { tc('V'); return; }
   if (e.key === 'Escape') {
+    if (bagContextMenu) { bagContextMenu = null; return; }
     if (rollDialogOpen) { closeRollDialog(); return; }
     if (questDialogOpen) { closeQuestDialog(); return; }
     if (statsOpen) { closeStats(); return; }
@@ -2011,10 +2181,29 @@ function update() {
   }
   for (const f of sharedDroppedFruits.values()) f.bobPhase = (f.bobPhase || 0) + 0.05;
 
+  // Кулдауны (обычные — т1к = 1/60 сек)
   for (const k of Object.keys(player.cooldowns)) { if (player.cooldowns[k] > 0) player.cooldowns[k] -= 1/60; }
   if (player.punchCooldown > 0) player.punchCooldown -= 1/60;
   if (player.punchAnim > 0) player.punchAnim = Math.max(0, player.punchAnim - 0.08);
   if (player.controlLmbCooldown > 0) player.controlLmbCooldown -= 1/60;
+
+  // ЗАДАЧА: Спец-кулдаун зоны Контроля — 5с от момента закрытия прошлой зоны.
+  // Если контроль активен, а зона уже закончилась — фиксируем zoneClosedAt и обнуляем controlZone.
+  if (controlZone && now >= controlZone.until) {
+    // Закрытие зоны: эффекты
+    for (let i = 0; i < 40; i++) {
+      const a = (i / 40) * Math.PI * 2;
+      particles.push({
+        x: controlZone.x + Math.cos(a) * controlZone.radius,
+        y: controlZone.y + Math.sin(a) * controlZone.radius,
+        vx: Math.cos(a) * 2, vy: Math.sin(a) * 2,
+        life: 30, maxLife: 30,
+        radius: 4, color: '#7c5cff'
+      });
+    }
+    zoneClosedAt = now;
+    controlZone = null;
+  }
 
   for (let i = controlSlashes.length - 1; i >= 0; i--) {
     controlSlashes[i].life--;
@@ -2082,15 +2271,18 @@ function update() {
     let hit = false;
     if (Math.hypot(p.x - npc.x, p.y - npc.y) < p.radius + npc.radius && !p.pierced.has('npc')) {
       damageNpc(p.damage);
-      if (p.kind === 'ice_spear') { npc.slowUntil = now + 1500; p.pierced.add('npc'); }
+      // ice_spear теперь НЕ пронзает: попал → исчез
+      if (p.kind === 'ice_spear') { npc.slowUntil = now + 1500; hit = true; spawnImpactEffect(p.x, p.y); }
       else { hit = true; spawnImpactEffect(p.x, p.y); }
     }
-    for (const pir of pirates) {
-      if (pir.dead || p.pierced.has(pir)) continue;
-      if (Math.hypot(p.x - pir.x, p.y - pir.y) < p.radius + pir.radius) {
-        damagePirate(pir, p.damage);
-        if (p.kind === 'ice_spear') { pir.slowUntil = now + 1500; p.pierced.add(pir); }
-        else { hit = true; spawnImpactEffect(p.x, p.y); break; }
+    if (!hit) {
+      for (const pir of pirates) {
+        if (pir.dead || p.pierced.has(pir)) continue;
+        if (Math.hypot(p.x - pir.x, p.y - pir.y) < p.radius + pir.radius) {
+          damagePirate(pir, p.damage);
+          if (p.kind === 'ice_spear') { pir.slowUntil = now + 1500; hit = true; spawnImpactEffect(p.x, p.y); break; }
+          else { hit = true; spawnImpactEffect(p.x, p.y); break; }
+        }
       }
     }
     if (!hit) {
@@ -2099,8 +2291,7 @@ function update() {
         if (Math.hypot(p.x - rp.x, p.y - rp.y) < p.radius + player.radius) {
           sendHit(rp.u, p.damage, 'ranged');
           spawnImpactEffect(p.x, p.y);
-          if (p.kind === 'ice_spear') { p.pierced.add(rp.u); }
-          else { hit = true; }
+          hit = true;
           break;
         }
       }
@@ -2179,21 +2370,6 @@ function update() {
       pir.stunUntil = Math.max(pir.stunUntil, now + 150);
     }
     if (w.life <= 0) whirlpools.splice(i, 1);
-  }
-
-  // Контроль: зона
-  if (controlZone && now >= controlZone.until) {
-    for (let i = 0; i < 40; i++) {
-      const a = (i / 40) * Math.PI * 2;
-      particles.push({
-        x: controlZone.x + Math.cos(a) * controlZone.radius,
-        y: controlZone.y + Math.sin(a) * controlZone.radius,
-        vx: Math.cos(a) * 2, vy: Math.sin(a) * 2,
-        life: 30, maxLife: 30,
-        radius: 4, color: '#7c5cff'
-      });
-    }
-    controlZone = null;
   }
 
   // Контроль: лазеры
@@ -2312,7 +2488,13 @@ function update() {
     if (Math.random() < 0.6) particles.push({ x: m.x + (Math.random() - 0.5) * 30, y: m.y + (Math.random() - 0.5) * 30, vx: (Math.random() - 0.5) * 2, vy: (Math.random() - 0.5) * 2, life: 25, maxLife: 25, radius: 4 + Math.random() * 4, color: '#aaffff' });
     if (t >= 1 && !m.impactDone) {
       m.impactDone = true;
-      for (const pir of pirates) { if (pir.dead) continue; if (Math.hypot(pir.x - m.targetX, pir.y - m.targetY) < m.radius) { damagePirate(pir, m.damage); if (!pir.dead) pir.stunUntil = performance.now() + 2000; } }
+      for (const pir of pirates) {
+        if (pir.dead) continue;
+        if (Math.hypot(pir.x - m.targetX, pir.y - m.targetY) < m.radius) {
+          damagePirate(pir, m.damage);
+          // ЗАДАЧА: ice_meteor больше НЕ станит (noStun)
+        }
+      }
       if (Math.hypot(npc.x - m.targetX, npc.y - m.targetY) < m.radius) damageNpc(m.damage);
       for (const rp of remotePlayers.values()) { if (Math.hypot(rp.x - m.targetX, rp.y - m.targetY) < m.radius) sendHit(rp.u, m.damage, 'ranged'); }
       for (let k = 0; k < 40; k++) { const a = Math.random() * Math.PI * 2; const s = 3 + Math.random() * 8; particles.push({ x: m.targetX, y: m.targetY, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 40, maxLife: 70, radius: 4 + Math.random() * 6, color: '#aaffff' }); }
@@ -3726,7 +3908,6 @@ function drawStatsWindow() {
     ctx.fillStyle = r.color; ctx.font = 'bold 18px Arial'; ctx.textBaseline = 'top';
     ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
     ctx.strokeText(r.name, btn.x + 65, btn.y + 18); ctx.fillText(r.name, btn.x + 65, btn.y + 18);
-    // подпись про 2 очка
     ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.font = '11px Arial';
     const dsc = (r.btn === b.damage) ? 'каждые 2 очка → ×1.1 урона + 5 энергии'
               : (r.btn === b.health) ? 'каждые 2 очка → +5 HP'
@@ -3746,7 +3927,7 @@ function drawBag() {
   ctx.fillStyle = 'rgba(30,30,40,0.92)'; ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2;
   roundRect(p.x, p.y, p.w, p.h, 14); ctx.fill(); ctx.stroke();
   ctx.fillStyle = 'white'; ctx.font = 'bold 22px Arial'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-  ctx.fillText('🎒 Мешок (сохраняется)', p.x + 30, p.y + 35);
+  ctx.fillText('🎒 Мешок (сохраняется) · ПКМ — меню', p.x + 30, p.y + 35);
   const c = getBagCloseRect();
   ctx.fillStyle = 'rgba(255,80,80,0.85)'; roundRect(c.x, c.y, c.w, c.h, 6); ctx.fill();
   ctx.fillStyle = 'white'; ctx.font = 'bold 18px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -3756,7 +3937,6 @@ function drawBag() {
     for (let col = 0; col < bagCols; col++) {
       const x = g.x + col * (bagSlotSize + bagGap), y = g.y + r * (bagSlotSize + bagGap);
       const i = r * bagCols + col;
-      // ЗАДАЧА 3: фон по редкости для фруктов в мешке
       let fc = 'rgba(255,255,255,0.08)';
       let sc = 'rgba(255,255,255,0.35)';
       if (i < bag.length) {
@@ -3774,6 +3954,19 @@ function drawBag() {
         ctx.strokeText(item.name, x + bagSlotSize / 2, y + bagSlotSize - 16);
         ctx.fillText(item.name, x + bagSlotSize / 2, y + bagSlotSize - 16);
       }
+    }
+  }
+  // ПКМ-меню в мешке
+  if (bagContextMenu) {
+    ctx.fillStyle = 'rgba(0,0,0,0.4)'; roundRect(bagContextMenu.x + 4, bagContextMenu.y + 4, bagContextMenu.w, bagContextMenu.h, 12); ctx.fill();
+    ctx.fillStyle = 'rgba(20,20,30,0.95)'; ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2;
+    roundRect(bagContextMenu.x, bagContextMenu.y, bagContextMenu.w, bagContextMenu.h, 12); ctx.fill(); ctx.stroke();
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = 'bold 16px Arial';
+    for (const btn of bagContextMenu.buttons) {
+      // Скрываем "Сохранить" в мешке (не имеет смысла)
+      if (btn.action === 'save') continue;
+      ctx.fillStyle = btn.color; roundRect(btn.x, btn.y, btn.w, btn.h, 8); ctx.fill();
+      ctx.fillStyle = 'white'; ctx.fillText(btn.label, btn.x + btn.w / 2, btn.y + btn.h / 2);
     }
   }
 }
@@ -3883,15 +4076,16 @@ function drawAdminConsole() {
   ctx.textAlign = 'left'; ctx.textBaseline = 'top';
   ctx.fillText(adminUnlocked ? '⚙ АДМИН-КОНСОЛЬ [РАЗБЛОКИРОВАНА]' : '🔒 АДМИН-КОНСОЛЬ [ВВЕДИ ПАРОЛЬ]', px + 20, py + 18);
   ctx.fillStyle = 'rgba(255,255,255,0.55)';
-  ctx.font = '13px Consolas, monospace';
+  ctx.font = '12px Consolas, monospace';
   if (adminUnlocked) {
-    ctx.fillText('g [фрукт]          · пример: g огонь', px + 20, py + 50);
-    ctx.fillText('g level X имя      · пример: g level 4 Test1', px + 20, py + 68);
+    ctx.fillText('g [фрукт]                    · пример: g огонь', px + 20, py + 50);
+    ctx.fillText('g level X имя                · пример: g level 4 Test1', px + 20, py + 68);
+    ctx.fillText('g mastery N фрукт имя        · пример: g mastery 5 акула Test1', px + 20, py + 86);
   } else {
     ctx.fillText('Введи пароль администратора и нажми Enter', px + 20, py + 50);
   }
-  const logY = py + 100;
-  const logH = ph - 180;
+  const logY = py + 120;
+  const logH = ph - 200;
   ctx.fillStyle = 'rgba(0,0,0,0.6)';
   roundRect(px + 20, logY, pw - 40, logH, 6); ctx.fill();
   ctx.strokeStyle = 'rgba(100,100,100,0.4)';
