@@ -163,24 +163,18 @@ function loginAs(username, password, data) {
 }
 
 // ==================== MASTERY: УРОВНИ И XP ====================
-// Порог для перехода со уровня N на N+1: floor(100 × 1.1^N)
-// Пример: Lv0 → 100 XP, Lv1 → 110 XP, Lv2 → 121 XP, Lv3 → 133 XP, ...
 function masteryThreshold(level) {
   return Math.floor(100 * Math.pow(1.1, level));
 }
 
-// Универсальное добавление mastery XP в силу игрока.
-// power — это inventory[POWER_SLOT_INDEX] (объект силы).
-// Возвращает: сколько уровней апнулось.
 function addMasteryXp(power, amount) {
   if (!power || power.type !== 'power') return 0;
   if (!Number.isFinite(power.masteryXp)) power.masteryXp = 0;
   if (!Number.isFinite(power.masteryLevel)) power.masteryLevel = 0;
-
   power.masteryXp += amount;
   let ups = 0;
   let guard = 0;
-  while (guard < 100) {
+  while (guard < 200) {
     guard++;
     const need = masteryThreshold(power.masteryLevel);
     if (power.masteryXp >= need) {
@@ -224,7 +218,6 @@ function applySave(d) {
   updateMoneyUi();
   inventory[0] = { type: 'fists', name: 'Кулаки' };
   for (let i = 1; i < INVENTORY_SLOTS; i++) inventory[i] = null;
-  // Восстанавливаем силу из сохранения (если была)
   if (d.power && d.power.name) {
     inventory[POWER_SLOT_INDEX] = {
       type: 'power',
@@ -252,7 +245,6 @@ async function saveNow() {
     masteryXp: powerSlot.masteryXp || 0,
     masteryLevel: powerSlot.masteryLevel || 0
   } : null;
-
   const data = {
     level: stats.level, xp: stats.xp, statPoints: stats.statPoints,
     points: { ...stats.points }, waterMeter,
@@ -411,6 +403,7 @@ function handleWsMessage(msg) {
       radius: 20,
       from: msg.from
     });
+    showToast(`🍎 ${msg.from} выбросил ${msg.name}`);
     return;
   }
   if (msg.type === 'fruit_picked') {
@@ -475,7 +468,6 @@ function spawnRemoteAttack(msg) {
   let dx = msg.dirX, dy = msg.dirY;
   const dl = Math.hypot(dx, dy);
   if (dl < 0.001) { dx = 1; dy = 0; } else { dx /= dl; dy /= dl; }
-
   if (id === 'fire_charge') {
     remoteProjectiles.push({ kind: 'fireball', x: ox, y: oy, vx: dx * 12, vy: dy * 12, radius: 14, life: 90, trail: [], from: msg.from });
   } else if (id === 'ice_spear') {
@@ -629,27 +621,26 @@ let abilityGuide = null;
 let statsOpen = false;
 
 // ==================== СПОСОБНОСТИ ====================
-// Требования — теперь в УРОВНЯХ MASTERY, а не в XP.
-// Пороги уровня: Lv0→Lv1 = 100 XP, Lv1→Lv2 = 110 XP, и т.д.
-
+// Z — всегда 0 mastery.
+// X-контроль — теперь тоже 0 mastery (твоя правка).
 const FIRE_ABILITIES = [
-  { id: 'fire_charge', name: 'Огненный заряд', key: 'Z', requiredMasteryLevel: 1, cooldown: 4.5, stamina: 10, damage: 10, description: 'Огненный шар · 10 урона · кд 4.5с' },
+  { id: 'fire_charge', name: 'Огненный заряд', key: 'Z', requiredMasteryLevel: 0, cooldown: 4.5, stamina: 10, damage: 10, description: 'Огненный шар · 10 урона · кд 4.5с' },
   { id: 'flame_dash', name: 'Рывок пламени', key: 'X', requiredMasteryLevel: 5, cooldown: 1.8, stamina: 25, damage: 0, description: 'Рывок вперёд · кд 1.8с' }
 ];
 const ICE_ABILITIES = [
-  { id: 'ice_spear', name: 'Ледяное копьё', key: 'Z', requiredMasteryLevel: 1, cooldown: 4.2, stamina: 15, damage: 6.5, description: 'Копьё · 6.5 урона · кд 4.2с' },
+  { id: 'ice_spear', name: 'Ледяное копьё', key: 'Z', requiredMasteryLevel: 0, cooldown: 4.2, stamina: 15, damage: 6.5, description: 'Копьё · 6.5 урона · кд 4.2с' },
   { id: 'ice_prison', name: 'Ледяная тюрьма', key: 'X', requiredMasteryLevel: 5, cooldown: 1.5, stamina: 40, damage: 12, description: 'Зона заморозки · 12 урона · кд 1.5с' },
   { id: 'ice_meteor', name: 'Метеоритный лёд', key: 'C', requiredMasteryLevel: 10, cooldown: 7.5, stamina: 60, damage: 20, description: 'Глыба с неба · 20 урона · кд 7.5с' }
 ];
 const SHARK_ABILITIES = [
-  { id: 'shark_bite', name: 'Акулий укус', key: 'Z', requiredMasteryLevel: 1, cooldown: 4.5, stamina: 20, damage: 15, description: 'Акула бросается · 15 урона · кд 4.5с' },
+  { id: 'shark_bite', name: 'Акулий укус', key: 'Z', requiredMasteryLevel: 0, cooldown: 4.5, stamina: 20, damage: 15, description: 'Акула бросается · 15 урона · кд 4.5с' },
   { id: 'shark_torrent', name: 'Поток акул', key: 'X', requiredMasteryLevel: 10, cooldown: 6, stamina: 45, damage: 5, description: 'Веер из 5 акул · 5 урона каждая · кд 6с' },
   { id: 'shark_whirlpool', name: 'Водоворот', key: 'C', requiredMasteryLevel: 20, cooldown: 9, stamina: 55, damage: 27, description: 'Водоворот · 27 урона · кд 9с' },
   { id: 'shark_transform', name: 'Трансформация', key: 'R', requiredMasteryLevel: 20, cooldown: 0, stamina: 0, damage: 0, description: 'Нужна шкала воды. 90с водного облика', usesWaterMeter: true }
 ];
 const CONTROL_ABILITIES = [
-  { id: 'control_zone', name: 'Зона контроля', key: 'Z', requiredMasteryLevel: 1, cooldown: 9, stamina: 30, damage: 0, description: 'Круглая зона 20с · кд 9с', aiming: false },
-  { id: 'control_lasers', name: 'Лазерная пицца', key: 'X', requiredMasteryLevel: 15, cooldown: 13.5, stamina: 40, damage: 22, description: '8 лучей по 22 урона · кд 13.5с (в зоне)', aiming: false, zoneOnly: true },
+  { id: 'control_zone', name: 'Зона контроля', key: 'Z', requiredMasteryLevel: 0, cooldown: 9, stamina: 30, damage: 0, description: 'Круглая зона 20с · кд 9с', aiming: false },
+  { id: 'control_lasers', name: 'Лазерная пицца', key: 'X', requiredMasteryLevel: 0, cooldown: 13.5, stamina: 40, damage: 22, description: '8 лучей по 22 урона · кд 13.5с (в зоне)', aiming: false, zoneOnly: true },
   { id: 'control_meteor', name: 'Метеор контроля', key: 'C', requiredMasteryLevel: 30, cooldown: 18, stamina: 50, damage: 35, description: '35 урона, +2 по зоне · кд 18с (в зоне)', zoneOnly: true },
   { id: 'control_beam', name: 'Луч контроля', key: 'V', requiredMasteryLevel: 45, cooldown: 27, stamina: 70, damage: 70, description: '70 урона через 2с · кд 27с (в зоне)', zoneOnly: true }
 ];
@@ -723,7 +714,7 @@ const WATER_METER_MAX = 100;
 const WATER_METER_PER_KILL = 12.5;
 let waterMeter = 0;
 
-// ==================== ПРОКРУТКА ФРУКТОВ ====================
+// ==================== ПРОКРУТКА ====================
 const ROLL_COOLDOWN_MS = 30 * 60 * 1000;
 const ROLL_MIN_LEVEL = 3;
 let rollCooldownUntil = 0;
@@ -760,8 +751,6 @@ const HP_REGEN_PER_TICK = 0.02 / 1.7;
 const HP_REGEN_DELAY_MS = 7000;
 const STAMINA_REGEN_PER_TICK = 0.3 / 2.5;
 const PIRATE_MASTERY_XP_REWARD = 70;
-
-const droppedFruits = [];
 
 // ==================== КОНТРОЛЬ ====================
 let controlZone = null;
@@ -981,7 +970,6 @@ function consumeFruit(item) {
       showToast(`✨ Получена сила: ${item.name}!`);
       spawnEatEffect(player.x, player.y, item.color);
     }
-    // Новая сила стартует с 0 уровня mastery
     inventory[POWER_SLOT_INDEX] = {
       type: 'power',
       name: item.name,
@@ -1084,14 +1072,11 @@ function startAbility(powerName, abilityId) {
   if (!held || held.power.name !== powerName) { showToast(`Возьми ${powerName} в руки!`); return; }
   const ab = held.abilities.find(a => a.id === abilityId);
   if (!ab) return;
-
-  // ВАЖНО: проверка по уровню mastery
   const myLevel = held.power.masteryLevel || 0;
   if (myLevel < ab.requiredMasteryLevel) {
     showToast(`🔒 Нужен Mastery Lv.${ab.requiredMasteryLevel} (у тебя Lv.${myLevel})`);
     return;
   }
-
   if (ab.usesWaterMeter) { activateWaterTransform(); return; }
   if (ab.zoneOnly && !isInControlZone(player.x, player.y)) {
     showToast('❌ Только внутри зоны контроля!');
@@ -1099,10 +1084,8 @@ function startAbility(powerName, abilityId) {
   }
   if ((player.cooldowns[abilityId] || 0) > 0) return;
   if (player.stamina < ab.stamina) { showToast('Мало стамины!'); return; }
-
   if (abilityId === 'control_zone') { activateControlZone(); return; }
   if (abilityId === 'control_lasers') { activateControlLasers(); return; }
-
   if (ab.aiming !== false) { aimingAbility = { powerName, abilityId, ability: ab }; showToast('Кликни по цели'); return; }
 }
 
@@ -1205,7 +1188,6 @@ function executeAbilityAt(tx, ty) {
   if (!held || held.power.name !== powerName) { aimingAbility = null; return; }
   if (abilityId === 'control_meteor') { activateControlMeteorAt(tx, ty); aimingAbility = null; return; }
   if (abilityId === 'control_beam') { activateControlBeamAt(tx, ty); aimingAbility = null; return; }
-
   const dx = tx - player.x, dy = ty - player.y;
   const dist = Math.hypot(dx, dy);
   if (dist < 1) { aimingAbility = null; return; }
@@ -1286,7 +1268,6 @@ function damagePirate(pirate, dmg) {
     pirate.dead = true;
     pirate.deathTimer = 40;
     pirate.respawnAt = performance.now() + PIRATE_RESPAWN_TIME;
-    // + 70 MASTERY XP в текущую силу
     const held = getHeldPower();
     if (held) {
       addMasteryXp(held.power, PIRATE_MASTERY_XP_REWARD);
@@ -1652,7 +1633,6 @@ function isClickOnInvButton(mx, my) { const r = getInvButtonRect(); return mx >=
 const keys = {};
 window.addEventListener('keydown', (e) => {
   if (!currentUser) return;
-
   if (e.code === 'KeyN' || e.key.toLowerCase() === 'n' || e.key.toLowerCase() === 'т') {
     if (adminOpen) {
       if (e.key.length === 1) { adminInput += e.key; e.preventDefault(); }
@@ -1667,7 +1647,6 @@ window.addEventListener('keydown', (e) => {
     }
     lastNPressTime = now;
   }
-
   if (adminOpen) {
     if (e.key === 'Escape') { closeAdminConsole(); e.preventDefault(); return; }
     if (e.key === 'Enter') { adminSubmit(); e.preventDefault(); return; }
@@ -1675,7 +1654,6 @@ window.addEventListener('keydown', (e) => {
     if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) { adminInput += e.key; e.preventDefault(); return; }
     return;
   }
-
   if (eatConfirm) {
     if (e.key === 'Escape') { closeEatConfirm(); e.preventDefault(); return; }
     if (e.key === 'Enter') {
@@ -1695,7 +1673,6 @@ window.addEventListener('keydown', (e) => {
     }
     return;
   }
-
   const k = e.key.toLowerCase(), code = e.code;
   if (k === 'i' || k === 'ш' || code === 'KeyI') { bagOpen = !bagOpen; contextMenu = null; return; }
   if (code === 'Tab' || e.key === 'Tab') { e.preventDefault(); statsOpen = !statsOpen; questDialogOpen = false; rollDialogOpen = false; return; }
@@ -1805,6 +1782,7 @@ function update() {
   }
   if (player.hp > mh) player.hp = mh;
 
+  // ============ ПОДБОР СБРОШЕННЫХ ЧУЖИХ ФРУКТОВ ============
   if (!blocked && !aimingAbility) {
     for (const [id, f] of sharedDroppedFruits.entries()) {
       if (Math.hypot(player.x - f.x, player.y - f.y) < player.radius + f.radius + 6) {
@@ -1833,7 +1811,7 @@ function update() {
   if (player.punchCooldown > 0) player.punchCooldown -= 1/60;
   if (player.punchAnim > 0) player.punchAnim = Math.max(0, player.punchAnim - 0.08);
 
-  // Обновление чужих атак
+  // Чужие атаки
   for (let i = remoteProjectiles.length - 1; i >= 0; i--) {
     const rp = remoteProjectiles[i];
     rp.x += rp.vx; rp.y += rp.vy; rp.life--;
@@ -1877,7 +1855,7 @@ function update() {
     if (B.life <= 0) remoteBeams.splice(i, 1);
   }
 
-  // СНАРЯДЫ
+  // Локальные снаряды
   for (let i = projectiles.length - 1; i >= 0; i--) {
     const p = projectiles[i];
     p.x += p.vx; p.y += p.vy; p.life--;
@@ -1916,7 +1894,7 @@ function update() {
     if (hit || p.life <= 0) projectiles.splice(i, 1);
   }
 
-  // АКУЛЫ
+  // Акулы
   for (let i = sharkBites.length - 1; i >= 0; i--) {
     const s = sharkBites[i];
     s.x += s.vx; s.y += s.vy; s.life--;
@@ -1952,7 +1930,7 @@ function update() {
     if (hit || s.life <= 0) sharkBites.splice(i, 1);
   }
 
-  // ВОДОВОРОТЫ
+  // Водовороты
   for (let i = whirlpools.length - 1; i >= 0; i--) {
     const w = whirlpools[i];
     w.life--; w.rotation += 0.15;
@@ -1989,7 +1967,7 @@ function update() {
     if (w.life <= 0) whirlpools.splice(i, 1);
   }
 
-  // КОНТРОЛЬ: ЗОНА
+  // Контроль: зона
   if (controlZone && now >= controlZone.until) {
     for (let i = 0; i < 40; i++) {
       const a = (i / 40) * Math.PI * 2;
@@ -2004,7 +1982,7 @@ function update() {
     controlZone = null;
   }
 
-  // КОНТРОЛЬ: ЛАЗЕРЫ
+  // Контроль: лазеры
   for (let i = controlLasers.length - 1; i >= 0; i--) {
     const L = controlLasers[i];
     if (now > L.until) { controlLasers.splice(i, 1); continue; }
@@ -2032,7 +2010,7 @@ function update() {
     }
   }
 
-  // КОНТРОЛЬ: МЕТЕОРЫ
+  // Контроль: метеоры
   for (let i = controlMeteors.length - 1; i >= 0; i--) {
     const m = controlMeteors[i];
     m.progress++;
@@ -2073,7 +2051,7 @@ function update() {
     if (m.impactDone && m.progress > m.duration + 40) controlMeteors.splice(i, 1);
   }
 
-  // КОНТРОЛЬ: ЛУЧИ
+  // Контроль: лучи
   for (let i = controlBeams.length - 1; i >= 0; i--) {
     const B = controlBeams[i];
     if (now > B.until) { controlBeams.splice(i, 1); continue; }
@@ -2130,7 +2108,7 @@ function update() {
     if (m.impactDone && m.fallProgress > m.duration + 30) meteors.splice(i, 1);
   }
 
-  // ПИРАТЫ
+  // Пираты
   for (let i = pirates.length - 1; i >= 0; i--) {
     const pir = pirates[i];
     if (pir.dead) { if (pir.deathTimer > 0) pir.deathTimer--; if (now >= pir.respawnAt) { const idx = pir.spawnIdx; pirates.splice(i, 1); spawnPirate(idx); } continue; }
@@ -2269,6 +2247,16 @@ function drawFruitShape(x, y, radius, color, phase = 0, bob = false, glow = fals
 function drawSharedDroppedFruits() {
   for (const f of sharedDroppedFruits.values()) {
     drawFruitShape(f.x - camera.x, f.y - camera.y, f.radius, f.color, f.bobPhase, true, f.glow);
+    // Подсказка об имени выбросившего
+    if (Math.hypot(player.x - f.x, player.y - f.y) < 200) {
+      ctx.font = 'bold 11px Arial';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
+      const txt = `от ${f.from}`;
+      ctx.strokeText(txt, f.x - camera.x, f.y - camera.y - 30);
+      ctx.fillStyle = '#aaddff';
+      ctx.fillText(txt, f.x - camera.x, f.y - camera.y - 30);
+    }
   }
 }
 
@@ -3122,7 +3110,6 @@ function drawInventory() {
   ctx.fillText('INV', ir.x + ir.w / 2, ir.y + ir.h / 2);
 }
 
-// ==================== ПАНЕЛЬ СПОСОБНОСТЕЙ С MASTERY ====================
 function drawAbilityGuide() {
   if (!abilityGuide) return;
   const abilities = abilityGuide.abilities;
@@ -3138,13 +3125,10 @@ function drawAbilityGuide() {
   const emoji = isFire ? '🔥' : (isIce ? '❄️' : (isCtrl ? '🌀' : '🦈'));
   ctx.fillStyle = theme2; ctx.font = 'bold 15px Arial'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
   ctx.fillText(`${emoji} ${abilityGuide.name}`, px + 14, py + 18);
-
   const power = inventory[abilityGuide.slotIndex];
   const myLevel = power ? (power.masteryLevel || 0) : 0;
   const myXp = power ? (power.masteryXp || 0) : 0;
   const needXp = masteryThreshold(myLevel);
-
-  // Строка уровня
   const mx = px + 14, my = py + 40, mw = pw - 28, mh = 14;
   ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.font = 'bold 12px Arial'; ctx.textBaseline = 'top'; ctx.textAlign = 'left';
   ctx.fillText(`🌟 Mastery Lv.${myLevel}`, mx, my - 4);
@@ -3162,7 +3146,6 @@ function drawAbilityGuide() {
   const divY = py + hh - 4;
   ctx.strokeStyle = isFire ? 'rgba(255,150,0,0.2)' : (isIce ? 'rgba(0,150,255,0.2)' : (isCtrl ? 'rgba(124,92,255,0.3)' : 'rgba(80,180,255,0.2)')); ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(px + 10, divY); ctx.lineTo(px + pw - 10, divY); ctx.stroke();
-
   const inZone = isInControlZone(player.x, player.y);
   for (let i = 0; i < abilities.length; i++) {
     const ab = abilities[i];
@@ -3261,7 +3244,6 @@ function drawPlayerStats() {
   ctx.fillStyle = 'white'; ctx.font = 'bold 13px Arial'; ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
   const mt = `💰 ${player.money}`;
   ctx.strokeText(mt, x + bw / 2, moneyY + bh / 2); ctx.fillText(mt, x + bw / 2, moneyY + bh / 2);
-  // Mastery силы
   const powerSlot = inventory[POWER_SLOT_INDEX];
   let nextY = moneyY + bh + 10;
   if (powerSlot && powerSlot.type === 'power') {
@@ -3344,7 +3326,7 @@ function drawQuestDialog() {
   ctx.fillStyle = 'rgba(255,215,0,0.85)'; ctx.font = 'bold 15px Arial';
   ctx.fillText(`💰 Награда: 200 монет + 100 XP + 70 mastery за пирата`, p.x + 30, p.y + 105);
   ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.font = '13px Arial';
-  ctx.fillText(`📈 Мастерство растёт: Lv0→Lv1 = 100 XP, дальше +10%`, p.x + 30, p.y + 130);
+  ctx.fillText(`📈 Мастерство: Lv0→Lv1 = 100 XP, дальше +10%`, p.x + 30, p.y + 130);
   const c = b.close;
   ctx.fillStyle = 'rgba(255,80,80,0.85)'; roundRect(c.x, c.y, c.w, c.h, 6); ctx.fill();
   ctx.fillStyle = 'white'; ctx.font = 'bold 18px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
