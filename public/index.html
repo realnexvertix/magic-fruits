@@ -38,7 +38,7 @@
 <canvas id="game"></canvas>
 <button id="fsBtn" title="Полный экран">⛶</button>
 <div id="ui">🍎 Фрукты: <span id="fruitCount">0</span> | 💰 Монеты: <span id="moneyCount">0</span></div>
-<div id="hint">WASD — движение | 1-5 — слоты | I — мешок | E — NPC | Tab — статистика | N N — админ<br><b>ЛКМ</b> — кулак / разрез | <b>Z / X / C / R / V</b> — способности | ⚠️ В море -30 HP/сек!</div>
+<div id="hint">WASD — движение | 1-5 — слоты | I — мешок | E — NPC | Tab — статистика | N N — админ<br><b>ЛКМ</b> — кулак / разрез | <b>Z / X / C / R / V / F</b> — способности | ⚠️ В море -30 HP/сек!</div>
 <div id="playerName"></div>
 <button id="logoutBtn">🚪 Выйти</button>
 
@@ -86,6 +86,8 @@ const remoteLasers = [];
 const remoteMeteors = [];
 const remoteBeams = [];
 const remoteSlashes = [];
+const remoteLightBeams = [];       // НОВОЕ: световые лучи (Z Свет)
+const remoteLightTrails = [];      // НОВОЕ: полосы от полёта Света
 const sharedDroppedFruits = new Map();
 
 function updateMoneyUi() { document.getElementById('moneyCount').textContent = player.money; }
@@ -163,13 +165,11 @@ function loginAs(username, password, data) {
   connectWebSocket();
 }
 
-// ==================== MASTERY: УРОВНИ И XP ====================
+// ==================== MASTERY ====================
 function masteryThreshold(level) {
   return Math.floor(100 * Math.pow(1.1, level));
 }
 
-// Отдельное хранилище mastery для каждой силы.
-// Формат: powerMastery = { 'Акула': { xp, level }, ... }
 const powerMastery = {};
 
 function getMasteryFor(name) {
@@ -230,7 +230,6 @@ function applySave(d) {
   updateFruitUi();
   updateMoneyUi();
 
-  // Mastery каждой силы отдельно
   for (const k of Object.keys(powerMastery)) delete powerMastery[k];
   if (d.powerMastery && typeof d.powerMastery === 'object') {
     for (const k of Object.keys(d.powerMastery)) {
@@ -473,7 +472,7 @@ function handleWsMessage(msg) {
       x: msg.x, y: msg.y,
       name: msg.name, color: msg.color,
       bobPhase: Math.random() * 6,
-      glow: msg.name === 'Акула' || msg.name === 'Контроль',
+      glow: msg.name === 'Акула' || msg.name === 'Контроль' || msg.name === 'Свет',
       radius: 20,
       from: msg.from
     });
@@ -534,6 +533,25 @@ function handleWsMessage(msg) {
     showToast('🎁 Админ установил тебе ' + msg.level + ' уровень!');
     return;
   }
+  if (msg.type === 'admin_setmastery_ok') {
+    adminLog('✅ ' + msg.target + ': ' + msg.fruit + ' → mastery ' + msg.mastery, '#66ff66');
+    return;
+  }
+  if (msg.type === 'admin_setmastery_err') {
+    adminLog('❌ ' + msg.error, '#ff5555');
+    return;
+  }
+  if (msg.type === 'admin_setmastery_apply') {
+    const m = getMasteryFor(msg.fruit);
+    m.level = msg.mastery;
+    m.xp = 0;
+    if (inventory[POWER_SLOT_INDEX] && inventory[POWER_SLOT_INDEX].name === msg.fruit) {
+      inventory[POWER_SLOT_INDEX].masteryLevel = msg.mastery;
+      inventory[POWER_SLOT_INDEX].masteryXp = 0;
+    }
+    showToast('🎁 Админ: ' + msg.fruit + ' mastery Lv.' + msg.mastery);
+    return;
+  }
 }
 
 function spawnRemoteAttack(msg) {
@@ -585,6 +603,28 @@ function spawnRemoteAttack(msg) {
       length: 220,
       life: 18, maxLife: 18,
       from: msg.from
+    });
+  } else if (id === 'light_beam') {
+    // НОВОЕ: Z Света — длинный белый луч 2 секунды
+    remoteLightBeams.push({
+      x: ox, y: oy, angle: Math.atan2(dy, dx),
+      length: 1400,
+      life: 120, maxLife: 120,
+      from: msg.from
+    });
+  } else if (id === 'light_spear') {
+    // НОВОЕ: X Света — копьё света
+    remoteProjectiles.push({ kind: 'light_spear', x: ox, y: oy, vx: dx * 18, vy: dy * 18, angle: Math.atan2(dy, dx), radius: 14, life: 90, trail: [], from: msg.from });
+  } else if (id === 'light_sky') {
+    // НОВОЕ: C Света — луч с небес
+    remoteBeams.push({ x: ox + dx * 300, y: oy + dy * 300, radius: 130, life: 180, maxLife: 180, from: msg.from, lightBeam: true });
+  } else if (id === 'light_flight') {
+    // НОВОЕ: F Света — кто-то летит, покажем полосу
+    remoteLightTrails.push({
+      from: msg.from,
+      x: ox, y: oy,
+      targetX: ox + dx * 220, targetY: oy + dy * 220,
+      life: 30, maxLife: 30
     });
   }
 }
@@ -715,11 +755,10 @@ const bag = [];
 let bagOpen = false;
 let abilityGuide = null;
 let statsOpen = false;
-// НОВОЕ: индекс слота мешка, по которому открыто ПКМ-меню (для фруктов в мешке)
 let bagContextMenu = null;
 
 // ==================== СПОСОБНОСТИ ====================
-// НОВЫЕ ЦИФРЫ (правки Тимофея)
+// ЗАДАЧА: все способности фрукта (включая Контроль) умножаются на getFruitDamageMultiplier()
 const FIRE_ABILITIES = [
   { id: 'fire_charge', name: 'Огненный заряд', key: 'Z', requiredMasteryLevel: 0, cooldown: 4.5, stamina: 10, damage: 7, description: 'Огненный шар · 7 урона · кд 4.5с' },
   { id: 'flame_dash', name: 'Рывок пламени', key: 'X', requiredMasteryLevel: 5, cooldown: 1.8, stamina: 25, damage: 0, description: 'Рывок вперёд · кд 1.8с' }
@@ -741,16 +780,24 @@ const CONTROL_ABILITIES = [
   { id: 'control_meteor', name: 'Метеор контроля', key: 'C', requiredMasteryLevel: 30, cooldown: 12, stamina: 50, damage: 30, description: '30 урона, +2 по зоне · кд 12с (в зоне)', zoneOnly: true },
   { id: 'control_beam', name: 'Луч контроля', key: 'V', requiredMasteryLevel: 45, cooldown: 20, stamina: 70, damage: 45, description: '45 урона через 2с · кд 20с (в зоне)', zoneOnly: true }
 ];
+// НОВЫЙ ФРУКТ: СВЕТ (Легендарный)
+const LIGHT_ABILITIES = [
+  { id: 'light_beam', name: 'Луч света', key: 'Z', requiredMasteryLevel: 0, cooldown: 8, stamina: 25, damage: 12, description: 'Световой лазер 2с · 12 урона · кд 8с', aiming: false },
+  { id: 'light_flight', name: 'Полёт искры', key: 'F', requiredMasteryLevel: 3, cooldown: 1.5, stamina: 20, damage: 0, description: 'Искра света ×7 скорости · кд 1.5с' },
+  { id: 'light_spear', name: 'Копьё света', key: 'X', requiredMasteryLevel: 7, cooldown: 15, stamina: 45, damage: 15, description: 'Копьё · 15 урона · кд 15с' },
+  { id: 'light_sky', name: 'Луч с небес', key: 'C', requiredMasteryLevel: 15, cooldown: 20, stamina: 65, damage: 25, description: 'Столб света · 25 урона · кд 20с' }
+];
 
 function getAbilitiesFor(name) {
   if (name === 'Огонь') return FIRE_ABILITIES;
   if (name === 'Лёд') return ICE_ABILITIES;
   if (name === 'Акула') return SHARK_ABILITIES;
   if (name === 'Контроль') return CONTROL_ABILITIES;
+  if (name === 'Свет') return LIGHT_ABILITIES;
   return [];
 }
 
-const FRUIT_RARITY = { 'Огонь': 'common', 'Лёд': 'uncommon', 'Акула': 'legendary', 'Контроль': 'mythic' };
+const FRUIT_RARITY = { 'Огонь': 'common', 'Лёд': 'uncommon', 'Акула': 'legendary', 'Контроль': 'mythic', 'Свет': 'legendary' };
 function getFruitRarity(name) { return FRUIT_RARITY[name] || 'common'; }
 function getRarityLabel(rar) {
   if (rar === 'common') return '⚪ Обычный';
@@ -780,14 +827,14 @@ function addXp(amount) {
     if (stats.xp >= need) {
       stats.xp -= need;
       stats.level++;
-      stats.statPoints += 2;               // ЗАДАЧА: было 3, стало 2
+      stats.statPoints += 2;
       leveledUp = true;
     } else break;
   }
   if (stats.level >= MAX_LEVEL) stats.xp = 0;
   if (leveledUp) {
     spawnLevelUpEffect(player.x, player.y);
-    showToast('🎉 УРОВЕНЬ ' + stats.level + '! +2 очка');   // ЗАДАЧА: было +3
+    showToast('🎉 УРОВЕНЬ ' + stats.level + '! +2 очка');
   }
 }
 
@@ -801,7 +848,6 @@ function spawnLevelUpEffect(x, y) {
 }
 
 // ==================== ФОРМУЛЫ ПРОКАЧКИ ====================
-// ЗА 2 ОЧКА — эффект.
 function getDamageMultiplier() { return Math.pow(1.1, Math.floor(stats.points.damage / 2)); }
 function getFruitDamageMultiplier() { return Math.pow(1.1, Math.floor(stats.points.fruit / 2)); }
 function getBonusStamina() { return Math.floor(stats.points.damage / 2) * 5; }
@@ -844,18 +890,24 @@ const player = {
   punchDir: { x: 1, y: 0 },
   waterFormUntil: 0, waterRage: 0,
   seaDamageTimer: 0,
-  controlLmbCooldown: 0
+  controlLmbCooldown: 0,
+  // НОВОЕ: полёт Света
+  flightUntil: 0,
+  flightDir: { x: 1, y: 0 },
+  flightTrail: []
 };
 const TRANSFORM_DURATION = 90000;
 const HP_REGEN_PER_TICK = 0.02 / 1.7;
 const HP_REGEN_DELAY_MS = 7000;
 const STAMINA_REGEN_PER_TICK = 0.3 / 2.5;
 const PIRATE_MASTERY_XP_REWARD = 70;
+// НОВОЕ: параметры полёта Света
+const LIGHT_FLIGHT_SPEED_MULT = 7;
+const LIGHT_FLIGHT_DURATION_MS = 550;
+const LIGHT_FLIGHT_TRAIL_LIFE = 40;
 
 // ==================== КОНТРОЛЬ ====================
 let controlZone = null;
-// НОВОЕ: ЗАДАЧА — кд зоны начинается только после закрытия предыдущей.
-// zoneClosedAt — метка времени, когда последняя зона закрылась (для отложенного старта кд)
 let zoneClosedAt = 0;
 const controlLasers = [];
 const controlBeams = [];
@@ -878,11 +930,17 @@ const CONTROL_LMB_RANGE = 220;
 const CONTROL_LMB_HIT_RADIUS = 45;
 const CONTROL_LMB_SLASH_DURATION = 18;
 
+// НОВОЕ: Свет
+const LIGHT_BEAM_DURATION_MS = 1200;   // 1.2с таймер луча (визуально ~2с при 60fps)
+const LIGHT_BEAM_LENGTH = 1400;
+const LIGHT_BEAM_WIDTH = 22;
+
 function isInControlZone(x, y) {
   if (!controlZone) return false;
   if (performance.now() >= controlZone.until) return false;
   return Math.hypot(x - controlZone.x, y - controlZone.y) <= controlZone.radius;
 }
+function isFlying() { return performance.now() < player.flightUntil; }
 
 const npc = { x: 400, y: 200, radius: 30, maxHp: 1000, hp: 1000, color: '#d4a373', hitFlash: 0, shakeUntil: 0, shakeOffset: { x: 0, y: 0 }, slowUntil: 0 };
 
@@ -929,13 +987,15 @@ const meteors = [];
 const sharkBites = [];
 const whirlpools = [];
 const whipTrails = [];
+const lightBeams = [];       // НОВОЕ: локальные световые лучи
+const lightFlightTrails = [];// НОВОЕ: локальные полосы полёта
 
 let aimingAbility = null;
 let contextMenu = null;
 let eatConfirm = null;
 const menuButtons = [
   { label: 'Съесть', action: 'eat', color: '#4caf50' },
-  { label: 'Взять в руки', action: 'take', color: '#ff9800' },   // НОВОЕ
+  { label: 'Взять в руки', action: 'take', color: '#ff9800' },
   { label: 'Выбросить', action: 'drop', color: '#f44336' },
   { label: 'Сохранить', action: 'save', color: '#2196f3' }
 ];
@@ -1003,12 +1063,15 @@ function adminSubmit() {
       'shark':  { name: 'Акула', color: '#1a4f8c' },
       'контроль': { name: 'Контроль', color: '#7c5cff' },
       'контроля': { name: 'Контроль', color: '#7c5cff' },
-      'control': { name: 'Контроль', color: '#7c5cff' }
+      'control': { name: 'Контроль', color: '#7c5cff' },
+      'свет':   { name: 'Свет', color: '#fff6b0' },
+      'света':  { name: 'Свет', color: '#fff6b0' },
+      'light':  { name: 'Свет', color: '#fff6b0' }
     };
     const fruit = fruitMap[arg];
     if (!fruit) {
       adminLog('❌ Фрукт не найден: ' + arg, '#ff5555');
-      adminLog('Доступно: огонь / лёд / акула / контроль', '#ffdd66');
+      adminLog('Доступно: огонь / лёд / акула / контроль / свет', '#ffdd66');
       return;
     }
     giveFruitToSlot5(fruit.name, fruit.color);
@@ -1033,8 +1096,7 @@ function adminSubmit() {
     return;
   }
 
-  // НОВОЕ: g mastery N фрукт имя
-  // Пример: g mastery 5 акула Test1
+  // g mastery N фрукт имя
   if (command === 'g' && parts.length >= 5 && parts[1].toLowerCase() === 'mastery') {
     const masteryLvl = parseInt(parts[2], 10);
     const fruitArg = parts[3].toLowerCase();
@@ -1047,7 +1109,8 @@ function adminSubmit() {
       'огонь': 'Огонь', 'огня': 'Огонь', 'fire': 'Огонь',
       'лёд': 'Лёд', 'лед': 'Лёд', 'льда': 'Лёд', 'ice': 'Лёд',
       'акула': 'Акула', 'акулы': 'Акула', 'shark': 'Акула',
-      'контроль': 'Контроль', 'контроля': 'Контроль', 'control': 'Контроль'
+      'контроль': 'Контроль', 'контроля': 'Контроль', 'control': 'Контроль',
+      'свет': 'Свет', 'света': 'Свет', 'light': 'Свет'
     };
     const fruitName = fruitMap[fruitArg];
     if (!fruitName) {
@@ -1055,7 +1118,7 @@ function adminSubmit() {
       return;
     }
     if (!targetName) {
-      adminLog('❌ Укажи имя: g mastery 5 акула Test1', '#ff5555');
+      adminLog('❌ Укажи имя: g mastery 5 свет Test1', '#ff5555');
       return;
     }
     sendAdminSetMastery(targetName, fruitName, masteryLvl);
@@ -1104,7 +1167,7 @@ function tryMoveWithZone(ent, dx, dy) {
 
 // ==================== СЪЕСТЬ ФРУКТ ====================
 function consumeFruit(item) {
-  const powers = ['Огонь', 'Лёд', 'Акула', 'Контроль'];
+  const powers = ['Огонь', 'Лёд', 'Акула', 'Контроль', 'Свет'];
   if (powers.includes(item.name)) {
     const oldPower = inventory[POWER_SLOT_INDEX];
     if (oldPower && oldPower.type === 'power') {
@@ -1129,6 +1192,7 @@ function consumeFruit(item) {
     };
     player.cooldowns = {};
     player.waterFormUntil = 0;
+    player.flightUntil = 0;   // сброс полёта если меняли фрукт
     if (aimingAbility) aimingAbility = null;
     saveNow();
     return true;
@@ -1201,8 +1265,7 @@ function punchFist() {
   }
 }
 
-// ==================== ЛКМ-АТАКА КОНТРОЛЯ ====================
-// ЗАДАЧА: на ЛКМ теперь действуют очки прокачки (× множитель урона кулака)
+// ==================== ЛКМ-АТАКА КОНТРОЛЯ (с прокачкой фрукта) ====================
 function controlLmbAttack() {
   const held = getHeldPower();
   if (!held || held.power.name !== 'Контроль') return;
@@ -1224,8 +1287,8 @@ function controlLmbAttack() {
     maxLife: CONTROL_LMB_SLASH_DURATION
   });
 
-  // Прокачка урона (damage) действует на ЛКМ
-  let dm = getDamageMultiplier();
+  // ЛКМ Контроля — атака фрукта, использует множитель прокачки фрукта
+  let dm = getFruitDamageMultiplier();
   if (isInWaterForm()) dm *= 1.2;
   const dmg = Math.max(1, Math.round(CONTROL_LMB_DAMAGE * dm));
 
@@ -1293,6 +1356,69 @@ function activateWaterTransform() {
   showToast('🌊 ВОДНЫЙ ОБЛИК! 90 секунд');
 }
 
+// ==================== ПОЛЁТ СВЕТА (F) ====================
+// Искра летит в направлении look. Пока летит — игнорирует урон от воды.
+// Скорость ×7 от обычной. Оставляет за собой затухающую полосу.
+function activateLightFlight() {
+  const held = getHeldPower();
+  if (!held || held.power.name !== 'Свет') { showToast('Нужен Свет в руках!'); return; }
+  if ((player.cooldowns['light_flight'] || 0) > 0) return;
+  if (player.stamina < 20) { showToast('Мало стамины!'); return; }
+  player.cooldowns['light_flight'] = 1.5;
+  player.stamina = Math.max(0, player.stamina - 20);
+
+  let dx = player.lookX, dy = player.lookY;
+  if (dx === 0 && dy === 0) { dx = 1; dy = 0; }
+  const dl = Math.hypot(dx, dy);
+  dx /= dl; dy /= dl;
+
+  // Мгновенный рывок ×7 скорости * длительность
+  const speed = player.speedWalk * LIGHT_FLIGHT_SPEED_MULT;
+  const totalDist = speed * (LIGHT_FLIGHT_DURATION_MS / 1000) * 6; // ~6 тиков полёта для ощутимого скачка
+  const steps = 18;
+  let nx = player.x, ny = player.y;
+  for (let i = 1; i <= steps; i++) {
+    const t = i / steps;
+    const tx = player.x + dx * totalDist * t;
+    const ty = player.y + dy * totalDist * t;
+    if (canBeAt(tx, ty, player.radius)) { nx = tx; ny = ty; }
+    else break;
+  }
+  player.x = nx; player.y = ny;
+  player.flightUntil = performance.now() + LIGHT_FLIGHT_DURATION_MS;
+  player.flightDir = { x: dx, y: dy };
+
+  // Полоса за полётом — локальные + чужие
+  const trailSteps = 22;
+  for (let i = 0; i <= trailSteps; i++) {
+    const t = i / trailSteps;
+    const px = player.x - dx * totalDist * (1 - t);
+    const py = player.y - dy * totalDist * (1 - t);
+    lightFlightTrails.push({
+      x: px, y: py,
+      life: LIGHT_FLIGHT_TRAIL_LIFE, maxLife: LIGHT_FLIGHT_TRAIL_LIFE,
+      radius: 14 + (1 - t) * 10
+    });
+  }
+
+  // Частицы-искры
+  for (let i = 0; i < 40; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const s = 3 + Math.random() * 6;
+    particles.push({
+      x: player.x + (Math.random() - 0.5) * 30,
+      y: player.y + (Math.random() - 0.5) * 30,
+      vx: Math.cos(a) * s, vy: Math.sin(a) * s - 1,
+      life: 25 + Math.random() * 20, maxLife: 45,
+      radius: 3 + Math.random() * 4,
+      color: Math.random() < 0.5 ? '#fff6b0' : '#ffffff'
+    });
+  }
+
+  sendAttackUse('light_flight', player.x, player.y, dx * 220, dy * 220);
+  showToast('✨ ИСКРА СВЕТА!');
+}
+
 // ==================== ЗАПУСК СПОСОБНОСТИ ====================
 function startAbility(powerName, abilityId) {
   const held = getHeldPower();
@@ -1305,6 +1431,7 @@ function startAbility(powerName, abilityId) {
     return;
   }
   if (ab.usesWaterMeter) { activateWaterTransform(); return; }
+  if (abilityId === 'light_flight') { activateLightFlight(); return; }
   if (ab.zoneOnly && !isInControlZone(player.x, player.y)) {
     showToast('❌ Только внутри зоны контроля!');
     return;
@@ -1313,18 +1440,16 @@ function startAbility(powerName, abilityId) {
   if (player.stamina < ab.stamina) { showToast('Мало стамины!'); return; }
   if (abilityId === 'control_zone') { activateControlZone(); return; }
   if (abilityId === 'control_lasers') { activateControlLasers(); return; }
+  if (abilityId === 'light_beam') { activateLightBeam(); return; }
   if (ab.aiming !== false) { aimingAbility = { powerName, abilityId, ability: ab }; showToast('Кликни по цели'); return; }
 }
 
 // ==================== КОНТРОЛЬ: ЗОНА ====================
-// ЗАДАЧА: кд 5с, но отсчёт начинается только после закрытия предыдущей зоны.
 function activateControlZone() {
-  // Если зона активна — нельзя
   if (controlZone && performance.now() < controlZone.until) {
     showToast('⏳ Зона ещё активна!');
     return;
   }
-  // Если зона недавно закрылась — проверяем кулдаун 5с от момента закрытия
   if (zoneClosedAt > 0) {
     const cdRemaining = (zoneClosedAt + 5000 - performance.now()) / 1000;
     if (cdRemaining > 0) {
@@ -1333,7 +1458,6 @@ function activateControlZone() {
     }
   }
   if (player.stamina < 30) { showToast('Мало стамины!'); return; }
-  // Ставим "визуальный" cooldown в UI (для прогресс-круга): показываем только после закрытия
   player.cooldowns['control_zone'] = 0;
   player.stamina = Math.max(0, player.stamina - 30);
   controlZone = {
@@ -1358,19 +1482,23 @@ function activateControlZone() {
   showToast('🌀 ЗОНА КОНТРОЛЯ АКТИВНА! 20 секунд');
 }
 
-// ==================== КОНТРОЛЬ: ЛАЗЕРЫ ====================
+// ==================== КОНТРОЛЬ: ЛАЗЕРЫ (ФИКС: прокачка фрукта) ====================
 function activateControlLasers() {
   if (player.cooldowns['control_lasers'] > 0) return;
   if (player.stamina < 40) { showToast('Мало стамины!'); return; }
   player.cooldowns['control_lasers'] = 10;
   player.stamina = Math.max(0, player.stamina - 40);
+  // ФИКС: применяем множитель прокачки фрукта
+  let fruitMult = getFruitDamageMultiplier();
+  if (isInWaterForm()) fruitMult *= 1.2;
+  const dmgFinal = CONTROL_LASER_DAMAGE * fruitMult;
   const now = performance.now();
   const cx = player.x, cy = player.y;
   for (let i = 0; i < 8; i++) {
     const a = (i / 8) * Math.PI * 2;
     controlLasers.push({
       x: cx, y: cy, angle: a, length: 800,
-      damage: CONTROL_LASER_DAMAGE,
+      damage: dmgFinal,
       start: now, until: now + CONTROL_LASER_DURATION_MS,
       hit: new Set()
     });
@@ -1379,19 +1507,23 @@ function activateControlLasers() {
   showToast('⚡ ЛАЗЕРНАЯ ПИЦЦА!');
 }
 
-// ==================== КОНТРОЛЬ: МЕТЕОР ====================
+// ==================== КОНТРОЛЬ: МЕТЕОР (ФИКС) ====================
 function activateControlMeteorAt(tx, ty) {
   if (player.cooldowns['control_meteor'] > 0) return;
   if (player.stamina < 50) { showToast('Мало стамины!'); return; }
   if (!isInControlZone(tx, ty)) { showToast('❌ Целься внутри зоны!'); return; }
   player.cooldowns['control_meteor'] = 12;
   player.stamina = Math.max(0, player.stamina - 50);
+  // ФИКС: применяем множитель прокачки фрукта
+  let fruitMult = getFruitDamageMultiplier();
+  if (isInWaterForm()) fruitMult *= 1.2;
+  const meteorDmg = CONTROL_METEOR_DAMAGE * fruitMult;
   controlMeteors.push({
     targetX: tx, targetY: ty,
     x: tx, y: ty - 1200,
     startY: ty - 1200,
     progress: 0, duration: 40,
-    radius: 90, damage: CONTROL_METEOR_DAMAGE,
+    radius: 90, damage: meteorDmg,
     impactDone: false
   });
   const dx = tx - player.x;
@@ -1400,25 +1532,60 @@ function activateControlMeteorAt(tx, ty) {
   showToast('☄️ Метеор контроля!');
 }
 
-// ==================== КОНТРОЛЬ: ЛУЧ ====================
+// ==================== КОНТРОЛЬ: ЛУЧ (ФИКС) ====================
 function activateControlBeamAt(tx, ty) {
   if (player.cooldowns['control_beam'] > 0) return;
   if (player.stamina < 70) { showToast('Мало стамины!'); return; }
   if (!isInControlZone(tx, ty)) { showToast('❌ Целься внутри зоны!'); return; }
   player.cooldowns['control_beam'] = 20;
   player.stamina = Math.max(0, player.stamina - 70);
+  // ФИКС: применяем множитель прокачки фрукта
+  let fruitMult = getFruitDamageMultiplier();
+  if (isInWaterForm()) fruitMult *= 1.2;
+  const beamDmg = CONTROL_BEAM_DAMAGE * fruitMult;
   const now = performance.now();
   controlBeams.push({
     x: tx, y: ty, radius: 160,
     activateAt: now + CONTROL_BEAM_DELAY_MS,
     until: now + CONTROL_BEAM_DELAY_MS + CONTROL_BEAM_DURATION_MS,
-    damage: CONTROL_BEAM_DAMAGE,
+    damage: beamDmg,
     damaged: new Set(), done: false
   });
   const dx = tx - player.x;
   const dy = ty - player.y;
   sendAttackUse('control_beam', player.x, player.y, dx, dy);
   showToast('🔵 Луч заряжается... 2 секунды');
+}
+
+// ==================== СВЕТ: ЛУЧ (Z) ====================
+function activateLightBeam() {
+  if (player.cooldowns['light_beam'] > 0) return;
+  if (player.stamina < 25) { showToast('Мало стамины!'); return; }
+  player.cooldowns['light_beam'] = 8;
+  player.stamina = Math.max(0, player.stamina - 25);
+
+  let dx = player.lookX, dy = player.lookY;
+  if (dx === 0 && dy === 0) { dx = 1; dy = 0; }
+  const dl = Math.hypot(dx, dy);
+  dx /= dl; dy /= dl;
+
+  let fruitMult = getFruitDamageMultiplier();
+  if (isInWaterForm()) fruitMult *= 1.2;
+  const dmgFinal = 12 * fruitMult;
+  const now = performance.now();
+
+  lightBeams.push({
+    x: player.x, y: player.y,
+    angle: Math.atan2(dy, dx),
+    length: LIGHT_BEAM_LENGTH,
+    width: LIGHT_BEAM_WIDTH,
+    damage: dmgFinal,
+    start: now, until: now + LIGHT_BEAM_DURATION_MS,
+    hit: new Set()
+  });
+
+  sendAttackUse('light_beam', player.x, player.y, dx, dy);
+  showToast('⚡ ЛУЧ СВЕТА!');
 }
 
 // ==================== ВЫПОЛНЕНИЕ ПРИЦЕЛЬНОЙ СПОСОБНОСТИ ====================
@@ -1429,6 +1596,8 @@ function executeAbilityAt(tx, ty) {
   if (!held || held.power.name !== powerName) { aimingAbility = null; return; }
   if (abilityId === 'control_meteor') { activateControlMeteorAt(tx, ty); aimingAbility = null; return; }
   if (abilityId === 'control_beam') { activateControlBeamAt(tx, ty); aimingAbility = null; return; }
+  if (abilityId === 'light_spear') { activateLightSpearAt(tx, ty); aimingAbility = null; return; }
+  if (abilityId === 'light_sky') { activateLightSkyAt(tx, ty); aimingAbility = null; return; }
   const dx = tx - player.x, dy = ty - player.y;
   const dist = Math.hypot(dx, dy);
   if (dist < 1) { aimingAbility = null; return; }
@@ -1461,7 +1630,6 @@ function executeAbilityAt(tx, ty) {
     if (canBeAt(fx, fy, player.radius)) { player.x = fx; player.y = fy; }
     sendAttackUse('flame_dash', player.x, player.y, nx, ny);
   } else if (abilityId === 'ice_spear') {
-    // ЗАДАЧА: НЕ пронзает. Убираем pierced-set, добавляем флаг noPierce.
     projectiles.push({ kind: 'ice_spear', x: player.x + nx * (player.radius + 10), y: player.y + ny * (player.radius + 10), vx: nx * 15, vy: ny * 15, radius: 12, life: 80, damage: finalDmg, trail: [], pierced: new Set(), angle: Math.atan2(ny, nx), noPierce: true });
     sendAttackUse('ice_spear', player.x, player.y, nx, ny);
   } else if (abilityId === 'ice_prison') {
@@ -1472,7 +1640,6 @@ function executeAbilityAt(tx, ty) {
     const rdx = fx - player.x, rdy = fy - player.y;
     sendAttackUse('ice_prison', player.x, player.y, rdx / 500, rdy / 500);
   } else if (abilityId === 'ice_meteor') {
-    // ЗАДАЧА: без стана
     meteors.push({ targetX: tx, targetY: ty, x: tx, y: ty - 900, fallProgress: 0, duration: 36, radius: 60, damage: finalDmg, impactDone: false, noStun: true });
     const rdx = tx - player.x, rdy = ty - player.y;
     const rl = Math.hypot(rdx, rdy) || 1;
@@ -1496,6 +1663,56 @@ function executeAbilityAt(tx, ty) {
     sendAttackUse('shark_whirlpool', player.x, player.y, rdx / 450, rdy / 450);
   }
   aimingAbility = null;
+}
+
+// ==================== СВЕТ: КОПЬЁ (X) ====================
+function activateLightSpearAt(tx, ty) {
+  if (player.cooldowns['light_spear'] > 0) return;
+  if (player.stamina < 45) { showToast('Мало стамины!'); return; }
+  player.cooldowns['light_spear'] = 15;
+  player.stamina = Math.max(0, player.stamina - 45);
+  const dx = tx - player.x, dy = ty - player.y;
+  const dist = Math.hypot(dx, dy);
+  if (dist < 1) return;
+  const nx = dx / dist, ny = dy / dist;
+  let fruitMult = getFruitDamageMultiplier();
+  if (isInWaterForm()) fruitMult *= 1.2;
+  const finalDmg = 15 * fruitMult;
+  projectiles.push({
+    kind: 'light_spear',
+    x: player.x + nx * (player.radius + 12),
+    y: player.y + ny * (player.radius + 12),
+    vx: nx * 18, vy: ny * 18,
+    angle: Math.atan2(ny, nx),
+    radius: 14, life: 90,
+    damage: finalDmg,
+    trail: [], pierced: new Set()
+  });
+  sendAttackUse('light_spear', player.x, player.y, nx, ny);
+  showToast('💫 Копьё света!');
+}
+
+// ==================== СВЕТ: ЛУЧ С НЕБЕС (C) ====================
+function activateLightSkyAt(tx, ty) {
+  if (player.cooldowns['light_sky'] > 0) return;
+  if (player.stamina < 65) { showToast('Мало стамины!'); return; }
+  player.cooldowns['light_sky'] = 20;
+  player.stamina = Math.max(0, player.stamina - 65);
+  let fruitMult = getFruitDamageMultiplier();
+  if (isInWaterForm()) fruitMult *= 1.2;
+  const finalDmg = 25 * fruitMult;
+  const now = performance.now();
+  controlBeams.push({
+    x: tx, y: ty, radius: 130,
+    activateAt: now + 1500,  // 1.5с зарядки
+    until: now + 1500 + 2000,
+    damage: finalDmg,
+    damaged: new Set(), done: false,
+    lightBeam: true
+  });
+  const dx = tx - player.x, dy = ty - player.y;
+  sendAttackUse('light_sky', player.x, player.y, dx, dy);
+  showToast('🌟 Луч с небес заряжается...');
 }
 
 // ==================== УРОН ====================
@@ -1559,7 +1776,8 @@ function damagePlayer(dmg) {
   if (player.hp <= 0) { showToast('Ты погиб!'); player.hp = getMaxHp(); player.x = 0; player.y = 0; }
 }// ==================== МОРСКОЙ УРОН ====================
 function applySeaDamage() {
-  if (!isOnIsland(player.x, player.y) && !isInWaterForm()) {
+  // ФИКС: пока летит Свет — не получает урон от воды
+  if (!isOnIsland(player.x, player.y) && !isInWaterForm() && !isFlying()) {
     player.hp = Math.max(0, player.hp - 30);
     player.lastDamageTime = performance.now();
     damageNumbers.push({ x: player.x, y: player.y - player.radius, vy: -1.6, life: 60, maxLife: 60, text: '-30 💧', color: '#44aaff' });
@@ -1579,7 +1797,6 @@ canvas.addEventListener('click', (e) => {
   const rect = canvas.getBoundingClientRect();
   const mx = e.clientX - rect.left, my = e.clientY - rect.top;
 
-  // ПКМ-меню мешка (ПОКАЗЫВАЕТСЯ, только когда bagOpen)
   if (bagContextMenu) {
     for (const btn of bagContextMenu.buttons) {
       if (mx >= btn.x && mx <= btn.x + btn.w && my >= btn.y && my <= btn.y + btn.h) {
@@ -1631,11 +1848,11 @@ canvas.addEventListener('click', (e) => {
 });
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 
-// ПКМ в мешке — обрабатываем как правый клик на фрукт в мешке
+// ПКМ в мешке
 canvas.addEventListener('mousedown', (e) => {
   if (!currentUser) return;
   if (adminOpen) return;
-  if (e.button !== 2) return; // только ПКМ
+  if (e.button !== 2) return;
   if (!bagOpen) return;
   const rect = canvas.getBoundingClientRect();
   const mx = e.clientX - rect.left, my = e.clientY - rect.top;
@@ -1764,10 +1981,16 @@ function tryRollFruit() {
   updateMoneyUi();
   const roll = Math.random() * 100;
   let rarity, fruitData;
-  if (roll < 50) { rarity = 'common'; fruitData = { name: 'Огонь', color: '#ff6600' }; }
-  else if (roll < 75) { rarity = 'uncommon'; fruitData = { name: 'Лёд', color: '#00c8ff' }; }
-  else if (roll < 93) { rarity = 'rare'; fruitData = null; }
-  else if (roll < 98) { rarity = 'legendary'; fruitData = { name: 'Акула', color: '#1a4f8c' }; }
+  // Обновлённые шансы: добавили Свет как легендарный
+  if (roll < 48) { rarity = 'common'; fruitData = { name: 'Огонь', color: '#ff6600' }; }
+  else if (roll < 70) { rarity = 'uncommon'; fruitData = { name: 'Лёд', color: '#00c8ff' }; }
+  else if (roll < 88) { rarity = 'rare'; fruitData = null; }
+  else if (roll < 96) {
+    rarity = 'legendary';
+    // Легендарный — 50/50 Акула или Свет
+    if (Math.random() < 0.5) fruitData = { name: 'Акула', color: '#1a4f8c' };
+    else fruitData = { name: 'Свет', color: '#fff6b0' };
+  }
   else { rarity = 'mythic'; fruitData = { name: 'Контроль', color: '#7c5cff' }; }
   if (fruitData) {
     giveFruitToSlot5(fruitData.name, fruitData.color);
@@ -1824,8 +2047,6 @@ function getSlotAtPoint(mx, my) {
   }
   return -1;
 }
-
-// Контекстное меню для фрукта в ХОТБАРЕ
 function openContextMenu() {
   const sx = player.x - camera.x + player.radius * 1.3, sy = player.y - camera.y;
   const bw = 160, bh = 38, gap = 6, pad = 8;
@@ -1851,7 +2072,6 @@ function executeMenuAction(action) {
   if (action === 'eat') {
     openEatConfirm(slotIdx);
   } else if (action === 'take') {
-    // НОВОЕ: взять в руки (то же, что клик по слоту)
     heldSlot = slotIdx;
     const held = getHeldPower();
     sendHeldChange(held ? held.power.name : null);
@@ -1867,7 +2087,7 @@ function executeMenuAction(action) {
       id: fruitId, x: fx, y: fy,
       name: item.name, color: item.color,
       bobPhase: Math.random() * 6,
-      glow: item.name === 'Акула' || item.name === 'Контроль',
+      glow: item.name === 'Акула' || item.name === 'Контроль' || item.name === 'Свет',
       radius: 20,
       from: currentUser ? currentUser.username : 'me'
     });
@@ -1920,7 +2140,6 @@ function getBagPanelRect() {
 function getBagGridRect() { const p = getBagPanelRect(); return { x: p.x + 30, y: p.y + 90 }; }
 function getBagCloseRect() { const p = getBagPanelRect(); return { x: p.x + p.w - 44, y: p.y + 15, w: 30, h: 30 }; }
 
-// НОВОЕ: ПКМ-меню для фрукта в МЕШКЕ
 function openBagContextMenu(bagIdx, mx, my) {
   const bw = 160, bh = 38, gap = 6, pad = 8;
   const tw = bw + pad * 2;
@@ -1944,12 +2163,10 @@ function executeBagMenuAction(action) {
   if (!item || item.type !== 'fruit') { bagContextMenu = null; return; }
 
   if (action === 'eat') {
-    // Съесть прямо из мешка
     bag.splice(idx, 1);
     consumeFruit(item);
     saveNow();
   } else if (action === 'take') {
-    // Взять в руки — ищем свободный слот в хотбаре
     let free = -1;
     for (let s = 0; s < INVENTORY_SLOTS; s++) {
       if (s === POWER_SLOT_INDEX) continue;
@@ -1979,7 +2196,7 @@ function executeBagMenuAction(action) {
       id: fruitId, x: fx, y: fy,
       name: item.name, color: item.color,
       bobPhase: Math.random() * 6,
-      glow: item.name === 'Акула' || item.name === 'Контроль',
+      glow: item.name === 'Акула' || item.name === 'Контроль' || item.name === 'Свет',
       radius: 20,
       from: currentUser ? currentUser.username : 'me'
     });
@@ -1990,7 +2207,6 @@ function executeBagMenuAction(action) {
     showToast('Фрукт выброшен из мешка!');
     saveNow();
   }
-  // save для мешка не имеет смысла
   bagContextMenu = null;
 }
 
@@ -2064,6 +2280,8 @@ window.addEventListener('keydown', (e) => {
   if (code === 'KeyC' || k === 'c' || k === 'с') { tc('C'); return; }
   if (code === 'KeyR' || k === 'r' || k === 'к') { tc('R'); return; }
   if (code === 'KeyV' || k === 'v' || k === 'м') { tc('V'); return; }
+  // НОВОЕ: F — полёт Света (и другие способности с ключом F, если появятся)
+  if (code === 'KeyF' || k === 'f' || k === 'а') { tc('F'); return; }
   if (e.key === 'Escape') {
     if (bagContextMenu) { bagContextMenu = null; return; }
     if (rollDialogOpen) { closeRollDialog(); return; }
@@ -2113,6 +2331,10 @@ function update() {
   if (remoteBeams.length > 15) remoteBeams.splice(0, remoteBeams.length - 15);
   if (remoteSlashes.length > 30) remoteSlashes.splice(0, remoteSlashes.length - 30);
   if (controlSlashes.length > 20) controlSlashes.splice(0, controlSlashes.length - 20);
+  if (lightBeams.length > 12) lightBeams.splice(0, lightBeams.length - 12);
+  if (lightFlightTrails.length > 200) lightFlightTrails.splice(0, lightFlightTrails.length - 200);
+  if (remoteLightBeams.length > 20) remoteLightBeams.splice(0, remoteLightBeams.length - 20);
+  if (remoteLightTrails.length > 80) remoteLightTrails.splice(0, remoteLightTrails.length - 80);
 
   let g = 0;
   while (pendingXp.length > 0 && g < 50) { g++; addXp(pendingXp.shift()); }
@@ -2181,16 +2403,14 @@ function update() {
   }
   for (const f of sharedDroppedFruits.values()) f.bobPhase = (f.bobPhase || 0) + 0.05;
 
-  // Кулдауны (обычные — т1к = 1/60 сек)
+  // Кулдауны
   for (const k of Object.keys(player.cooldowns)) { if (player.cooldowns[k] > 0) player.cooldowns[k] -= 1/60; }
   if (player.punchCooldown > 0) player.punchCooldown -= 1/60;
   if (player.punchAnim > 0) player.punchAnim = Math.max(0, player.punchAnim - 0.08);
   if (player.controlLmbCooldown > 0) player.controlLmbCooldown -= 1/60;
 
-  // ЗАДАЧА: Спец-кулдаун зоны Контроля — 5с от момента закрытия прошлой зоны.
-  // Если контроль активен, а зона уже закончилась — фиксируем zoneClosedAt и обнуляем controlZone.
+  // Спец-кулдаун зоны Контроля: 5с от момента закрытия
   if (controlZone && now >= controlZone.until) {
-    // Закрытие зоны: эффекты
     for (let i = 0; i < 40; i++) {
       const a = (i / 40) * Math.PI * 2;
       particles.push({
@@ -2214,6 +2434,48 @@ function update() {
     if (remoteSlashes[i].life <= 0) remoteSlashes.splice(i, 1);
   }
 
+  // НОВОЕ: обновление локальных световых лучей (Z Свет)
+  for (let i = lightBeams.length - 1; i >= 0; i--) {
+    const LB = lightBeams[i];
+    if (now > LB.until) { lightBeams.splice(i, 1); continue; }
+    if (!LB.hit.has('__checked__')) {
+      const enemies = [];
+      for (const pir of pirates) if (!pir.dead) enemies.push({ ref: pir, x: pir.x, y: pir.y, r: pir.radius, type: 'pirate' });
+      enemies.push({ ref: npc, x: npc.x, y: npc.y, r: npc.radius, type: 'npc' });
+      for (const rp of remotePlayers.values()) enemies.push({ ref: rp, x: rp.x, y: rp.y, r: player.radius, type: 'remote', u: rp.u });
+      for (const en of enemies) {
+        if (LB.hit.has(en.type === 'remote' ? en.u : en.ref)) continue;
+        const dx = en.x - LB.x, dy = en.y - LB.y;
+        const proj = dx * Math.cos(LB.angle) + dy * Math.sin(LB.angle);
+        if (proj < 0 || proj > LB.length) continue;
+        const perpX = LB.x + Math.cos(LB.angle) * proj;
+        const perpY = LB.y + Math.sin(LB.angle) * proj;
+        const perpDist = Math.hypot(en.x - perpX, en.y - perpY);
+        if (perpDist <= en.r + 12) {
+          if (en.type === 'pirate') damagePirate(en.ref, LB.damage);
+          else if (en.type === 'npc') damageNpc(LB.damage);
+          else if (en.type === 'remote') sendHit(en.u, LB.damage, 'ranged');
+          LB.hit.add(en.type === 'remote' ? en.u : en.ref);
+        }
+      }
+      LB.hit.add('__checked__');
+    }
+  }
+
+  // НОВОЕ: обновление полос от полёта
+  for (let i = lightFlightTrails.length - 1; i >= 0; i--) {
+    lightFlightTrails[i].life--;
+    if (lightFlightTrails[i].life <= 0) lightFlightTrails.splice(i, 1);
+  }
+  for (let i = remoteLightTrails.length - 1; i >= 0; i--) {
+    remoteLightTrails[i].life--;
+    if (remoteLightTrails[i].life <= 0) remoteLightTrails.splice(i, 1);
+  }
+  for (let i = remoteLightBeams.length - 1; i >= 0; i--) {
+    remoteLightBeams[i].life--;
+    if (remoteLightBeams[i].life <= 0) remoteLightBeams.splice(i, 1);
+  }
+
   // Чужие атаки
   for (let i = remoteProjectiles.length - 1; i >= 0; i--) {
     const rp = remoteProjectiles[i];
@@ -2225,6 +2487,7 @@ function update() {
       if (rp.kind === 'fireball') particles.push({ x: rp.x + (Math.random() - 0.5) * 10, y: rp.y + (Math.random() - 0.5) * 10, vx: (Math.random() - 0.5) * 1.5, vy: (Math.random() - 0.5) * 1.5 - 0.5, life: 20, maxLife: 20, radius: 3 + Math.random() * 4, color: Math.random() < 0.5 ? '#ffdd00' : '#ff6600' });
       else if (rp.kind === 'ice_spear') particles.push({ x: rp.x + (Math.random() - 0.5) * 12, y: rp.y + (Math.random() - 0.5) * 12, vx: (Math.random() - 0.5) * 1.5, vy: (Math.random() - 0.5) * 1.5, life: 20, maxLife: 20, radius: 3 + Math.random() * 3, color: '#4fd4ff' });
       else if (rp.kind === 'shark') particles.push({ x: rp.x + (Math.random() - 0.5) * 25, y: rp.y + (Math.random() - 0.5) * 25, vx: (Math.random() - 0.5) * 2.5, vy: (Math.random() - 0.5) * 2.5 - 1, life: 25 + Math.random() * 15, maxLife: 40, radius: 3 + Math.random() * 4, color: Math.random() < 0.3 ? '#ffffff' : (Math.random() < 0.7 ? '#aaffff' : '#1a4f8c') });
+      else if (rp.kind === 'light_spear') particles.push({ x: rp.x + (Math.random() - 0.5) * 16, y: rp.y + (Math.random() - 0.5) * 16, vx: (Math.random() - 0.5) * 2, vy: (Math.random() - 0.5) * 2, life: 22, maxLife: 22, radius: 3 + Math.random() * 4, color: Math.random() < 0.5 ? '#ffffff' : '#fff6b0' });
     }
     if (rp.life <= 0) remoteProjectiles.splice(i, 1);
   }
@@ -2267,12 +2530,13 @@ function update() {
     if (Math.random() < 0.7) {
       if (p.kind === 'fireball') particles.push({ x: p.x + (Math.random() - 0.5) * 10, y: p.y + (Math.random() - 0.5) * 10, vx: (Math.random() - 0.5) * 1.5, vy: (Math.random() - 0.5) * 1.5 - 0.5, life: 20, maxLife: 20, radius: 3 + Math.random() * 4, color: Math.random() < 0.5 ? '#ffdd00' : '#ff6600' });
       else if (p.kind === 'ice_spear') particles.push({ x: p.x + (Math.random() - 0.5) * 12, y: p.y + (Math.random() - 0.5) * 12, vx: (Math.random() - 0.5) * 1.5, vy: (Math.random() - 0.5) * 1.5, life: 20, maxLife: 20, radius: 3 + Math.random() * 3, color: '#4fd4ff' });
+      else if (p.kind === 'light_spear') particles.push({ x: p.x + (Math.random() - 0.5) * 16, y: p.y + (Math.random() - 0.5) * 16, vx: (Math.random() - 0.5) * 2, vy: (Math.random() - 0.5) * 2, life: 22, maxLife: 22, radius: 3 + Math.random() * 4, color: Math.random() < 0.5 ? '#ffffff' : '#fff6b0' });
     }
     let hit = false;
     if (Math.hypot(p.x - npc.x, p.y - npc.y) < p.radius + npc.radius && !p.pierced.has('npc')) {
       damageNpc(p.damage);
-      // ice_spear теперь НЕ пронзает: попал → исчез
       if (p.kind === 'ice_spear') { npc.slowUntil = now + 1500; hit = true; spawnImpactEffect(p.x, p.y); }
+      else if (p.kind === 'light_spear') { hit = true; spawnLightImpact(p.x, p.y); }
       else { hit = true; spawnImpactEffect(p.x, p.y); }
     }
     if (!hit) {
@@ -2281,6 +2545,7 @@ function update() {
         if (Math.hypot(p.x - pir.x, p.y - pir.y) < p.radius + pir.radius) {
           damagePirate(pir, p.damage);
           if (p.kind === 'ice_spear') { pir.slowUntil = now + 1500; hit = true; spawnImpactEffect(p.x, p.y); break; }
+          else if (p.kind === 'light_spear') { hit = true; spawnLightImpact(p.x, p.y); break; }
           else { hit = true; spawnImpactEffect(p.x, p.y); break; }
         }
       }
@@ -2290,7 +2555,8 @@ function update() {
         if (p.pierced.has(rp.u)) continue;
         if (Math.hypot(p.x - rp.x, p.y - rp.y) < p.radius + player.radius) {
           sendHit(rp.u, p.damage, 'ranged');
-          spawnImpactEffect(p.x, p.y);
+          if (p.kind === 'light_spear') spawnLightImpact(p.x, p.y);
+          else spawnImpactEffect(p.x, p.y);
           hit = true;
           break;
         }
@@ -2441,7 +2707,7 @@ function update() {
     if (m.impactDone && m.progress > m.duration + 40) controlMeteors.splice(i, 1);
   }
 
-  // Контроль: лучи
+  // Контроль: лучи (V) и Луч с небес (Свет C) — оба в controlBeams
   for (let i = controlBeams.length - 1; i >= 0; i--) {
     const B = controlBeams[i];
     if (now > B.until) { controlBeams.splice(i, 1); continue; }
@@ -2450,12 +2716,14 @@ function update() {
       for (const pir of pirates) { if (pir.dead) continue; if (Math.hypot(pir.x - B.x, pir.y - B.y) < B.radius) damagePirate(pir, B.damage); }
       if (Math.hypot(npc.x - B.x, npc.y - B.y) < B.radius) damageNpc(B.damage);
       for (const rp of remotePlayers.values()) { if (Math.hypot(rp.x - B.x, rp.y - B.y) < B.radius) sendHit(rp.u, B.damage, 'ranged'); }
+      const particleColor1 = B.lightBeam ? '#ffffff' : '#7c5cff';
+      const particleColor2 = B.lightBeam ? '#fff6b0' : '#ffffff';
       for (let k = 0; k < 50; k++) {
         const a = Math.random() * Math.PI * 2;
         const s = 4 + Math.random() * 8;
-        particles.push({ x: B.x, y: B.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 40, maxLife: 70, radius: 5 + Math.random() * 6, color: Math.random() < 0.5 ? '#ffffff' : '#7c5cff' });
+        particles.push({ x: B.x, y: B.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 40, maxLife: 70, radius: 5 + Math.random() * 6, color: Math.random() < 0.5 ? particleColor1 : particleColor2 });
       }
-      particles.push({ isShockwave: true, x: B.x, y: B.y, radius: 10, maxRadius: B.radius * 1.2, life: 30, maxLife: 30, color: '#7c5cff' });
+      particles.push({ isShockwave: true, x: B.x, y: B.y, radius: 10, maxRadius: B.radius * 1.2, life: 30, maxLife: 30, color: particleColor1 });
     }
   }
 
@@ -2492,7 +2760,6 @@ function update() {
         if (pir.dead) continue;
         if (Math.hypot(pir.x - m.targetX, pir.y - m.targetY) < m.radius) {
           damagePirate(pir, m.damage);
-          // ЗАДАЧА: ice_meteor больше НЕ станит (noStun)
         }
       }
       if (Math.hypot(npc.x - m.targetX, npc.y - m.targetY) < m.radius) damageNpc(m.damage);
@@ -2543,7 +2810,7 @@ function update() {
   camera.y = player.y - canvas.height / 2;
   if (heldSlot !== -1 && !inventory[heldSlot]) { heldSlot = -1; abilityGuide = null; }
   if (heldSlot === -1 || !inventory[heldSlot] || inventory[heldSlot].type !== 'power') { if (abilityGuide) abilityGuide = null; }
-  if (aimingAbility || isInWaterForm()) canvas.classList.add('crosshair');
+  if (aimingAbility || isInWaterForm() || isFlying()) canvas.classList.add('crosshair');
   else canvas.classList.remove('crosshair');
 }
 
@@ -2554,6 +2821,11 @@ function spawnImpactEffect(x, y) {
 function spawnSharkImpact(x, y) {
   for (let k = 0; k < 30; k++) { const a = Math.random() * Math.PI * 2; const s = 4 + Math.random() * 8; particles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 35, maxLife: 60, radius: 4 + Math.random() * 6, color: Math.random() < 0.25 ? '#ffffff' : (Math.random() < 0.6 ? '#aaffff' : '#1a4f8c') }); }
   particles.push({ isShockwave: true, x, y, radius: 10, maxRadius: 90, life: 25, maxLife: 25, color: '#4fd4ff' });
+}
+// НОВОЕ: световой импакт
+function spawnLightImpact(x, y) {
+  for (let k = 0; k < 35; k++) { const a = Math.random() * Math.PI * 2; const s = 4 + Math.random() * 9; particles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 30, maxLife: 55, radius: 4 + Math.random() * 6, color: Math.random() < 0.5 ? '#ffffff' : '#fff6b0' }); }
+  particles.push({ isShockwave: true, x, y, radius: 10, maxRadius: 120, life: 25, maxLife: 25, color: '#fff6b0' });
 }
 
 // ==================== ОТРИСОВКА ====================
@@ -2711,6 +2983,97 @@ function drawRemoteSlashes() {
   }
 }
 
+// НОВОЕ: локальные световые лучи (Z Света)
+function drawLightBeams() {
+  for (const LB of lightBeams) {
+    const x = LB.x - camera.x, y = LB.y - camera.y;
+    const life = Math.max(0, LB.until - performance.now());
+    const alpha = life / LIGHT_BEAM_DURATION_MS;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(LB.angle);
+    // Внешнее сияние
+    const gOuter = ctx.createLinearGradient(0, 0, LB.length, 0);
+    gOuter.addColorStop(0, `rgba(255, 246, 176, ${alpha * 0.5})`);
+    gOuter.addColorStop(0.5, `rgba(255, 246, 176, ${alpha * 0.35})`);
+    gOuter.addColorStop(1, `rgba(255, 246, 176, 0)`);
+    ctx.fillStyle = gOuter;
+    ctx.fillRect(0, -LB.width * 1.6, LB.length, LB.width * 3.2);
+    // Основная полоса
+    const g = ctx.createLinearGradient(0, 0, LB.length, 0);
+    g.addColorStop(0, `rgba(255, 255, 255, ${alpha * 0.95})`);
+    g.addColorStop(0.4, `rgba(255, 246, 176, ${alpha * 0.9})`);
+    g.addColorStop(1, `rgba(255, 246, 176, 0)`);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, -LB.width / 2, LB.length, LB.width);
+    // Белый центр
+    ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+    ctx.fillRect(0, -2, LB.length, 4);
+    ctx.restore();
+  }
+}
+
+// НОВОЕ: чужие световые лучи
+function drawRemoteLightBeams() {
+  for (const LB of remoteLightBeams) {
+    const alpha = LB.life / LB.maxLife;
+    const x = LB.x - camera.x, y = LB.y - camera.y;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(LB.angle);
+    const gOuter = ctx.createLinearGradient(0, 0, LB.length, 0);
+    gOuter.addColorStop(0, `rgba(255, 246, 176, ${alpha * 0.5})`);
+    gOuter.addColorStop(0.5, `rgba(255, 246, 176, ${alpha * 0.35})`);
+    gOuter.addColorStop(1, `rgba(255, 246, 176, 0)`);
+    ctx.fillStyle = gOuter;
+    ctx.fillRect(0, -35, LB.length, 70);
+    const g = ctx.createLinearGradient(0, 0, LB.length, 0);
+    g.addColorStop(0, `rgba(255, 255, 255, ${alpha * 0.95})`);
+    g.addColorStop(0.4, `rgba(255, 246, 176, ${alpha * 0.9})`);
+    g.addColorStop(1, `rgba(255, 246, 176, 0)`);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, -11, LB.length, 22);
+    ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+    ctx.fillRect(0, -2, LB.length, 4);
+    ctx.restore();
+  }
+}
+
+// НОВОЕ: полоса от локального полёта Света
+function drawLightFlightTrails() {
+  for (const tr of lightFlightTrails) {
+    const a = tr.life / tr.maxLife;
+    const x = tr.x - camera.x, y = tr.y - camera.y;
+    const g = ctx.createRadialGradient(x, y, 0, x, y, tr.radius);
+    g.addColorStop(0, `rgba(255, 255, 255, ${a * 0.85})`);
+    g.addColorStop(0.5, `rgba(255, 246, 176, ${a * 0.55})`);
+    g.addColorStop(1, 'rgba(255, 246, 176, 0)');
+    ctx.beginPath(); ctx.arc(x, y, tr.radius, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
+  }
+}
+
+// НОВОЕ: полоса от чужого полёта Света
+function drawRemoteLightTrails() {
+  for (const tr of remoteLightTrails) {
+    const a = tr.life / tr.maxLife;
+    const x = tr.x - camera.x, y = tr.y - camera.y;
+    const tx = tr.targetX - camera.x, ty = tr.targetY - camera.y;
+    ctx.save();
+    const g = ctx.createLinearGradient(x, y, tx, ty);
+    g.addColorStop(0, `rgba(255, 255, 255, 0)`);
+    g.addColorStop(0.5, `rgba(255, 246, 176, ${a * 0.7})`);
+    g.addColorStop(1, `rgba(255, 255, 255, ${a * 0.9})`);
+    ctx.strokeStyle = g;
+    ctx.lineWidth = 18 * a + 4;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(tx, ty);
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
 function drawControlZone() {
   if (!controlZone) return;
   const now = performance.now();
@@ -2774,32 +3137,35 @@ function drawControlBeams() {
   const now = performance.now();
   for (const B of controlBeams) {
     const x = B.x - camera.x, y = B.y - camera.y;
+    const isLight = !!B.lightBeam;
+    const color1 = isLight ? '255, 255, 255' : '180, 220, 255';
+    const color2 = isLight ? '255, 246, 176' : '124, 92, 255';
     if (now < B.activateAt) {
-      const charge = (now - (B.activateAt - CONTROL_BEAM_DELAY_MS)) / CONTROL_BEAM_DELAY_MS;
+      const charge = (now - (B.activateAt - 1500)) / 1500;
       ctx.beginPath();
       ctx.arc(x, y, B.radius * (0.5 + charge * 0.5), 0, Math.PI * 2);
-      ctx.strokeStyle = `rgba(180, 220, 255, ${0.6 + Math.sin(now * 0.02) * 0.3})`;
+      ctx.strokeStyle = `rgba(${color1}, ${0.6 + Math.sin(now * 0.02) * 0.3})`;
       ctx.lineWidth = 4;
       ctx.stroke();
-      ctx.fillStyle = `rgba(124, 92, 255, ${0.15 + charge * 0.15})`;
+      ctx.fillStyle = `rgba(${color2}, ${0.15 + charge * 0.15})`;
       ctx.fill();
       const secLeft = Math.max(0, (B.activateAt - now) / 1000).toFixed(1);
       ctx.font = 'bold 24px Arial';
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
       ctx.strokeText(secLeft + 'с', x, y);
-      ctx.fillStyle = '#aaddff';
+      ctx.fillStyle = isLight ? '#fff6b0' : '#aaddff';
       ctx.fillText(secLeft + 'с', x, y);
     } else if (now < B.until) {
       const alpha = Math.max(0, (B.until - now) / (B.until - B.activateAt));
       const g = ctx.createRadialGradient(x, y - 200, 0, x, y, B.radius);
-      g.addColorStop(0, `rgba(255, 255, 255, ${alpha})`);
-      g.addColorStop(0.4, `rgba(180, 220, 255, ${alpha * 0.9})`);
-      g.addColorStop(1, `rgba(124, 92, 255, ${alpha * 0.5})`);
+      g.addColorStop(0, `rgba(${color1}, ${alpha})`);
+      g.addColorStop(0.4, `rgba(${color1}, ${alpha * 0.9})`);
+      g.addColorStop(1, `rgba(${color2}, ${alpha * 0.5})`);
       ctx.fillStyle = g;
       ctx.fillRect(x - B.radius, y - 800, B.radius * 2, 800);
       ctx.beginPath(); ctx.arc(x, y, B.radius, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(180, 220, 255, ${alpha * 0.4})`;
+      ctx.fillStyle = `rgba(${color1}, ${alpha * 0.4})`;
       ctx.fill();
       ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
       ctx.lineWidth = 5; ctx.stroke();
@@ -2843,6 +3209,7 @@ function drawRemoteAttacks() {
         const g = ctx.createRadialGradient(tr.x - camera.x, tr.y - camera.y, 0, tr.x - camera.x, tr.y - camera.y, r);
         if (rp.kind === 'fireball') { g.addColorStop(0, `rgba(255,220,100,${a * 0.8})`); g.addColorStop(0.6, `rgba(255,100,0,${a * 0.5})`); g.addColorStop(1, 'rgba(255,50,0,0)'); }
         else if (rp.kind === 'ice_spear') { g.addColorStop(0, `rgba(200,240,255,${a * 0.8})`); g.addColorStop(0.6, `rgba(80,180,255,${a * 0.5})`); g.addColorStop(1, 'rgba(40,100,200,0)'); }
+        else if (rp.kind === 'light_spear') { g.addColorStop(0, `rgba(255,255,255,${a * 0.9})`); g.addColorStop(0.6, `rgba(255,246,176,${a * 0.6})`); g.addColorStop(1, 'rgba(255,246,176,0)'); }
         else { g.addColorStop(0, `rgba(200,240,255,${a * 0.7})`); g.addColorStop(0.5, `rgba(80,180,255,${a * 0.5})`); g.addColorStop(1, 'rgba(20,60,140,0)'); }
         ctx.beginPath(); ctx.arc(tr.x - camera.x, tr.y - camera.y, r, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
       }
@@ -2860,6 +3227,28 @@ function drawRemoteAttacks() {
       ctx.beginPath(); ctx.moveTo(len, 0); ctx.lineTo(len * 0.3, -wid); ctx.lineTo(-len * 0.7, -wid * 0.4); ctx.lineTo(-len * 0.7, wid * 0.4); ctx.lineTo(len * 0.3, wid); ctx.closePath();
       const kg = ctx.createLinearGradient(-len * 0.7, 0, len, 0); kg.addColorStop(0, '#2288cc'); kg.addColorStop(0.5, '#aae0ff'); kg.addColorStop(1, '#ffffff');
       ctx.fillStyle = kg; ctx.fill(); ctx.strokeStyle = '#0066aa'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.restore();
+    } else if (rp.kind === 'light_spear') {
+      ctx.save(); ctx.translate(x, y); ctx.rotate(rp.angle);
+      const len = 50, wid = 12;
+      const halo = ctx.createRadialGradient(0, 0, 0, 0, 0, 36);
+      halo.addColorStop(0, 'rgba(255,255,255,0.95)'); halo.addColorStop(0.5, 'rgba(255,246,176,0.6)'); halo.addColorStop(1, 'rgba(255,246,176,0)');
+      ctx.beginPath(); ctx.arc(0, 0, 36, 0, Math.PI * 2); ctx.fillStyle = halo; ctx.fill();
+      // Лезвие
+      ctx.beginPath();
+      ctx.moveTo(len, 0);
+      ctx.lineTo(len * 0.3, -wid);
+      ctx.lineTo(-len * 0.7, -wid * 0.4);
+      ctx.lineTo(-len * 0.7, wid * 0.4);
+      ctx.lineTo(len * 0.3, wid);
+      ctx.closePath();
+      const kg = ctx.createLinearGradient(-len * 0.7, 0, len, 0);
+      kg.addColorStop(0, '#c9a800'); kg.addColorStop(0.5, '#fff6b0'); kg.addColorStop(1, '#ffffff');
+      ctx.fillStyle = kg; ctx.fill();
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2.5; ctx.stroke();
+      // Сердцевина
+      ctx.fillStyle = 'rgba(255,255,255,0.95)';
+      ctx.fillRect(-len * 0.5, -1.5, len * 1.3, 3);
       ctx.restore();
     } else if (rp.kind === 'shark') {
       ctx.save(); ctx.translate(x, y); ctx.rotate(rp.angle);
@@ -2967,25 +3356,28 @@ function drawRemoteAttacks() {
     const x = B.x - camera.x, y = B.y - camera.y;
     const lifeTotal = B.maxLife;
     const chargePhase = B.life > lifeTotal - 120;
+    const isLight = !!B.lightBeam;
+    const c1 = isLight ? '255, 255, 255' : '180, 220, 255';
+    const c2 = isLight ? '255, 246, 176' : '124, 92, 255';
     if (chargePhase) {
       const charge = (lifeTotal - B.life) / 120;
       ctx.beginPath();
       ctx.arc(x, y, B.radius * (0.5 + charge * 0.5), 0, Math.PI * 2);
-      ctx.strokeStyle = `rgba(180, 220, 255, ${0.6 + Math.sin(now * 0.02) * 0.3})`;
+      ctx.strokeStyle = `rgba(${c1}, ${0.6 + Math.sin(now * 0.02) * 0.3})`;
       ctx.lineWidth = 4;
       ctx.stroke();
-      ctx.fillStyle = `rgba(124, 92, 255, ${0.15 + charge * 0.15})`;
+      ctx.fillStyle = `rgba(${c2}, ${0.15 + charge * 0.15})`;
       ctx.fill();
     } else {
       const alpha = Math.min(1, B.life / 60);
       const g = ctx.createRadialGradient(x, y - 200, 0, x, y, B.radius);
-      g.addColorStop(0, `rgba(255, 255, 255, ${alpha})`);
-      g.addColorStop(0.4, `rgba(180, 220, 255, ${alpha * 0.9})`);
-      g.addColorStop(1, `rgba(124, 92, 255, ${alpha * 0.5})`);
+      g.addColorStop(0, `rgba(${c1}, ${alpha})`);
+      g.addColorStop(0.4, `rgba(${c1}, ${alpha * 0.9})`);
+      g.addColorStop(1, `rgba(${c2}, ${alpha * 0.5})`);
       ctx.fillStyle = g;
       ctx.fillRect(x - B.radius, y - 800, B.radius * 2, 800);
       ctx.beginPath(); ctx.arc(x, y, B.radius, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(180, 220, 255, ${alpha * 0.4})`;
+      ctx.fillStyle = `rgba(${c1}, ${alpha * 0.4})`;
       ctx.fill();
       ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
       ctx.lineWidth = 5; ctx.stroke();
@@ -3182,6 +3574,7 @@ function drawRemotePlayers() {
       if (rp.held === 'Огонь') { gg.addColorStop(0, 'rgba(255,255,255,1)'); gg.addColorStop(0.3, 'rgba(255,240,100,1)'); gg.addColorStop(0.7, 'rgba(255,120,0,0.7)'); gg.addColorStop(1, 'rgba(255,40,0,0)'); }
       else if (rp.held === 'Лёд') { gg.addColorStop(0, 'rgba(255,255,255,1)'); gg.addColorStop(0.4, 'rgba(180,240,255,1)'); gg.addColorStop(0.7, 'rgba(80,180,255,0.8)'); gg.addColorStop(1, 'rgba(40,100,200,0)'); }
       else if (rp.held === 'Контроль') { gg.addColorStop(0, 'rgba(255,255,255,1)'); gg.addColorStop(0.4, 'rgba(200,180,255,1)'); gg.addColorStop(0.7, 'rgba(124,92,255,0.8)'); gg.addColorStop(1, 'rgba(60,40,180,0)'); }
+      else if (rp.held === 'Свет') { gg.addColorStop(0, 'rgba(255,255,255,1)'); gg.addColorStop(0.4, 'rgba(255,246,176,1)'); gg.addColorStop(0.7, 'rgba(255,220,80,0.8)'); gg.addColorStop(1, 'rgba(255,180,0,0)'); }
       else { gg.addColorStop(0, 'rgba(200,240,255,1)'); gg.addColorStop(0.5, 'rgba(80,180,255,0.7)'); gg.addColorStop(1, 'rgba(20,60,140,0)'); }
       ctx.beginPath(); ctx.arc(hx, hy, 16 + Math.sin(t) * 2, 0, Math.PI * 2); ctx.fillStyle = gg; ctx.fill();
     }
@@ -3216,6 +3609,7 @@ function drawProjectiles() {
       const a = tr.life / 15, r = p.radius * (tr.life / 15) * 0.9;
       const g = ctx.createRadialGradient(tr.x - camera.x, tr.y - camera.y, 0, tr.x - camera.x, tr.y - camera.y, r);
       if (p.kind === 'fireball') { g.addColorStop(0, `rgba(255,220,100,${a * 0.8})`); g.addColorStop(0.6, `rgba(255,100,0,${a * 0.5})`); g.addColorStop(1, 'rgba(255,50,0,0)'); }
+      else if (p.kind === 'light_spear') { g.addColorStop(0, `rgba(255,255,255,${a * 0.9})`); g.addColorStop(0.6, `rgba(255,246,176,${a * 0.6})`); g.addColorStop(1, 'rgba(255,246,176,0)'); }
       else { g.addColorStop(0, `rgba(200,240,255,${a * 0.8})`); g.addColorStop(0.6, `rgba(80,180,255,${a * 0.5})`); g.addColorStop(1, 'rgba(40,100,200,0)'); }
       ctx.beginPath(); ctx.arc(tr.x - camera.x, tr.y - camera.y, r, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
     }
@@ -3232,6 +3626,26 @@ function drawProjectiles() {
       ctx.beginPath(); ctx.moveTo(len, 0); ctx.lineTo(len * 0.3, -wid); ctx.lineTo(-len * 0.7, -wid * 0.4); ctx.lineTo(-len * 0.7, wid * 0.4); ctx.lineTo(len * 0.3, wid); ctx.closePath();
       const kg = ctx.createLinearGradient(-len * 0.7, 0, len, 0); kg.addColorStop(0, '#2288cc'); kg.addColorStop(0.5, '#aae0ff'); kg.addColorStop(1, '#ffffff');
       ctx.fillStyle = kg; ctx.fill(); ctx.strokeStyle = '#0066aa'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.restore();
+    } else if (p.kind === 'light_spear') {
+      ctx.save(); ctx.translate(x, y); ctx.rotate(p.angle);
+      const len = 50, wid = 12;
+      const halo = ctx.createRadialGradient(0, 0, 0, 0, 0, 36);
+      halo.addColorStop(0, 'rgba(255,255,255,0.95)'); halo.addColorStop(0.5, 'rgba(255,246,176,0.6)'); halo.addColorStop(1, 'rgba(255,246,176,0)');
+      ctx.beginPath(); ctx.arc(0, 0, 36, 0, Math.PI * 2); ctx.fillStyle = halo; ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(len, 0);
+      ctx.lineTo(len * 0.3, -wid);
+      ctx.lineTo(-len * 0.7, -wid * 0.4);
+      ctx.lineTo(-len * 0.7, wid * 0.4);
+      ctx.lineTo(len * 0.3, wid);
+      ctx.closePath();
+      const kg = ctx.createLinearGradient(-len * 0.7, 0, len, 0);
+      kg.addColorStop(0, '#c9a800'); kg.addColorStop(0.5, '#fff6b0'); kg.addColorStop(1, '#ffffff');
+      ctx.fillStyle = kg; ctx.fill();
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2.5; ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,0.95)';
+      ctx.fillRect(-len * 0.5, -1.5, len * 1.3, 3);
       ctx.restore();
     }
   }
@@ -3399,8 +3813,28 @@ function drawDamageNumbers() {
 function drawPlayer() {
   const x = player.x - camera.x, y = player.y - camera.y;
   const inWater = isInWaterForm();
+  const flying = isFlying();
   const t = performance.now() * 0.005;
-  if (!isOnIsland(player.x, player.y) && !inWater) {
+  if (flying) {
+    // Эффект искры света вокруг игрока
+    const flyAlpha = Math.min(1, (player.flightUntil - performance.now()) / 400);
+    const fr = player.radius + 18 + Math.sin(t * 6) * 4;
+    const fg = ctx.createRadialGradient(x, y, player.radius * 0.4, x, y, fr * 1.6);
+    fg.addColorStop(0, `rgba(255, 255, 255, ${flyAlpha * 0.9})`);
+    fg.addColorStop(0.4, `rgba(255, 246, 176, ${flyAlpha * 0.6})`);
+    fg.addColorStop(1, 'rgba(255, 246, 176, 0)');
+    ctx.beginPath(); ctx.arc(x, y, fr * 1.6, 0, Math.PI * 2); ctx.fillStyle = fg; ctx.fill();
+    for (let i = 0; i < 10; i++) {
+      const a = t * 3 + i * (Math.PI / 5);
+      const r = player.radius + 8 + Math.sin(t * 5 + i) * 8;
+      const px = x + Math.cos(a) * r, py = y + Math.sin(a) * r;
+      const spark = ctx.createRadialGradient(px, py, 0, px, py, 6);
+      spark.addColorStop(0, `rgba(255, 255, 255, ${flyAlpha})`);
+      spark.addColorStop(1, 'rgba(255, 246, 176, 0)');
+      ctx.beginPath(); ctx.arc(px, py, 6, 0, Math.PI * 2); ctx.fillStyle = spark; ctx.fill();
+    }
+  }
+  if (!isOnIsland(player.x, player.y) && !inWater && !flying) {
     for (let i = 0; i < 8; i++) { const a = t * 2 + i * (Math.PI / 4); const r = player.radius + 10 + Math.sin(t * 3 + i) * 4; const dx = x + Math.cos(a) * r, dy = y + Math.sin(a) * r; ctx.beginPath(); ctx.arc(dx, dy, 2 + Math.sin(t * 4 + i), 0, Math.PI * 2); ctx.fillStyle = 'rgba(150,220,255,0.7)'; ctx.fill(); }
     const g = ctx.createRadialGradient(x, y + 15, 0, x, y + 15, 40); g.addColorStop(0, 'rgba(80,180,255,0.5)'); g.addColorStop(1, 'rgba(80,180,255,0)');
     ctx.beginPath(); ctx.ellipse(x, y + 15, 40, 15, 0, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
@@ -3416,14 +3850,17 @@ function drawPlayer() {
     for (let i = 0; i < 5; i++) { const cx = x + (i - 2) * 8; const ccy = cy + Math.sin(t * 4 + i) * 3; const h = 8 + Math.sin(t * 5 + i) * 4; const cg = ctx.createLinearGradient(cx, ccy - h, cx, ccy + 4); cg.addColorStop(0, 'rgba(200,240,255,0.9)'); cg.addColorStop(1, 'rgba(80,180,255,0)'); ctx.beginPath(); ctx.moveTo(cx, ccy - h); ctx.lineTo(cx - 3, ccy + 4); ctx.lineTo(cx + 3, ccy + 4); ctx.closePath(); ctx.fillStyle = cg; ctx.fill(); }
     for (let i = 0; i < 8; i++) { const a = t * 1.5 + i * (Math.PI / 4); const r = player.radius + 20 + Math.sin(t * 2 + i) * 4; const dx = x + Math.cos(a) * r, dy = y + Math.sin(a) * r; ctx.beginPath(); ctx.arc(dx, dy, 3 + Math.sin(t * 3 + i), 0, Math.PI * 2); const dg = ctx.createRadialGradient(dx, dy, 0, dx, dy, 4); dg.addColorStop(0, 'rgba(255,255,255,0.9)'); dg.addColorStop(1, 'rgba(80,180,255,0)'); ctx.fillStyle = dg; ctx.fill(); }
   }
-  ctx.beginPath(); ctx.ellipse(x, y + player.radius * 0.9, player.radius * 0.9, 7, 0, 0, Math.PI * 2); ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fill();
+  if (!flying) {
+    ctx.beginPath(); ctx.ellipse(x, y + player.radius * 0.9, player.radius * 0.9, 7, 0, 0, Math.PI * 2); ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fill();
+  }
   const isHit = player.hitFlash > 0;
   const g = ctx.createRadialGradient(x - player.radius * 0.35, y - player.radius * 0.35, 3, x, y, player.radius);
   if (isHit) { g.addColorStop(0, '#ffffff'); g.addColorStop(1, '#ff6666'); }
+  else if (flying) { g.addColorStop(0, '#ffffff'); g.addColorStop(1, '#fff6b0'); }
   else if (inWater) { g.addColorStop(0, '#aaffff'); g.addColorStop(1, '#2288cc'); }
   else { g.addColorStop(0, '#ffe066'); g.addColorStop(1, '#ffb300'); }
   ctx.beginPath(); ctx.arc(x, y, player.radius, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
-  ctx.strokeStyle = inWater ? '#005588' : '#b37700'; ctx.lineWidth = 3; ctx.stroke();
+  ctx.strokeStyle = flying ? '#c9a800' : (inWater ? '#005588' : '#b37700'); ctx.lineWidth = 3; ctx.stroke();
   if (player.punchAnim > 0.05) {
     const px = x + player.punchDir.x * (player.radius + 15 + player.punchAnim * 20);
     const py = y + player.punchDir.y * (player.radius + 15 + player.punchAnim * 20);
@@ -3438,19 +3875,24 @@ function drawPlayer() {
   const eLx = x - eo, eLy = y + eoy, eRx = x + eo, eRy = y + eoy;
   ctx.beginPath(); ctx.arc(eLx, eLy, er, 0, Math.PI * 2); ctx.fillStyle = 'white'; ctx.fill(); ctx.strokeStyle = '#333'; ctx.lineWidth = 2; ctx.stroke();
   ctx.beginPath(); ctx.arc(eRx, eRy, er, 0, Math.PI * 2); ctx.fillStyle = 'white'; ctx.fill(); ctx.strokeStyle = '#333'; ctx.lineWidth = 2; ctx.stroke();
-  ctx.beginPath(); ctx.arc(eLx + lx * ps, eLy + ly * ps, pr, 0, Math.PI * 2); ctx.fillStyle = inWater ? '#003366' : '#1a1a1a'; ctx.fill();
-  ctx.beginPath(); ctx.arc(eRx + lx * ps, eRy + ly * ps, pr, 0, Math.PI * 2); ctx.fillStyle = inWater ? '#003366' : '#1a1a1a'; ctx.fill();
-  ctx.beginPath(); ctx.arc(x, y + player.radius * 0.25, player.radius * 0.4, 0.15 * Math.PI, 0.85 * Math.PI); ctx.strokeStyle = inWater ? '#003366' : '#5a3a00'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.stroke();
+  ctx.beginPath(); ctx.arc(eLx + lx * ps, eLy + ly * ps, pr, 0, Math.PI * 2); ctx.fillStyle = (inWater || flying) ? '#003366' : '#1a1a1a'; ctx.fill();
+  ctx.beginPath(); ctx.arc(eRx + lx * ps, eRy + ly * ps, pr, 0, Math.PI * 2); ctx.fillStyle = (inWater || flying) ? '#003366' : '#1a1a1a'; ctx.fill();
+  ctx.beginPath(); ctx.arc(x, y + player.radius * 0.25, player.radius * 0.4, 0.15 * Math.PI, 0.85 * Math.PI); ctx.strokeStyle = (inWater || flying) ? '#003366' : '#5a3a00'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.stroke();
   if (currentUser) {
     ctx.font = 'bold 13px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
     ctx.strokeText(currentUser.username, x, y - player.radius - 12);
-    ctx.fillStyle = '#ffd700'; ctx.fillText(currentUser.username, x, y - player.radius - 12);
+    ctx.fillStyle = flying ? '#fff6b0' : '#ffd700'; ctx.fillText(currentUser.username, x, y - player.radius - 12);
   }
   if (inWater) {
     const rem = (player.waterFormUntil - performance.now()) / TRANSFORM_DURATION;
     ctx.beginPath(); ctx.arc(x, y, player.radius + 35, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * rem);
     ctx.strokeStyle = 'rgba(150,230,255,0.85)'; ctx.lineWidth = 3; ctx.stroke();
+  }
+  if (flying) {
+    const rem = (player.flightUntil - performance.now()) / LIGHT_FLIGHT_DURATION_MS;
+    ctx.beginPath(); ctx.arc(x, y, player.radius + 35, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.max(0, rem));
+    ctx.strokeStyle = 'rgba(255, 246, 176, 0.9)'; ctx.lineWidth = 3; ctx.stroke();
   }
 }
 
@@ -3463,13 +3905,14 @@ function drawHeldItem() {
     ctx.beginPath(); ctx.strokeStyle = '#b37700'; ctx.lineWidth = 4; ctx.lineCap = 'round';
     ctx.moveTo(player.x - camera.x + player.radius * 0.7, player.y - camera.y + player.radius * 0.3);
     ctx.lineTo(x - 5, y - 5); ctx.stroke();
-    drawFruitShape(x, y, 14, item.color, performance.now() * 0.002, false, item.name === 'Акула' || item.name === 'Контроль');
+    drawFruitShape(x, y, 14, item.color, performance.now() * 0.002, false, item.name === 'Акула' || item.name === 'Контроль' || item.name === 'Свет');
   } else if (item.type === 'power') {
     const t = performance.now() * 0.005;
     const g = ctx.createRadialGradient(x, y, 0, x, y, 16 + Math.sin(t) * 2);
     if (item.name === 'Огонь') { g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.3, 'rgba(255,240,100,1)'); g.addColorStop(0.7, 'rgba(255,120,0,0.7)'); g.addColorStop(1, 'rgba(255,40,0,0)'); }
     else if (item.name === 'Лёд') { g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.4, 'rgba(180,240,255,1)'); g.addColorStop(0.7, 'rgba(80,180,255,0.8)'); g.addColorStop(1, 'rgba(40,100,200,0)'); }
     else if (item.name === 'Контроль') { g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.4, 'rgba(200,180,255,1)'); g.addColorStop(0.7, 'rgba(124,92,255,0.8)'); g.addColorStop(1, 'rgba(60,40,180,0)'); }
+    else if (item.name === 'Свет') { g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.4, 'rgba(255,246,176,1)'); g.addColorStop(0.7, 'rgba(255,220,80,0.85)'); g.addColorStop(1, 'rgba(255,180,0,0)'); }
     else { g.addColorStop(0, 'rgba(200,240,255,1)'); g.addColorStop(0.5, 'rgba(80,180,255,0.7)'); g.addColorStop(1, 'rgba(20,60,140,0)'); }
     ctx.beginPath(); ctx.arc(x, y, 16 + Math.sin(t) * 2, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
   }
@@ -3507,6 +3950,25 @@ function drawPowerIcon(cx, cy, radius, name) {
     ctx.restore();
     ctx.beginPath(); ctx.arc(cx, cy, radius * 0.18, 0, Math.PI * 2);
     ctx.fillStyle = '#ffffff'; ctx.fill();
+  } else if (name === 'Свет') {
+    const bg = ctx.createRadialGradient(cx, cy, 1, cx, cy, radius * 1.2); bg.addColorStop(0, '#2a2000'); bg.addColorStop(1, '#100a00');
+    ctx.beginPath(); ctx.arc(cx, cy, radius * 1.1, 0, Math.PI * 2); ctx.fillStyle = bg; ctx.fill(); ctx.strokeStyle = '#fff6b0'; ctx.lineWidth = 2.5; ctx.stroke();
+    const t = performance.now() * 0.003;
+    // Сияющее ядро
+    const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius * 1.1);
+    core.addColorStop(0, 'rgba(255, 255, 255, 1)');
+    core.addColorStop(0.4, 'rgba(255, 246, 176, 0.95)');
+    core.addColorStop(1, 'rgba(255, 220, 80, 0)');
+    ctx.beginPath(); ctx.arc(cx, cy, radius * 1.1, 0, Math.PI * 2); ctx.fillStyle = core; ctx.fill();
+    // Лучики
+    ctx.save(); ctx.translate(cx, cy); ctx.rotate(t * 0.5);
+    for (let i = 0; i < 8; i++) {
+      ctx.rotate(Math.PI / 4);
+      ctx.beginPath(); ctx.moveTo(0, -radius * 0.4); ctx.lineTo(0, -radius * 1.0);
+      ctx.strokeStyle = `rgba(255, 255, 255, ${0.6 + Math.sin(t * 4 + i) * 0.3})`;
+      ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.stroke();
+    }
+    ctx.restore();
   }
 }
 function drawFistsIcon(cx, cy, radius) {
@@ -3594,13 +4056,13 @@ function drawAbilityGuide() {
   const pw = 300, hh = 110, rh = 78;
   const ph = hh + abilities.length * rh + 14;
   const px = canvas.width - pw - 20, py = canvas.height - ph - 80;
-  const isFire = abilityGuide.name === 'Огонь', isIce = abilityGuide.name === 'Лёд', isCtrl = abilityGuide.name === 'Контроль';
-  const themeSolid = isFire ? '#ff6600' : (isIce ? '#00c8ff' : (isCtrl ? '#7c5cff' : '#4fd4ff'));
-  const theme2 = isFire ? '#ffcc66' : (isIce ? '#aaffff' : (isCtrl ? '#c8b0ff' : '#aaddff'));
-  const theme = isFire ? 'rgba(255,102,0,0.35)' : (isIce ? 'rgba(0,200,255,0.35)' : (isCtrl ? 'rgba(124,92,255,0.4)' : 'rgba(80,180,255,0.35)'));
+  const isFire = abilityGuide.name === 'Огонь', isIce = abilityGuide.name === 'Лёд', isCtrl = abilityGuide.name === 'Контроль', isLight = abilityGuide.name === 'Свет';
+  const themeSolid = isFire ? '#ff6600' : (isIce ? '#00c8ff' : (isCtrl ? '#7c5cff' : (isLight ? '#fff6b0' : '#4fd4ff')));
+  const theme2 = isFire ? '#ffcc66' : (isIce ? '#aaffff' : (isCtrl ? '#c8b0ff' : (isLight ? '#ffffff' : '#aaddff')));
+  const theme = isFire ? 'rgba(255,102,0,0.35)' : (isIce ? 'rgba(0,200,255,0.35)' : (isCtrl ? 'rgba(124,92,255,0.4)' : (isLight ? 'rgba(255,246,176,0.5)' : 'rgba(80,180,255,0.35)')));
   ctx.fillStyle = 'rgba(15,10,5,0.22)'; ctx.strokeStyle = theme; ctx.lineWidth = 1.5;
   roundRect(px, py, pw, ph, 12); ctx.fill(); ctx.stroke();
-  const emoji = isFire ? '🔥' : (isIce ? '❄️' : (isCtrl ? '🌀' : '🦈'));
+  const emoji = isFire ? '🔥' : (isIce ? '❄️' : (isCtrl ? '🌀' : (isLight ? '✨' : '🦈')));
   ctx.fillStyle = theme2; ctx.font = 'bold 15px Arial'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
   ctx.fillText(`${emoji} ${abilityGuide.name}`, px + 14, py + 18);
   const power = inventory[abilityGuide.slotIndex];
@@ -3618,11 +4080,11 @@ function drawAbilityGuide() {
   const ratio = Math.min(1, myXp / needXp);
   if (ratio > 0) {
     const g = ctx.createLinearGradient(mx, by, mx, by + mh);
-    g.addColorStop(0, themeSolid); g.addColorStop(1, isFire ? '#aa3300' : (isIce ? '#0066aa' : (isCtrl ? '#3a1a8a' : '#0a3a6c')));
+    g.addColorStop(0, themeSolid); g.addColorStop(1, isFire ? '#aa3300' : (isIce ? '#0066aa' : (isCtrl ? '#3a1a8a' : (isLight ? '#c9a800' : '#0a3a6c'))));
     ctx.fillStyle = g; roundRect(mx, by, mw * ratio, mh, 3); ctx.fill();
   }
   const divY = py + hh - 4;
-  ctx.strokeStyle = isFire ? 'rgba(255,150,0,0.2)' : (isIce ? 'rgba(0,150,255,0.2)' : (isCtrl ? 'rgba(124,92,255,0.3)' : 'rgba(80,180,255,0.2)')); ctx.lineWidth = 1;
+  ctx.strokeStyle = isFire ? 'rgba(255,150,0,0.2)' : (isIce ? 'rgba(0,150,255,0.2)' : (isCtrl ? 'rgba(124,92,255,0.3)' : (isLight ? 'rgba(255,246,176,0.3)' : 'rgba(80,180,255,0.2)'))); ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(px + 10, divY); ctx.lineTo(px + pw - 10, divY); ctx.stroke();
   const inZone = isInControlZone(player.x, player.y);
   for (let i = 0; i < abilities.length; i++) {
@@ -3753,7 +4215,7 @@ function drawPlayerStats() {
     ctx.strokeText(wt2, x + bw / 2, nextY + bh / 2); ctx.fillText(wt2, x + bw / 2, nextY + bh / 2);
     nextY += bh + 10;
   }
-  if (!isOnIsland(player.x, player.y) && !isInWaterForm()) {
+  if (!isOnIsland(player.x, player.y) && !isInWaterForm() && !isFlying()) {
     const pulse = 0.6 + Math.sin(performance.now() * 0.01) * 0.4;
     ctx.fillStyle = `rgba(80,180,255,${pulse})`; ctx.font = 'bold 16px Arial'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
     const wt3 = '🌊 ТОНЕШЬ! -30 HP/сек';
@@ -3859,9 +4321,9 @@ function drawRollDialog() {
   ctx.strokeText(cdText, p.x + 30, p.y + 196); ctx.fillText(cdText, p.x + 30, p.y + 196);
   ctx.fillStyle = 'rgba(255,255,255,0.75)'; ctx.font = 'bold 13px Arial';
   ctx.fillText('Шансы:', p.x + 30, p.y + 230);
-  ctx.fillStyle = '#dddddd'; ctx.font = '13px Arial';
-  ctx.fillText('⚪ Обычный: 50%   🟢 Необычный: 25%   🔵 Редкий: 18%', p.x + 30, p.y + 252);
-  ctx.fillText('🟡 Легендарный: 5%   🔴 Мифический: 2%', p.x + 30, p.y + 272);
+  ctx.fillStyle = '#dddddd'; ctx.font = '12px Arial';
+  ctx.fillText('⚪ Обычный: 48%   🟢 Необычный: 22%   🔵 Редкий: 18%', p.x + 30, p.y + 252);
+  ctx.fillText('🟡 Легендарный (Акула/Свет): 8%   🔴 Мифический: 4%', p.x + 30, p.y + 272);
   ctx.fillStyle = 'rgba(255,200,100,0.7)'; ctx.font = 'italic 11px Arial';
   ctx.fillText('* Редкий — скоро будет!', p.x + 30, p.y + 290);
   const c = b.close;
@@ -3956,14 +4418,12 @@ function drawBag() {
       }
     }
   }
-  // ПКМ-меню в мешке
   if (bagContextMenu) {
     ctx.fillStyle = 'rgba(0,0,0,0.4)'; roundRect(bagContextMenu.x + 4, bagContextMenu.y + 4, bagContextMenu.w, bagContextMenu.h, 12); ctx.fill();
     ctx.fillStyle = 'rgba(20,20,30,0.95)'; ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2;
     roundRect(bagContextMenu.x, bagContextMenu.y, bagContextMenu.w, bagContextMenu.h, 12); ctx.fill(); ctx.stroke();
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = 'bold 16px Arial';
     for (const btn of bagContextMenu.buttons) {
-      // Скрываем "Сохранить" в мешке (не имеет смысла)
       if (btn.action === 'save') continue;
       ctx.fillStyle = btn.color; roundRect(btn.x, btn.y, btn.w, btn.h, 8); ctx.fill();
       ctx.fillStyle = 'white'; ctx.fillText(btn.label, btn.x + btn.w / 2, btn.y + btn.h / 2);
@@ -4023,17 +4483,20 @@ function drawAimCursor() {
   const x = mousePos.x, y = mousePos.y;
   const t = performance.now() * 0.005;
   const isCtrl = aimingAbility.powerName === 'Контроль';
+  const isLight = aimingAbility.powerName === 'Свет';
   const isMeteor = aimingAbility.abilityId === 'control_meteor';
   const isBeam = aimingAbility.abilityId === 'control_beam';
+  const isSky = aimingAbility.abilityId === 'light_sky';
   let r, col, colFill;
   if (isMeteor) { r = 90; col = 'rgba(124,92,255,0.95)'; colFill = 'rgba(180,160,255,0.5)'; }
   else if (isBeam) { r = 160; col = 'rgba(124,92,255,0.95)'; colFill = 'rgba(180,160,255,0.5)'; }
+  else if (isSky) { r = 130; col = 'rgba(255,246,176,0.95)'; colFill = 'rgba(255,255,255,0.5)'; }
   else {
     r = 24 + Math.sin(t * 3) * 4;
     const isFire = aimingAbility.powerName === 'Огонь';
     const isIce = aimingAbility.powerName === 'Лёд';
-    col = isFire ? 'rgba(255,150,0,0.9)' : (isIce ? 'rgba(100,200,255,0.9)' : (isCtrl ? 'rgba(124,92,255,0.9)' : 'rgba(80,200,255,0.9)'));
-    colFill = isFire ? 'rgba(255,220,100,0.9)' : (isIce ? 'rgba(200,240,255,0.9)' : (isCtrl ? 'rgba(200,180,255,0.9)' : 'rgba(180,240,255,0.9)'));
+    col = isFire ? 'rgba(255,150,0,0.9)' : (isIce ? 'rgba(100,200,255,0.9)' : (isCtrl ? 'rgba(124,92,255,0.9)' : (isLight ? 'rgba(255,246,176,0.95)' : 'rgba(80,200,255,0.9)')));
+    colFill = isFire ? 'rgba(255,220,100,0.9)' : (isIce ? 'rgba(200,240,255,0.9)' : (isCtrl ? 'rgba(200,180,255,0.9)' : (isLight ? 'rgba(255,255,255,0.95)' : 'rgba(180,240,255,0.9)')));
   }
   ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.strokeStyle = col; ctx.lineWidth = 3; ctx.stroke();
   ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI * 2); ctx.fillStyle = colFill; ctx.fill();
@@ -4078,9 +4541,9 @@ function drawAdminConsole() {
   ctx.fillStyle = 'rgba(255,255,255,0.55)';
   ctx.font = '12px Consolas, monospace';
   if (adminUnlocked) {
-    ctx.fillText('g [фрукт]                    · пример: g огонь', px + 20, py + 50);
+    ctx.fillText('g [фрукт]                    · пример: g свет', px + 20, py + 50);
     ctx.fillText('g level X имя                · пример: g level 4 Test1', px + 20, py + 68);
-    ctx.fillText('g mastery N фрукт имя        · пример: g mastery 5 акула Test1', px + 20, py + 86);
+    ctx.fillText('g mastery N фрукт имя        · пример: g mastery 5 свет Test1', px + 20, py + 86);
   } else {
     ctx.fillText('Введи пароль администратора и нажми Enter', px + 20, py + 50);
   }
@@ -4141,6 +4604,10 @@ function render() {
     drawControlBeams();
     drawControlMeteors();
     drawControlSlashes();
+    drawLightBeams();              // НОВОЕ: световые лучи локальные
+    drawRemoteLightBeams();        // НОВОЕ: чужие
+    drawLightFlightTrails();       // НОВОЕ: локальные полосы
+    drawRemoteLightTrails();       // НОВОЕ: чужие полосы
     drawRemoteSlashes();
     drawRemoteAttacks();
     drawQuestNpc();
