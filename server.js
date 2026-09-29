@@ -239,6 +239,62 @@ wss.on('connection', (ws) => {
       return;
     }
 
+    // -------- АДМИН: SET MASTERY --------
+    // Формат: { type: 'admin_setmastery', password, target, fruit, mastery }
+    // Пример: g mastery 5 акула Test1  →  target=Test1, fruit='Акула', mastery=5
+    if (msg.type === 'admin_setmastery') {
+      if (msg.password !== ADMIN_PASSWORD) {
+        ws.send(JSON.stringify({ type: 'admin_setmastery_err', error: 'Неверный пароль' }));
+        return;
+      }
+      const target = String(msg.target || '').trim();
+      const fruitName = String(msg.fruit || '').trim();
+      let masteryLvl = Number(msg.mastery);
+      if (!target) {
+        ws.send(JSON.stringify({ type: 'admin_setmastery_err', error: 'Не указано имя игрока' }));
+        return;
+      }
+      if (!fruitName) {
+        ws.send(JSON.stringify({ type: 'admin_setmastery_err', error: 'Не указан фрукт' }));
+        return;
+      }
+      if (!Number.isFinite(masteryLvl)) {
+        ws.send(JSON.stringify({ type: 'admin_setmastery_err', error: 'Неверный уровень mastery' }));
+        return;
+      }
+      masteryLvl = Math.max(0, Math.min(100, Math.floor(masteryLvl)));
+
+      try {
+        const r = await pool.query('SELECT data FROM users WHERE username=$1', [target]);
+        if (r.rows.length === 0) {
+          ws.send(JSON.stringify({ type: 'admin_setmastery_err', error: 'Игрок не найден' }));
+          return;
+        }
+        let data = r.rows[0].data || {};
+        if (typeof data === 'string') data = JSON.parse(data);
+        if (!data.powerMastery || typeof data.powerMastery !== 'object') data.powerMastery = {};
+        data.powerMastery[fruitName] = { xp: 0, level: masteryLvl };
+        await pool.query('UPDATE users SET data=$1 WHERE username=$2', [data, target]);
+        ws.send(JSON.stringify({ type: 'admin_setmastery_ok', target, fruit: fruitName, mastery: masteryLvl }));
+        console.log(`[admin] ${username} → ${target}: ${fruitName} mastery ${masteryLvl}`);
+
+        const targetPlayer = players.get(target);
+        if (targetPlayer && targetPlayer.ws.readyState === 1) {
+          try {
+            targetPlayer.ws.send(JSON.stringify({
+              type: 'admin_setmastery_apply',
+              fruit: fruitName,
+              mastery: masteryLvl
+            }));
+          } catch (e) {}
+        }
+      } catch (e) {
+        console.error('[admin_setmastery]', e);
+        ws.send(JSON.stringify({ type: 'admin_setmastery_err', error: 'Ошибка БД' }));
+      }
+      return;
+    }
+
     // -------- ДВИЖЕНИЕ --------
     if (msg.type === 'move') {
       const nx = Number(msg.x), ny = Number(msg.y);
