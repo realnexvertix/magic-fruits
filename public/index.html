@@ -38,7 +38,7 @@
 <canvas id="game"></canvas>
 <button id="fsBtn" title="Полный экран">⛶</button>
 <div id="ui">🍎 Фрукты: <span id="fruitCount">0</span> | 💰 Монеты: <span id="moneyCount">0</span></div>
-<div id="hint">WASD — движение | 1-5 — слоты | I — мешок | E — NPC | Tab — статистика | N N — админ<br><b>ЛКМ</b> — кулак / разрез | <b>Z / X / C / R / V / F</b> — способности | ⚠️ В море -30 HP/сек!</div>
+<div id="hint">WASD — движение | 1-5 — слоты | I — мешок | E — NPC | Tab — статистика | N N — админ<br><b>ЛКМ</b> — кулак / разрез | <b>Z / X / C / R / V</b> — способности | <b>F (зажать)</b> — полёт Света | ⚠️ В море -30 HP/сек!</div>
 <div id="playerName"></div>
 <button id="logoutBtn">🚪 Выйти</button>
 
@@ -86,8 +86,8 @@ const remoteLasers = [];
 const remoteMeteors = [];
 const remoteBeams = [];
 const remoteSlashes = [];
-const remoteLightBeams = [];       // НОВОЕ: световые лучи (Z Свет)
-const remoteLightTrails = [];      // НОВОЕ: полосы от полёта Света
+const remoteLightBeams = [];
+const remoteLightTrails = [];
 const sharedDroppedFruits = new Map();
 
 function updateMoneyUi() { document.getElementById('moneyCount').textContent = player.money; }
@@ -213,6 +213,7 @@ function addMasteryXp(power, amount) {
   return ups;
 }
 
+// ЗАДАЧА: сохраняем состояние квестов (включая босс-квест)
 function applySave(d) {
   if (!d) return;
   stats.level = d.level || 1;
@@ -281,7 +282,10 @@ function applySave(d) {
 
   bag.length = 0;
   if (Array.isArray(d.bag)) for (const it of d.bag) bag.push(it);
+  // Квесты: убийство пиратов + босс
   if (d.quest) quest.active = d.quest;
+  if (d.questBoss) questBoss.active = d.questBoss;
+  if (typeof d.bossDefeated === 'boolean') bossDefeated = d.bossDefeated;
   camera.x = player.x - canvas.width / 2;
   camera.y = player.y - canvas.height / 2;
 }
@@ -330,7 +334,9 @@ async function saveNow() {
     powerMastery: powerMasteryData,
     inventory: inventoryData,
     bag: bag.map(i => ({ ...i })),
-    quest: quest.active
+    quest: quest.active,
+    questBoss: questBoss.active,
+    bossDefeated: bossDefeated
   };
   try {
     await fetch(API + '/save', {
@@ -597,33 +603,18 @@ function spawnRemoteAttack(msg) {
     remoteBeams.push({ x: ox + dx * 300, y: oy + dy * 300, radius: 160, life: 180, maxLife: 180, from: msg.from });
   } else if (id === 'control_lmb') {
     const angle = Math.atan2(dy, dx);
-    remoteSlashes.push({
-      x: ox, y: oy,
-      angle: angle,
-      length: 220,
-      life: 18, maxLife: 18,
-      from: msg.from
-    });
+    remoteSlashes.push({ x: ox, y: oy, angle: angle, length: 220, life: 18, maxLife: 18, from: msg.from });
   } else if (id === 'light_beam') {
-    // НОВОЕ: Z Света — длинный белый луч 2 секунды
-    remoteLightBeams.push({
-      x: ox, y: oy, angle: Math.atan2(dy, dx),
-      length: 1400,
-      life: 120, maxLife: 120,
-      from: msg.from
-    });
+    remoteLightBeams.push({ x: ox, y: oy, angle: Math.atan2(dy, dx), length: 1400, life: 120, maxLife: 120, from: msg.from });
   } else if (id === 'light_spear') {
-    // НОВОЕ: X Света — копьё света
     remoteProjectiles.push({ kind: 'light_spear', x: ox, y: oy, vx: dx * 18, vy: dy * 18, angle: Math.atan2(dy, dx), radius: 14, life: 90, trail: [], from: msg.from });
   } else if (id === 'light_sky') {
-    // НОВОЕ: C Света — луч с небес
     remoteBeams.push({ x: ox + dx * 300, y: oy + dy * 300, radius: 130, life: 180, maxLife: 180, from: msg.from, lightBeam: true });
   } else if (id === 'light_flight') {
-    // НОВОЕ: F Света — кто-то летит, покажем полосу
     remoteLightTrails.push({
       from: msg.from,
       x: ox, y: oy,
-      targetX: ox + dx * 220, targetY: oy + dy * 220,
+      targetX: ox + dx, targetY: oy + dy,
       life: 30, maxLife: 30
     });
   }
@@ -758,7 +749,6 @@ let statsOpen = false;
 let bagContextMenu = null;
 
 // ==================== СПОСОБНОСТИ ====================
-// ЗАДАЧА: все способности фрукта (включая Контроль) умножаются на getFruitDamageMultiplier()
 const FIRE_ABILITIES = [
   { id: 'fire_charge', name: 'Огненный заряд', key: 'Z', requiredMasteryLevel: 0, cooldown: 4.5, stamina: 10, damage: 7, description: 'Огненный шар · 7 урона · кд 4.5с' },
   { id: 'flame_dash', name: 'Рывок пламени', key: 'X', requiredMasteryLevel: 5, cooldown: 1.8, stamina: 25, damage: 0, description: 'Рывок вперёд · кд 1.8с' }
@@ -780,10 +770,10 @@ const CONTROL_ABILITIES = [
   { id: 'control_meteor', name: 'Метеор контроля', key: 'C', requiredMasteryLevel: 30, cooldown: 12, stamina: 50, damage: 30, description: '30 урона, +2 по зоне · кд 12с (в зоне)', zoneOnly: true },
   { id: 'control_beam', name: 'Луч контроля', key: 'V', requiredMasteryLevel: 45, cooldown: 20, stamina: 70, damage: 45, description: '45 урона через 2с · кд 20с (в зоне)', zoneOnly: true }
 ];
-// НОВЫЙ ФРУКТ: СВЕТ (Легендарный)
+// СВЕТ (Легендарный)
 const LIGHT_ABILITIES = [
   { id: 'light_beam', name: 'Луч света', key: 'Z', requiredMasteryLevel: 0, cooldown: 8, stamina: 25, damage: 12, description: 'Световой лазер 2с · 12 урона · кд 8с', aiming: false },
-  { id: 'light_flight', name: 'Полёт искры', key: 'F', requiredMasteryLevel: 3, cooldown: 1.5, stamina: 20, damage: 0, description: 'Искра света ×7 скорости · кд 1.5с' },
+  { id: 'light_flight', name: 'Полёт искры', key: 'F', requiredMasteryLevel: 3, cooldown: 0, stamina: 0, damage: 0, description: 'Зажми F — летишь ×7 скорости, не тонешь', holdKey: true },
   { id: 'light_spear', name: 'Копьё света', key: 'X', requiredMasteryLevel: 7, cooldown: 15, stamina: 45, damage: 15, description: 'Копьё · 15 урона · кд 15с' },
   { id: 'light_sky', name: 'Луч с небес', key: 'C', requiredMasteryLevel: 15, cooldown: 20, stamina: 65, damage: 25, description: 'Столб света · 25 урона · кд 20с' }
 ];
@@ -868,8 +858,13 @@ function getRollCost() {
   return Math.floor(300 * Math.pow(1.1, lvlForCost));
 }
 
-// ==================== КВЕСТ ====================
+// ==================== КВЕСТЫ ====================
+// Квест на пиратов
 const quest = { active: null, completed: false };
+// КВЕСТ НА БОССА
+const questBoss = { active: null };
+let bossDefeated = false;
+
 const questNpc = { x: -700, y: -400, radius: 30, name: 'Капитан Барнс', color: '#d4a373', hatColor: '#4a2c0a' };
 const rollNpc = { x: 600, y: -500, radius: 30, name: 'Nexvertix', color: '#c4a4ff', hatColor: '#3a1a5a' };
 function isNearQuestNpc() { return Math.hypot(player.x - questNpc.x, player.y - questNpc.y) < player.radius + questNpc.radius + 20; }
@@ -891,20 +886,22 @@ const player = {
   waterFormUntil: 0, waterRage: 0,
   seaDamageTimer: 0,
   controlLmbCooldown: 0,
-  // НОВОЕ: полёт Света
-  flightUntil: 0,
+  // ПОЛЁТ: теперь через зажатие F
+  flying: false,
   flightDir: { x: 1, y: 0 },
-  flightTrail: []
+  flightKeyDown: false
 };
 const TRANSFORM_DURATION = 90000;
 const HP_REGEN_PER_TICK = 0.02 / 1.7;
 const HP_REGEN_DELAY_MS = 7000;
 const STAMINA_REGEN_PER_TICK = 0.3 / 2.5;
-const PIRATE_MASTERY_XP_REWARD = 70;
-// НОВОЕ: параметры полёта Света
+const PIRATE_MASTERY_XP_REWARD = 70;    // ТОЛЬКО для mastery
+const PIRATE_LEVEL_XP_REWARD = 25;      // ТОЛЬКО для уровня
+const BOSS_MASTERY_XP_REWARD = 200;     // ТОЛЬКО для mastery
+const BOSS_LEVEL_XP_REWARD = 500;       // ТОЛЬКО для уровня
+const BOSS_MONEY_REWARD = 1000;
 const LIGHT_FLIGHT_SPEED_MULT = 7;
-const LIGHT_FLIGHT_DURATION_MS = 550;
-const LIGHT_FLIGHT_TRAIL_LIFE = 40;
+const LIGHT_FLIGHT_STAMINA_DRAIN = 6;   // стамина/сек во время полёта
 
 // ==================== КОНТРОЛЬ ====================
 let controlZone = null;
@@ -930,8 +927,7 @@ const CONTROL_LMB_RANGE = 220;
 const CONTROL_LMB_HIT_RADIUS = 45;
 const CONTROL_LMB_SLASH_DURATION = 18;
 
-// НОВОЕ: Свет
-const LIGHT_BEAM_DURATION_MS = 1200;   // 1.2с таймер луча (визуально ~2с при 60fps)
+const LIGHT_BEAM_DURATION_MS = 1200;
 const LIGHT_BEAM_LENGTH = 1400;
 const LIGHT_BEAM_WIDTH = 22;
 
@@ -940,7 +936,7 @@ function isInControlZone(x, y) {
   if (performance.now() >= controlZone.until) return false;
   return Math.hypot(x - controlZone.x, y - controlZone.y) <= controlZone.radius;
 }
-function isFlying() { return performance.now() < player.flightUntil; }
+function isFlying() { return player.flying; }
 
 const npc = { x: 400, y: 200, radius: 30, maxHp: 1000, hp: 1000, color: '#d4a373', hitFlash: 0, shakeUntil: 0, shakeOffset: { x: 0, y: 0 }, slowUntil: 0 };
 
@@ -951,8 +947,6 @@ const PIRATE_DAMAGE = 5;
 const PIRATE_ATTACK_INTERVAL = 2000;
 const PIRATE_SPEED = 1.0;
 const PIRATE_RADIUS = 22;
-const PIRATE_XP_REWARD = 25;
-const PIRATE_COIN_REWARD = 5;
 const MAX_PIRATES = 4;
 const PIRATE_AGGRO_RADIUS = 90;
 const PIRATE_LEASH_RADIUS = 350;
@@ -976,6 +970,49 @@ function spawnPirate(spawnIdx) {
 }
 for (let i = 0; i < MAX_PIRATES; i++) spawnPirate(i);
 
+// ==================== БОСС: КАПИТАН ПИРАТОВ ====================
+// Спавн: если questBoss.active === 'active' и bossDefeated === false
+const BOSS_SPAWN_X = -1800;
+const BOSS_SPAWN_Y = -1400;
+const BOSS_HP = 500;
+const BOSS_DAMAGE = 25;
+const BOSS_ATTACK_INTERVAL = 1500;
+const BOSS_SPEED = 1.3;
+const BOSS_RADIUS = 50;
+const BOSS_AGGRO_RADIUS = 500;
+const BOSS_LEASH_RADIUS = 1200;
+const boss = {
+  x: BOSS_SPAWN_X, y: BOSS_SPAWN_Y, radius: BOSS_RADIUS,
+  hp: BOSS_HP, maxHp: BOSS_HP,
+  color: '#4a0a0a', hatColor: '#ff2222',
+  active: false,
+  dead: false,
+  deathTimer: 0,
+  hitFlash: 0,
+  lastAttackTime: 0,
+  homeX: BOSS_SPAWN_X, homeY: BOSS_SPAWN_Y,
+  aggro: false,
+  chasing: false,
+  slowUntil: 0, frozenUntil: 0, stunUntil: 0,
+  respawnAt: 0,
+  attackAnim: 0
+};
+
+function spawnBoss() {
+  boss.x = BOSS_SPAWN_X; boss.y = BOSS_SPAWN_Y;
+  boss.hp = BOSS_HP; boss.maxHp = BOSS_HP;
+  boss.active = true;
+  boss.dead = false;
+  boss.deathTimer = 0;
+  boss.hitFlash = 0;
+  boss.aggro = false;
+  boss.chasing = false;
+  boss.slowUntil = 0; boss.frozenUntil = 0; boss.stunUntil = 0;
+  boss.respawnAt = 0;
+  boss.attackAnim = 0;
+  boss.homeX = BOSS_SPAWN_X; boss.homeY = BOSS_SPAWN_Y;
+}
+
 // ==================== ЭФФЕКТЫ ====================
 const projectiles = [];
 const particles = [];
@@ -987,8 +1024,8 @@ const meteors = [];
 const sharkBites = [];
 const whirlpools = [];
 const whipTrails = [];
-const lightBeams = [];       // НОВОЕ: локальные световые лучи
-const lightFlightTrails = [];// НОВОЕ: локальные полосы полёта
+const lightBeams = [];
+const lightFlightTrails = [];
 
 let aimingAbility = null;
 let contextMenu = null;
@@ -1047,7 +1084,6 @@ function adminSubmit() {
   const parts = cmd.split(/\s+/);
   const command = parts[0].toLowerCase();
 
-  // g [фрукт]
   if (command === 'g' && parts.length === 2) {
     const arg = parts[1].toLowerCase();
     const fruitMap = {
@@ -1079,7 +1115,6 @@ function adminSubmit() {
     return;
   }
 
-  // g level X имя
   if (command === 'g' && parts.length >= 4 && parts[1].toLowerCase() === 'level') {
     const lvl = parseInt(parts[2], 10);
     const targetName = parts.slice(3).join(' ');
@@ -1096,7 +1131,6 @@ function adminSubmit() {
     return;
   }
 
-  // g mastery N фрукт имя
   if (command === 'g' && parts.length >= 5 && parts[1].toLowerCase() === 'mastery') {
     const masteryLvl = parseInt(parts[2], 10);
     const fruitArg = parts[3].toLowerCase();
@@ -1192,7 +1226,8 @@ function consumeFruit(item) {
     };
     player.cooldowns = {};
     player.waterFormUntil = 0;
-    player.flightUntil = 0;   // сброс полёта если меняли фрукт
+    // Останавливаем полёт если меняли фрукт
+    player.flying = false;
     if (aimingAbility) aimingAbility = null;
     saveNow();
     return true;
@@ -1248,7 +1283,11 @@ function punchFist() {
   const f = Math.max(1, Math.round(5 * dm));
   for (const pir of pirates) {
     if (pir.dead) continue;
-    if (Math.hypot(pir.x - px, pir.y - py) < hr) { damagePirate(pir, f, px, py); pir.chasing = true; }
+    if (Math.hypot(pir.x - px, pir.y - py) < hr) { damagePirate(pir, f); pir.chasing = true; }
+  }
+  // Урон по боссу
+  if (boss.active && !boss.dead) {
+    if (Math.hypot(boss.x - px, boss.y - py) < hr + boss.radius * 0.5) damageBoss(f);
   }
   if (Math.hypot(npc.x - px, npc.y - py) < hr) damageNpc(f);
   for (const rp of remotePlayers.values()) {
@@ -1265,7 +1304,7 @@ function punchFist() {
   }
 }
 
-// ==================== ЛКМ-АТАКА КОНТРОЛЯ (с прокачкой фрукта) ====================
+// ==================== ЛКМ КОНТРОЛЯ ====================
 function controlLmbAttack() {
   const held = getHeldPower();
   if (!held || held.power.name !== 'Контроль') return;
@@ -1287,7 +1326,6 @@ function controlLmbAttack() {
     maxLife: CONTROL_LMB_SLASH_DURATION
   });
 
-  // ЛКМ Контроля — атака фрукта, использует множитель прокачки фрукта
   let dm = getFruitDamageMultiplier();
   if (isInWaterForm()) dm *= 1.2;
   const dmg = Math.max(1, Math.round(CONTROL_LMB_DAMAGE * dm));
@@ -1299,6 +1337,10 @@ function controlLmbAttack() {
       damagePirate(pir, dmg);
       pir.chasing = true;
     }
+  }
+  if (boss.active && !boss.dead) {
+    const hit = distToSegment(boss.x, boss.y, player.x, player.y, player.x + dx * CONTROL_LMB_RANGE, player.y + dy * CONTROL_LMB_RANGE);
+    if (hit < CONTROL_LMB_HIT_RADIUS + boss.radius * 0.6) damageBoss(dmg);
   }
   {
     const hit = distToSegment(npc.x, npc.y, player.x, player.y, player.x + dx * CONTROL_LMB_RANGE, player.y + dy * CONTROL_LMB_RANGE);
@@ -1341,7 +1383,7 @@ function distToSegment(px, py, x1, y1, x2, y2) {
   return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
 }
 
-// ==================== ТРАНСФОРМАЦИЯ (Акула) ====================
+// ==================== ТРАНСФОРМАЦИЯ ====================
 function activateWaterTransform() {
   if (waterMeter < WATER_METER_MAX) { showToast(`Нужна полная шкала воды! (${Math.floor(waterMeter)}/100)`); return; }
   waterMeter = 0;
@@ -1356,67 +1398,28 @@ function activateWaterTransform() {
   showToast('🌊 ВОДНЫЙ ОБЛИК! 90 секунд');
 }
 
-// ==================== ПОЛЁТ СВЕТА (F) ====================
-// Искра летит в направлении look. Пока летит — игнорирует урон от воды.
-// Скорость ×7 от обычной. Оставляет за собой затухающую полосу.
-function activateLightFlight() {
+// ==================== ПОЛЁТ СВЕТА (F — ЗАЖАТЬ) ====================
+// НЕ рывок! Игрок держит F — пока держит — летит.
+// Скорость ×7. Пока летит — не тонет. Постоянно оставляет полосу и искры.
+function startLightFlight() {
   const held = getHeldPower();
-  if (!held || held.power.name !== 'Свет') { showToast('Нужен Свет в руках!'); return; }
-  if ((player.cooldowns['light_flight'] || 0) > 0) return;
-  if (player.stamina < 20) { showToast('Мало стамины!'); return; }
-  player.cooldowns['light_flight'] = 1.5;
-  player.stamina = Math.max(0, player.stamina - 20);
-
-  let dx = player.lookX, dy = player.lookY;
-  if (dx === 0 && dy === 0) { dx = 1; dy = 0; }
-  const dl = Math.hypot(dx, dy);
-  dx /= dl; dy /= dl;
-
-  // Мгновенный рывок ×7 скорости * длительность
-  const speed = player.speedWalk * LIGHT_FLIGHT_SPEED_MULT;
-  const totalDist = speed * (LIGHT_FLIGHT_DURATION_MS / 1000) * 6; // ~6 тиков полёта для ощутимого скачка
-  const steps = 18;
-  let nx = player.x, ny = player.y;
-  for (let i = 1; i <= steps; i++) {
-    const t = i / steps;
-    const tx = player.x + dx * totalDist * t;
-    const ty = player.y + dy * totalDist * t;
-    if (canBeAt(tx, ty, player.radius)) { nx = tx; ny = ty; }
-    else break;
+  if (!held || held.power.name !== 'Свет') return;
+  const ab = held.abilities.find(a => a.id === 'light_flight');
+  if (!ab) return;
+  const myLevel = held.power.masteryLevel || 0;
+  if (myLevel < ab.requiredMasteryLevel) {
+    showToast(`🔒 Нужен Mastery Lv.${ab.requiredMasteryLevel} (у тебя Lv.${myLevel})`);
+    return;
   }
-  player.x = nx; player.y = ny;
-  player.flightUntil = performance.now() + LIGHT_FLIGHT_DURATION_MS;
-  player.flightDir = { x: dx, y: dy };
-
-  // Полоса за полётом — локальные + чужие
-  const trailSteps = 22;
-  for (let i = 0; i <= trailSteps; i++) {
-    const t = i / trailSteps;
-    const px = player.x - dx * totalDist * (1 - t);
-    const py = player.y - dy * totalDist * (1 - t);
-    lightFlightTrails.push({
-      x: px, y: py,
-      life: LIGHT_FLIGHT_TRAIL_LIFE, maxLife: LIGHT_FLIGHT_TRAIL_LIFE,
-      radius: 14 + (1 - t) * 10
-    });
-  }
-
-  // Частицы-искры
-  for (let i = 0; i < 40; i++) {
-    const a = Math.random() * Math.PI * 2;
-    const s = 3 + Math.random() * 6;
-    particles.push({
-      x: player.x + (Math.random() - 0.5) * 30,
-      y: player.y + (Math.random() - 0.5) * 30,
-      vx: Math.cos(a) * s, vy: Math.sin(a) * s - 1,
-      life: 25 + Math.random() * 20, maxLife: 45,
-      radius: 3 + Math.random() * 4,
-      color: Math.random() < 0.5 ? '#fff6b0' : '#ffffff'
-    });
-  }
-
-  sendAttackUse('light_flight', player.x, player.y, dx * 220, dy * 220);
+  if (player.flying) return;
+  if (player.stamina < 5) { showToast('Мало стамины!'); return; }
+  player.flying = true;
   showToast('✨ ИСКРА СВЕТА!');
+}
+
+function stopLightFlight() {
+  if (!player.flying) return;
+  player.flying = false;
 }
 
 // ==================== ЗАПУСК СПОСОБНОСТИ ====================
@@ -1431,7 +1434,7 @@ function startAbility(powerName, abilityId) {
     return;
   }
   if (ab.usesWaterMeter) { activateWaterTransform(); return; }
-  if (abilityId === 'light_flight') { activateLightFlight(); return; }
+  if (abilityId === 'light_flight') { startLightFlight(); return; }
   if (ab.zoneOnly && !isInControlZone(player.x, player.y)) {
     showToast('❌ Только внутри зоны контроля!');
     return;
@@ -1482,13 +1485,12 @@ function activateControlZone() {
   showToast('🌀 ЗОНА КОНТРОЛЯ АКТИВНА! 20 секунд');
 }
 
-// ==================== КОНТРОЛЬ: ЛАЗЕРЫ (ФИКС: прокачка фрукта) ====================
+// ==================== КОНТРОЛЬ: ЛАЗЕРЫ ====================
 function activateControlLasers() {
   if (player.cooldowns['control_lasers'] > 0) return;
   if (player.stamina < 40) { showToast('Мало стамины!'); return; }
   player.cooldowns['control_lasers'] = 10;
   player.stamina = Math.max(0, player.stamina - 40);
-  // ФИКС: применяем множитель прокачки фрукта
   let fruitMult = getFruitDamageMultiplier();
   if (isInWaterForm()) fruitMult *= 1.2;
   const dmgFinal = CONTROL_LASER_DAMAGE * fruitMult;
@@ -1507,14 +1509,13 @@ function activateControlLasers() {
   showToast('⚡ ЛАЗЕРНАЯ ПИЦЦА!');
 }
 
-// ==================== КОНТРОЛЬ: МЕТЕОР (ФИКС) ====================
+// ==================== КОНТРОЛЬ: МЕТЕОР ====================
 function activateControlMeteorAt(tx, ty) {
   if (player.cooldowns['control_meteor'] > 0) return;
   if (player.stamina < 50) { showToast('Мало стамины!'); return; }
   if (!isInControlZone(tx, ty)) { showToast('❌ Целься внутри зоны!'); return; }
   player.cooldowns['control_meteor'] = 12;
   player.stamina = Math.max(0, player.stamina - 50);
-  // ФИКС: применяем множитель прокачки фрукта
   let fruitMult = getFruitDamageMultiplier();
   if (isInWaterForm()) fruitMult *= 1.2;
   const meteorDmg = CONTROL_METEOR_DAMAGE * fruitMult;
@@ -1532,14 +1533,13 @@ function activateControlMeteorAt(tx, ty) {
   showToast('☄️ Метеор контроля!');
 }
 
-// ==================== КОНТРОЛЬ: ЛУЧ (ФИКС) ====================
+// ==================== КОНТРОЛЬ: ЛУЧ ====================
 function activateControlBeamAt(tx, ty) {
   if (player.cooldowns['control_beam'] > 0) return;
   if (player.stamina < 70) { showToast('Мало стамины!'); return; }
   if (!isInControlZone(tx, ty)) { showToast('❌ Целься внутри зоны!'); return; }
   player.cooldowns['control_beam'] = 20;
   player.stamina = Math.max(0, player.stamina - 70);
-  // ФИКС: применяем множитель прокачки фрукта
   let fruitMult = getFruitDamageMultiplier();
   if (isInWaterForm()) fruitMult *= 1.2;
   const beamDmg = CONTROL_BEAM_DAMAGE * fruitMult;
@@ -1704,7 +1704,7 @@ function activateLightSkyAt(tx, ty) {
   const now = performance.now();
   controlBeams.push({
     x: tx, y: ty, radius: 130,
-    activateAt: now + 1500,  // 1.5с зарядки
+    activateAt: now + 1500,
     until: now + 1500 + 2000,
     damage: finalDmg,
     damaged: new Set(), done: false,
@@ -1728,16 +1728,19 @@ function damagePirate(pirate, dmg) {
     pirate.dead = true;
     pirate.deathTimer = 40;
     pirate.respawnAt = performance.now() + PIRATE_RESPAWN_TIME;
+    // РАЗДЕЛЕНИЕ XP:
+    // +25 XP (для УРОВНЯ)
+    // +70 mastery XP (для МАСТЕРСТВА)
+    pendingXp.push(PIRATE_LEVEL_XP_REWARD);
     const held = getHeldPower();
     if (held) {
       addMasteryXp(held.power, PIRATE_MASTERY_XP_REWARD);
-      showToast(`+${PIRATE_MASTERY_XP_REWARD} mastery XP`);
     }
     waterMeter = Math.min(WATER_METER_MAX, waterMeter + WATER_METER_PER_KILL);
-    pendingXp.push(PIRATE_XP_REWARD);
-    player.money += PIRATE_COIN_REWARD;
+    player.money += 5;
     updateMoneyUi();
-    damageNumbers.push({ x: pirate.x, y: pirate.y - pirate.radius - 20, vy: -1.4, life: 60, maxLife: 60, text: '+' + PIRATE_COIN_REWARD + '💰', color: '#ffd700' });
+    damageNumbers.push({ x: pirate.x, y: pirate.y - pirate.radius - 20, vy: -1.4, life: 60, maxLife: 60, text: '+' + PIRATE_LEVEL_XP_REWARD + ' XP', color: '#aaffaa' });
+    damageNumbers.push({ x: pirate.x, y: pirate.y - pirate.radius - 42, vy: -1.4, life: 60, maxLife: 60, text: '+' + PIRATE_MASTERY_XP_REWARD + ' 🌟', color: '#ffd700' });
     if (quest.active) {
       quest.active.current++;
       if (quest.active.current >= quest.active.target) {
@@ -1745,7 +1748,6 @@ function damagePirate(pirate, dmg) {
         player.money += 200;
         updateMoneyUi();
         showToast('✅ КВЕСТ ВЫПОЛНЕН! +200 💰');
-        damageNumbers.push({ x: player.x, y: player.y - player.radius - 20, vy: -1.4, life: 90, maxLife: 90, text: '+200💰', color: '#ffd700' });
         quest.active = null;
       }
     }
@@ -1765,6 +1767,48 @@ function damageNpc(dmg) {
   damageNumbers.push({ x: npc.x, y: npc.y - npc.radius, vy: -1.6, life: 60, maxLife: 60, text: formatDmg(dmg), color: '#ffdd00' });
 }
 
+// ==================== УРОН ПО БОССУ ====================
+function damageBoss(dmg) {
+  if (!boss.active || boss.dead) return;
+  boss.hp = Math.max(0, boss.hp - dmg);
+  boss.hitFlash = 10;
+  boss.aggro = true;
+  boss.chasing = true;
+  damageNumbers.push({ x: boss.x, y: boss.y - boss.radius, vy: -1.6, life: 60, maxLife: 60, text: formatDmg(dmg), color: '#ff5555' });
+  if (boss.hp <= 0 && !boss.dead) {
+    boss.dead = true;
+    boss.deathTimer = 60;
+    boss.active = false;
+    bossDefeated = true;
+    // НАГРАДА ЗА БОССА:
+    // +500 XP (для УРОВНЯ)
+    // +200 mastery XP (для МАСТЕРСТВА)
+    // +1000 монет
+    pendingXp.push(BOSS_LEVEL_XP_REWARD);
+    const held = getHeldPower();
+    if (held) {
+      addMasteryXp(held.power, BOSS_MASTERY_XP_REWARD);
+    }
+    player.money += BOSS_MONEY_REWARD;
+    updateMoneyUi();
+    // Завершаем квест босса
+    questBoss.active = null;
+    showToast('🏆 БОСС ПОВЕРЖЕН! Награда: +1000💰 +500 XP +200 🌟');
+    damageNumbers.push({ x: boss.x, y: boss.y - boss.radius - 20, vy: -1.4, life: 90, maxLife: 90, text: '+1000💰', color: '#ffd700' });
+    damageNumbers.push({ x: boss.x, y: boss.y - boss.radius - 42, vy: -1.4, life: 90, maxLife: 90, text: '+' + BOSS_LEVEL_XP_REWARD + ' XP', color: '#aaffaa' });
+    damageNumbers.push({ x: boss.x, y: boss.y - boss.radius - 64, vy: -1.4, life: 90, maxLife: 90, text: '+' + BOSS_MASTERY_XP_REWARD + ' 🌟', color: '#ffd700' });
+    // Взрыв эффектов
+    for (let k = 0; k < 120; k++) {
+      const a = Math.random() * Math.PI * 2;
+      const s = 3 + Math.random() * 12;
+      particles.push({ x: boss.x, y: boss.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 2, life: 60 + Math.random() * 40, maxLife: 100, radius: 5 + Math.random() * 8,
+        color: Math.random() < 0.4 ? '#ffdd44' : (Math.random() < 0.7 ? '#ff4444' : '#ffffff') });
+    }
+    particles.push({ isShockwave: true, x: boss.x, y: boss.y, radius: 10, maxRadius: 300, life: 50, maxLife: 50, color: '#ff4444' });
+    saveNow();
+  }
+}
+
 function damagePlayer(dmg) {
   if (performance.now() < player.invulnUntil) return;
   if (isInWaterForm()) dmg = Math.max(1, Math.floor(dmg * 0.8));
@@ -1773,10 +1817,10 @@ function damagePlayer(dmg) {
   player.invulnUntil = performance.now() + 400;
   player.lastDamageTime = performance.now();
   damageNumbers.push({ x: player.x, y: player.y - player.radius, vy: -1.6, life: 60, maxLife: 60, text: '-' + dmg, color: '#ff4444' });
-  if (player.hp <= 0) { showToast('Ты погиб!'); player.hp = getMaxHp(); player.x = 0; player.y = 0; }
+  if (player.hp <= 0) { showToast('Ты погиб!'); player.hp = getMaxHp(); player.x = 0; player.y = 0; player.flying = false; }
 }// ==================== МОРСКОЙ УРОН ====================
 function applySeaDamage() {
-  // ФИКС: пока летит Свет — не получает урон от воды
+  // Пока летит Свет — не тонет
   if (!isOnIsland(player.x, player.y) && !isInWaterForm() && !isFlying()) {
     player.hp = Math.max(0, player.hp - 30);
     player.lastDamageTime = performance.now();
@@ -1786,7 +1830,7 @@ function applySeaDamage() {
       const s = 2 + Math.random() * 4;
       particles.push({ x: player.x, y: player.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 1, life: 30, maxLife: 30, radius: 3, color: '#4fd4ff' });
     }
-    if (player.hp <= 0) { showToast('🌊 Ты утонул!'); player.hp = getMaxHp(); player.x = 0; player.y = 0; }
+    if (player.hp <= 0) { showToast('🌊 Ты утонул!'); player.hp = getMaxHp(); player.x = 0; player.y = 0; player.flying = false; }
   }
 }
 
@@ -1915,30 +1959,55 @@ function handleEatConfirmClick(mx, my) {
   }
 }
 
-// ==================== NPC ДИАЛОГ (КВЕСТ) ====================
+// ==================== NPC ДИАЛОГ (КАПИТАН БАРНС) ====================
 let questDialogOpen = false;
 function openQuestDialog() { questDialogOpen = true; }
 function closeQuestDialog() { questDialogOpen = false; }
 function getQuestDialogButtons() {
-  const pw = 500, ph = 380;
+  const pw = 540, ph = 500;
   const px = (canvas.width - pw) / 2, py = (canvas.height - ph) / 2;
   return {
     panel: { x: px, y: py, w: pw, h: ph },
     close: { x: px + pw - 44, y: py + 15, w: 30, h: 30 },
-    takeQuest: { x: px + 30, y: py + 180, w: pw - 60, h: 60 }
+    // Кнопка 1: обычный квест (пираты)
+    takeQuest: { x: px + 30, y: py + 240, w: pw - 60, h: 60 },
+    // Кнопка 2: босс-квест (доступна с 5 уровня)
+    takeBoss: { x: px + 30, y: py + 320, w: pw - 60, h: 80 }
   };
 }
 function handleQuestDialogClick(mx, my) {
   const b = getQuestDialogButtons();
   if (mx >= b.close.x && mx <= b.close.x + b.close.w && my >= b.close.y && my <= b.close.y + b.close.h) { closeQuestDialog(); return; }
+  // Кнопка обычного квеста
   if (mx >= b.takeQuest.x && mx <= b.takeQuest.x + b.takeQuest.w && my >= b.takeQuest.y && my <= b.takeQuest.y + b.takeQuest.h) {
     if (quest.active) { showToast('Квест уже активен!'); }
     else { quest.active = { type: 'kill', target: 4, current: 0, rewardXp: 100 }; showToast('📜 Квест: убить 4 пирата (+200 💰)'); closeQuestDialog(); }
     return;
   }
+  // Кнопка босс-квеста
+  if (mx >= b.takeBoss.x && mx <= b.takeBoss.x + b.takeBoss.w && my >= b.takeBoss.y && my <= b.takeBoss.y + b.takeBoss.h) {
+    if (stats.level < 5) {
+      showToast('🔒 Нужен 5 уровень для квеста на босса!');
+      return;
+    }
+    if (bossDefeated) {
+      showToast('🏆 Ты уже победил Капитана пиратов!');
+      return;
+    }
+    if (questBoss.active) {
+      showToast('⚔️ Квест на босса уже активен!');
+      return;
+    }
+    questBoss.active = 'active';
+    spawnBoss();
+    showToast('⚔️ КВЕСТ БОССА АКТИВЕН! Найди Капитана пиратов');
+    closeQuestDialog();
+    saveNow();
+    return;
+  }
 }
 
-// ==================== NPC ДИАЛОГ (ПРОКРУТКА) ====================
+// ==================== NPC ДИАЛОГ (NEXVERTIX) ====================
 let rollDialogOpen = false;
 function openRollDialog() { rollDialogOpen = true; }
 function closeRollDialog() { rollDialogOpen = false; }
@@ -1981,13 +2050,11 @@ function tryRollFruit() {
   updateMoneyUi();
   const roll = Math.random() * 100;
   let rarity, fruitData;
-  // Обновлённые шансы: добавили Свет как легендарный
   if (roll < 48) { rarity = 'common'; fruitData = { name: 'Огонь', color: '#ff6600' }; }
   else if (roll < 70) { rarity = 'uncommon'; fruitData = { name: 'Лёд', color: '#00c8ff' }; }
   else if (roll < 88) { rarity = 'rare'; fruitData = null; }
   else if (roll < 96) {
     rarity = 'legendary';
-    // Легендарный — 50/50 Акула или Свет
     if (Math.random() < 0.5) fruitData = { name: 'Акула', color: '#1a4f8c' };
     else fruitData = { name: 'Свет', color: '#fff6b0' };
   }
@@ -2210,7 +2277,6 @@ function executeBagMenuAction(action) {
   bagContextMenu = null;
 }
 
-// Большая кнопка "🎒 Инвентарь"
 function getInvButtonRect() {
   const w = 140, h = 50, m = 15;
   return { x: canvas.width - w - m, y: canvas.height - h - m, w: w, h: h };
@@ -2280,8 +2346,25 @@ window.addEventListener('keydown', (e) => {
   if (code === 'KeyC' || k === 'c' || k === 'с') { tc('C'); return; }
   if (code === 'KeyR' || k === 'r' || k === 'к') { tc('R'); return; }
   if (code === 'KeyV' || k === 'v' || k === 'м') { tc('V'); return; }
-  // НОВОЕ: F — полёт Света (и другие способности с ключом F, если появятся)
-  if (code === 'KeyF' || k === 'f' || k === 'а') { tc('F'); return; }
+  // НОВОЕ: F — ПОЛЁТ. Работает как HOLD (зажать).
+  if (code === 'KeyF' || k === 'f' || k === 'а') {
+    if (e.repeat) return; // игнорируем автоповтор
+    player.flightKeyDown = true;
+    // Пробуем стартовать полёт
+    if (!bagOpen && !contextMenu && !aimingAbility && !statsOpen && !questDialogOpen && !rollDialogOpen) {
+      const held = getHeldPower();
+      if (held && held.power.name === 'Свет') {
+        const ab = held.abilities.find(a => a.id === 'light_flight');
+        if (ab) {
+          const myLevel = held.power.masteryLevel || 0;
+          if (myLevel >= ab.requiredMasteryLevel) {
+            startLightFlight();
+          }
+        }
+      }
+    }
+    return;
+  }
   if (e.key === 'Escape') {
     if (bagContextMenu) { bagContextMenu = null; return; }
     if (rollDialogOpen) { closeRollDialog(); return; }
@@ -2311,7 +2394,13 @@ window.addEventListener('keydown', (e) => {
   }
 });
 window.addEventListener('keyup', (e) => {
-  keys[e.key.toLowerCase()] = false;
+  const k = e.key.toLowerCase(), code = e.code;
+  keys[k] = false;
+  // НОВОЕ: F отпустили — стопаем полёт
+  if (code === 'KeyF' || k === 'f' || k === 'а') {
+    player.flightKeyDown = false;
+    stopLightFlight();
+  }
 });// ==================== ОБНОВЛЕНИЕ ====================
 function update() {
   if (!currentUser) return;
@@ -2332,9 +2421,9 @@ function update() {
   if (remoteSlashes.length > 30) remoteSlashes.splice(0, remoteSlashes.length - 30);
   if (controlSlashes.length > 20) controlSlashes.splice(0, controlSlashes.length - 20);
   if (lightBeams.length > 12) lightBeams.splice(0, lightBeams.length - 12);
-  if (lightFlightTrails.length > 200) lightFlightTrails.splice(0, lightFlightTrails.length - 200);
+  if (lightFlightTrails.length > 300) lightFlightTrails.splice(0, lightFlightTrails.length - 300);
   if (remoteLightBeams.length > 20) remoteLightBeams.splice(0, remoteLightBeams.length - 20);
-  if (remoteLightTrails.length > 80) remoteLightTrails.splice(0, remoteLightTrails.length - 80);
+  if (remoteLightTrails.length > 120) remoteLightTrails.splice(0, remoteLightTrails.length - 120);
 
   let g = 0;
   while (pendingXp.length > 0 && g < 50) { g++; addXp(pendingXp.shift()); }
@@ -2357,7 +2446,62 @@ function update() {
 
   if (now > player.seaDamageTimer && !blocked) { player.seaDamageTimer = now + 1000; applySeaDamage(); }
 
-  if (!blocked && !aimingAbility) {
+  // ============ ПОЛЁТ СВЕТА (HOLD F) ============
+  // Пока player.flying === true — игрок летит ×7 скорости.
+  // Летит в направлении lookX/lookY (WASD меняет направление на ходу).
+  // Каждый тик тратит стамину. Если стамина кончилась или F отпустили — стоп.
+  if (player.flying) {
+    // Проверяем условия для продолжения полёта
+    const held = getHeldPower();
+    const lightOk = held && held.power.name === 'Свет';
+    const levelOk = lightOk && (held.power.masteryLevel || 0) >= 3;
+    if (!lightOk || !levelOk || !player.flightKeyDown) {
+      // Фрукт сменился или F отпустили
+      player.flying = false;
+    } else if (player.stamina <= 0) {
+      player.flying = false;
+      showToast('⚡ Стамина кончилась — приземление');
+    } else if (blocked) {
+      // Открыли меню — стоп
+      player.flying = false;
+    } else {
+      // Летим!
+      let dx = player.lookX, dy = player.lookY;
+      if (dx === 0 && dy === 0) { dx = 1; dy = 0; }
+      const dl = Math.hypot(dx, dy) || 1;
+      dx /= dl; dy /= dl;
+      player.flightDir = { x: dx, y: dy };
+      const flySpeed = spd * LIGHT_FLIGHT_SPEED_MULT;
+      tryMoveWithZone(player, dx * flySpeed, dy * flySpeed);
+
+      // Тратим стамину (в тиках 60/сек)
+      player.stamina = Math.max(0, player.stamina - LIGHT_FLIGHT_STAMINA_DRAIN / 60);
+
+      // Постоянно оставляем полосу за собой
+      lightFlightTrails.push({
+        x: player.x + (Math.random() - 0.5) * 20,
+        y: player.y + (Math.random() - 0.5) * 20,
+        life: LIGHT_FLIGHT_TRAIL_LIFE, maxLife: LIGHT_FLIGHT_TRAIL_LIFE,
+        radius: 18 + Math.random() * 6
+      });
+      // Искры
+      if (Math.random() < 0.5) {
+        const a = Math.random() * Math.PI * 2;
+        const s = 2 + Math.random() * 4;
+        particles.push({
+          x: player.x + (Math.random() - 0.5) * 30,
+          y: player.y + (Math.random() - 0.5) * 30,
+          vx: Math.cos(a) * s, vy: Math.sin(a) * s - 1,
+          life: 25 + Math.random() * 15, maxLife: 40,
+          radius: 3 + Math.random() * 4,
+          color: Math.random() < 0.5 ? '#fff6b0' : '#ffffff'
+        });
+      }
+    }
+  }
+
+  // Обычное движение (если не летим)
+  if (!blocked && !aimingAbility && !player.flying) {
     let dx = 0, dy = 0;
     if (keys['w'] || keys['arrowup'] || keys['ц']) dy -= 1;
     if (keys['s'] || keys['arrowdown'] || keys['ы']) dy += 1;
@@ -2367,7 +2511,7 @@ function update() {
     tryMoveWithZone(player, dx * spd, dy * spd);
     if (dx || dy) { player.lookX = dx; player.lookY = dy; }
     player.stamina = Math.min(getMaxStamina(), player.stamina + STAMINA_REGEN_PER_TICK);
-  } else {
+  } else if (!player.flying) {
     player.stamina = Math.min(getMaxStamina(), player.stamina + STAMINA_REGEN_PER_TICK);
   }
 
@@ -2378,7 +2522,7 @@ function update() {
   }
   if (player.hp > mh) player.hp = mh;
 
-  // ============ ПОДБОР СБРОШЕННЫХ ЧУЖИХ ФРУКТОВ ============
+  // ============ ПОДБОР СБРОШЕННЫХ ФРУКТОВ ============
   if (!blocked && !aimingAbility) {
     for (const [id, f] of sharedDroppedFruits.entries()) {
       if (Math.hypot(player.x - f.x, player.y - f.y) < player.radius + f.radius + 6) {
@@ -2409,7 +2553,6 @@ function update() {
   if (player.punchAnim > 0) player.punchAnim = Math.max(0, player.punchAnim - 0.08);
   if (player.controlLmbCooldown > 0) player.controlLmbCooldown -= 1/60;
 
-  // Спец-кулдаун зоны Контроля: 5с от момента закрытия
   if (controlZone && now >= controlZone.until) {
     for (let i = 0; i < 40; i++) {
       const a = (i / 40) * Math.PI * 2;
@@ -2433,36 +2576,6 @@ function update() {
     remoteSlashes[i].life--;
     if (remoteSlashes[i].life <= 0) remoteSlashes.splice(i, 1);
   }
-
-  // НОВОЕ: обновление локальных световых лучей (Z Свет)
-  for (let i = lightBeams.length - 1; i >= 0; i--) {
-    const LB = lightBeams[i];
-    if (now > LB.until) { lightBeams.splice(i, 1); continue; }
-    if (!LB.hit.has('__checked__')) {
-      const enemies = [];
-      for (const pir of pirates) if (!pir.dead) enemies.push({ ref: pir, x: pir.x, y: pir.y, r: pir.radius, type: 'pirate' });
-      enemies.push({ ref: npc, x: npc.x, y: npc.y, r: npc.radius, type: 'npc' });
-      for (const rp of remotePlayers.values()) enemies.push({ ref: rp, x: rp.x, y: rp.y, r: player.radius, type: 'remote', u: rp.u });
-      for (const en of enemies) {
-        if (LB.hit.has(en.type === 'remote' ? en.u : en.ref)) continue;
-        const dx = en.x - LB.x, dy = en.y - LB.y;
-        const proj = dx * Math.cos(LB.angle) + dy * Math.sin(LB.angle);
-        if (proj < 0 || proj > LB.length) continue;
-        const perpX = LB.x + Math.cos(LB.angle) * proj;
-        const perpY = LB.y + Math.sin(LB.angle) * proj;
-        const perpDist = Math.hypot(en.x - perpX, en.y - perpY);
-        if (perpDist <= en.r + 12) {
-          if (en.type === 'pirate') damagePirate(en.ref, LB.damage);
-          else if (en.type === 'npc') damageNpc(LB.damage);
-          else if (en.type === 'remote') sendHit(en.u, LB.damage, 'ranged');
-          LB.hit.add(en.type === 'remote' ? en.u : en.ref);
-        }
-      }
-      LB.hit.add('__checked__');
-    }
-  }
-
-  // НОВОЕ: обновление полос от полёта
   for (let i = lightFlightTrails.length - 1; i >= 0; i--) {
     lightFlightTrails[i].life--;
     if (lightFlightTrails[i].life <= 0) lightFlightTrails.splice(i, 1);
@@ -2474,6 +2587,36 @@ function update() {
   for (let i = remoteLightBeams.length - 1; i >= 0; i--) {
     remoteLightBeams[i].life--;
     if (remoteLightBeams[i].life <= 0) remoteLightBeams.splice(i, 1);
+  }
+
+  // Локальные световые лучи
+  for (let i = lightBeams.length - 1; i >= 0; i--) {
+    const LB = lightBeams[i];
+    if (now > LB.until) { lightBeams.splice(i, 1); continue; }
+    if (!LB.hit.has('__checked__')) {
+      const enemies = [];
+      for (const pir of pirates) if (!pir.dead) enemies.push({ ref: pir, x: pir.x, y: pir.y, r: pir.radius, type: 'pirate' });
+      enemies.push({ ref: npc, x: npc.x, y: npc.y, r: npc.radius, type: 'npc' });
+      for (const rp of remotePlayers.values()) enemies.push({ ref: rp, x: rp.x, y: rp.y, r: player.radius, type: 'remote', u: rp.u });
+      if (boss.active && !boss.dead) enemies.push({ ref: boss, x: boss.x, y: boss.y, r: boss.radius, type: 'boss' });
+      for (const en of enemies) {
+        if (LB.hit.has(en.type === 'remote' ? en.u : en.ref)) continue;
+        const dx = en.x - LB.x, dy = en.y - LB.y;
+        const proj = dx * Math.cos(LB.angle) + dy * Math.sin(LB.angle);
+        if (proj < 0 || proj > LB.length) continue;
+        const perpX = LB.x + Math.cos(LB.angle) * proj;
+        const perpY = LB.y + Math.sin(LB.angle) * proj;
+        const perpDist = Math.hypot(en.x - perpX, en.y - perpY);
+        if (perpDist <= en.r + 12) {
+          if (en.type === 'pirate') damagePirate(en.ref, LB.damage);
+          else if (en.type === 'npc') damageNpc(LB.damage);
+          else if (en.type === 'boss') damageBoss(LB.damage);
+          else if (en.type === 'remote') sendHit(en.u, LB.damage, 'ranged');
+          LB.hit.add(en.type === 'remote' ? en.u : en.ref);
+        }
+      }
+      LB.hit.add('__checked__');
+    }
   }
 
   // Чужие атаки
@@ -2539,6 +2682,14 @@ function update() {
       else if (p.kind === 'light_spear') { hit = true; spawnLightImpact(p.x, p.y); }
       else { hit = true; spawnImpactEffect(p.x, p.y); }
     }
+    if (!hit && boss.active && !boss.dead) {
+      if (Math.hypot(p.x - boss.x, p.y - boss.y) < p.radius + boss.radius && !p.pierced.has('boss')) {
+        damageBoss(p.damage);
+        if (p.kind === 'ice_spear') { boss.slowUntil = now + 1500; hit = true; spawnImpactEffect(p.x, p.y); }
+        else if (p.kind === 'light_spear') { hit = true; spawnLightImpact(p.x, p.y); }
+        else { hit = true; spawnImpactEffect(p.x, p.y); }
+      }
+    }
     if (!hit) {
       for (const pir of pirates) {
         if (pir.dead || p.pierced.has(pir)) continue;
@@ -2574,6 +2725,9 @@ function update() {
     if (Math.random() < 0.6) particles.push({ x: s.x + (Math.random() - 0.5) * 25, y: s.y + (Math.random() - 0.5) * 25, vx: (Math.random() - 0.5) * 2.5, vy: (Math.random() - 0.5) * 2.5 - 1, life: 25 + Math.random() * 15, maxLife: 40, radius: 3 + Math.random() * 4, color: Math.random() < 0.3 ? '#ffffff' : (Math.random() < 0.7 ? '#aaffff' : '#1a4f8c') });
     let hit = false;
     if (!s.pierced.has('npc') && Math.hypot(s.x - npc.x, s.y - npc.y) < s.radius + npc.radius) { damageNpc(s.damage); s.pierced.add('npc'); hit = true; spawnSharkImpact(s.x, s.y); }
+    if (!hit && boss.active && !boss.dead && !s.pierced.has('boss') && Math.hypot(s.x - boss.x, s.y - boss.y) < s.radius + boss.radius) {
+      damageBoss(s.damage); s.pierced.add('boss'); hit = true; spawnSharkImpact(s.x, s.y);
+    }
     if (!hit) {
       for (const pir of pirates) {
         if (pir.dead || s.pierced.has(pir)) continue;
@@ -2608,6 +2762,9 @@ function update() {
     const t = Math.min(1, (w.maxLife - w.life) / 30);
     w.radius = w.maxRadius * t;
     for (const pir of pirates) { if (pir.dead || w.damagedOnce.has(pir)) continue; if (Math.hypot(pir.x - w.x, pir.y - w.y) < w.radius) { damagePirate(pir, w.damage); w.damagedOnce.add(pir); } }
+    if (boss.active && !boss.dead && !w.damagedOnce.has('boss') && Math.hypot(boss.x - w.x, boss.y - w.y) < w.radius) {
+      damageBoss(w.damage); w.damagedOnce.add('boss');
+    }
     if (!w.damagedOnce.has('npc') && Math.hypot(npc.x - w.x, npc.y - w.y) < w.radius) { damageNpc(w.damage); w.damagedOnce.add('npc'); }
     for (const rp of remotePlayers.values()) {
       if (w.damagedOnce.has(rp.u)) continue;
@@ -2647,6 +2804,7 @@ function update() {
       for (const pir of pirates) if (!pir.dead) enemies.push({ ref: pir, x: pir.x, y: pir.y, r: pir.radius, type: 'pirate' });
       enemies.push({ ref: npc, x: npc.x, y: npc.y, r: npc.radius, type: 'npc' });
       for (const rp of remotePlayers.values()) enemies.push({ ref: rp, x: rp.x, y: rp.y, r: player.radius, type: 'remote', u: rp.u });
+      if (boss.active && !boss.dead) enemies.push({ ref: boss, x: boss.x, y: boss.y, r: boss.radius, type: 'boss' });
       for (const en of enemies) {
         if (L.hit.has(en.type === 'remote' ? en.u : en.ref)) continue;
         const dx = en.x - L.x, dy = en.y - L.y;
@@ -2658,6 +2816,7 @@ function update() {
         if (perpDist <= en.r + 8) {
           if (en.type === 'pirate') damagePirate(en.ref, L.damage);
           else if (en.type === 'npc') damageNpc(L.damage);
+          else if (en.type === 'boss') damageBoss(L.damage);
           else if (en.type === 'remote') sendHit(en.u, L.damage, 'ranged');
           L.hit.add(en.type === 'remote' ? en.u : en.ref);
         }
@@ -2690,6 +2849,11 @@ function update() {
         if (d < m.radius) damagePirate(pir, m.damage);
         else if (isInControlZone(pir.x, pir.y)) damagePirate(pir, CONTROL_METEOR_ZONE_DAMAGE);
       }
+      if (boss.active && !boss.dead) {
+        const d = Math.hypot(boss.x - m.targetX, boss.y - m.targetY);
+        if (d < m.radius) damageBoss(m.damage);
+        else if (isInControlZone(boss.x, boss.y)) damageBoss(CONTROL_METEOR_ZONE_DAMAGE);
+      }
       const npcDist = Math.hypot(npc.x - m.targetX, npc.y - m.targetY);
       if (npcDist < m.radius) damageNpc(m.damage);
       for (const rp of remotePlayers.values()) {
@@ -2707,13 +2871,14 @@ function update() {
     if (m.impactDone && m.progress > m.duration + 40) controlMeteors.splice(i, 1);
   }
 
-  // Контроль: лучи (V) и Луч с небес (Свет C) — оба в controlBeams
+  // Контроль: лучи и Луч с небес
   for (let i = controlBeams.length - 1; i >= 0; i--) {
     const B = controlBeams[i];
     if (now > B.until) { controlBeams.splice(i, 1); continue; }
     if (now >= B.activateAt && !B.done) {
       B.done = true;
       for (const pir of pirates) { if (pir.dead) continue; if (Math.hypot(pir.x - B.x, pir.y - B.y) < B.radius) damagePirate(pir, B.damage); }
+      if (boss.active && !boss.dead && Math.hypot(boss.x - B.x, boss.y - B.y) < B.radius) damageBoss(B.damage);
       if (Math.hypot(npc.x - B.x, npc.y - B.y) < B.radius) damageNpc(B.damage);
       for (const rp of remotePlayers.values()) { if (Math.hypot(rp.x - B.x, rp.y - B.y) < B.radius) sendHit(rp.u, B.damage, 'ranged'); }
       const particleColor1 = B.lightBeam ? '#ffffff' : '#7c5cff';
@@ -2736,6 +2901,10 @@ function update() {
     if (!z.applied && t >= 1) {
       z.applied = true;
       for (const pir of pirates) { if (pir.dead) continue; if (Math.hypot(pir.x - z.x, pir.y - z.y) < z.maxRadius) { damagePirate(pir, z.damage); if (!pir.dead) pir.frozenUntil = performance.now() + z.freezeDuration; } }
+      if (boss.active && !boss.dead && Math.hypot(boss.x - z.x, boss.y - z.y) < z.maxRadius) {
+        damageBoss(z.damage);
+        if (!boss.dead) boss.frozenUntil = performance.now() + z.freezeDuration;
+      }
       if (Math.hypot(npc.x - z.x, npc.y - z.y) < z.maxRadius) damageNpc(z.damage);
       for (const rp of remotePlayers.values()) {
         if (Math.hypot(rp.x - z.x, rp.y - z.y) < z.maxRadius) sendHit(rp.u, z.damage, 'ranged');
@@ -2762,6 +2931,7 @@ function update() {
           damagePirate(pir, m.damage);
         }
       }
+      if (boss.active && !boss.dead && Math.hypot(boss.x - m.targetX, boss.y - m.targetY) < m.radius) damageBoss(m.damage);
       if (Math.hypot(npc.x - m.targetX, npc.y - m.targetY) < m.radius) damageNpc(m.damage);
       for (const rp of remotePlayers.values()) { if (Math.hypot(rp.x - m.targetX, rp.y - m.targetY) < m.radius) sendHit(rp.u, m.damage, 'ranged'); }
       for (let k = 0; k < 40; k++) { const a = Math.random() * Math.PI * 2; const s = 3 + Math.random() * 8; particles.push({ x: m.targetX, y: m.targetY, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 40, maxLife: 70, radius: 4 + Math.random() * 6, color: '#aaffff' }); }
@@ -2794,6 +2964,40 @@ function update() {
     if (dist < pir.radius + player.radius + 8 && now - pir.lastAttackTime > PIRATE_ATTACK_INTERVAL) { pir.lastAttackTime = now; damagePlayer(PIRATE_DAMAGE); }
   }
 
+  // ============ БОСС: КАПИТАН ПИРАТОВ ============
+  if (boss.active && !boss.dead) {
+    if (boss.hitFlash > 0) boss.hitFlash--;
+    if (boss.attackAnim > 0) boss.attackAnim = Math.max(0, boss.attackAnim - 0.08);
+    const frozen = now < boss.frozenUntil, stunned = now < boss.stunUntil, slowed = now < boss.slowUntil;
+    if (!frozen && !stunned) {
+      const dx = player.x - boss.x, dy = player.y - boss.y, dist = Math.hypot(dx, dy);
+      const spd2 = slowed ? BOSS_SPEED * 0.3 : BOSS_SPEED;
+      if (!boss.aggro && dist < BOSS_AGGRO_RADIUS) boss.aggro = true;
+      if (boss.aggro && !boss.chasing && dist > BOSS_LEASH_RADIUS) boss.aggro = false;
+      if (boss.aggro || boss.chasing) {
+        if (dist > 40) { const nx = dx / dist, ny = dy / dist; tryMove(boss, nx * spd2, ny * spd2); }
+      } else {
+        const hx = boss.homeX - boss.x, hy = boss.homeY - boss.y, hd = Math.hypot(hx, hy);
+        if (hd > 5) { const nx = hx / hd, ny = hy / hd; tryMove(boss, nx * spd2, ny * spd2); }
+      }
+      // Атака кулаком
+      if (dist < boss.radius + player.radius + 30 && now - boss.lastAttackTime > BOSS_ATTACK_INTERVAL) {
+        boss.lastAttackTime = now;
+        boss.attackAnim = 1;
+        damagePlayer(BOSS_DAMAGE);
+        // Визуал удара
+        for (let k = 0; k < 20; k++) {
+          const a = Math.atan2(dy, dx) + (Math.random() - 0.5) * 1.5;
+          const s = 4 + Math.random() * 6;
+          particles.push({ x: player.x, y: player.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 25, maxLife: 25, radius: 4 + Math.random() * 5, color: Math.random() < 0.5 ? '#ff2222' : '#ff8844' });
+        }
+        particles.push({ isShockwave: true, x: player.x, y: player.y, radius: 10, maxRadius: 90, life: 20, maxLife: 20, color: '#ff4444' });
+      }
+    }
+  } else if (boss.dead && boss.deathTimer > 0) {
+    boss.deathTimer--;
+  }
+
   for (let i = particles.length - 1; i >= 0; i--) {
     const pt = particles[i]; pt.life--;
     if (pt.isShockwave) { const t = 1 - pt.life / pt.maxLife; pt.radius = 10 + t * (pt.maxRadius - 10); }
@@ -2810,7 +3014,7 @@ function update() {
   camera.y = player.y - canvas.height / 2;
   if (heldSlot !== -1 && !inventory[heldSlot]) { heldSlot = -1; abilityGuide = null; }
   if (heldSlot === -1 || !inventory[heldSlot] || inventory[heldSlot].type !== 'power') { if (abilityGuide) abilityGuide = null; }
-  if (aimingAbility || isInWaterForm() || isFlying()) canvas.classList.add('crosshair');
+  if (aimingAbility || isInWaterForm() || player.flying) canvas.classList.add('crosshair');
   else canvas.classList.remove('crosshair');
 }
 
@@ -2822,7 +3026,6 @@ function spawnSharkImpact(x, y) {
   for (let k = 0; k < 30; k++) { const a = Math.random() * Math.PI * 2; const s = 4 + Math.random() * 8; particles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 35, maxLife: 60, radius: 4 + Math.random() * 6, color: Math.random() < 0.25 ? '#ffffff' : (Math.random() < 0.6 ? '#aaffff' : '#1a4f8c') }); }
   particles.push({ isShockwave: true, x, y, radius: 10, maxRadius: 90, life: 25, maxLife: 25, color: '#4fd4ff' });
 }
-// НОВОЕ: световой импакт
 function spawnLightImpact(x, y) {
   for (let k = 0; k < 35; k++) { const a = Math.random() * Math.PI * 2; const s = 4 + Math.random() * 9; particles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 30, maxLife: 55, radius: 4 + Math.random() * 6, color: Math.random() < 0.5 ? '#ffffff' : '#fff6b0' }); }
   particles.push({ isShockwave: true, x, y, radius: 10, maxRadius: 120, life: 25, maxLife: 25, color: '#fff6b0' });
@@ -2983,7 +3186,6 @@ function drawRemoteSlashes() {
   }
 }
 
-// НОВОЕ: локальные световые лучи (Z Света)
 function drawLightBeams() {
   for (const LB of lightBeams) {
     const x = LB.x - camera.x, y = LB.y - camera.y;
@@ -2992,28 +3194,24 @@ function drawLightBeams() {
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(LB.angle);
-    // Внешнее сияние
     const gOuter = ctx.createLinearGradient(0, 0, LB.length, 0);
     gOuter.addColorStop(0, `rgba(255, 246, 176, ${alpha * 0.5})`);
     gOuter.addColorStop(0.5, `rgba(255, 246, 176, ${alpha * 0.35})`);
     gOuter.addColorStop(1, `rgba(255, 246, 176, 0)`);
     ctx.fillStyle = gOuter;
     ctx.fillRect(0, -LB.width * 1.6, LB.length, LB.width * 3.2);
-    // Основная полоса
     const g = ctx.createLinearGradient(0, 0, LB.length, 0);
     g.addColorStop(0, `rgba(255, 255, 255, ${alpha * 0.95})`);
     g.addColorStop(0.4, `rgba(255, 246, 176, ${alpha * 0.9})`);
     g.addColorStop(1, `rgba(255, 246, 176, 0)`);
     ctx.fillStyle = g;
     ctx.fillRect(0, -LB.width / 2, LB.length, LB.width);
-    // Белый центр
     ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
     ctx.fillRect(0, -2, LB.length, 4);
     ctx.restore();
   }
 }
 
-// НОВОЕ: чужие световые лучи
 function drawRemoteLightBeams() {
   for (const LB of remoteLightBeams) {
     const alpha = LB.life / LB.maxLife;
@@ -3039,7 +3237,6 @@ function drawRemoteLightBeams() {
   }
 }
 
-// НОВОЕ: полоса от локального полёта Света
 function drawLightFlightTrails() {
   for (const tr of lightFlightTrails) {
     const a = tr.life / tr.maxLife;
@@ -3052,7 +3249,6 @@ function drawLightFlightTrails() {
   }
 }
 
-// НОВОЕ: полоса от чужого полёта Света
 function drawRemoteLightTrails() {
   for (const tr of remoteLightTrails) {
     const a = tr.life / tr.maxLife;
@@ -3138,16 +3334,16 @@ function drawControlBeams() {
   for (const B of controlBeams) {
     const x = B.x - camera.x, y = B.y - camera.y;
     const isLight = !!B.lightBeam;
-    const color1 = isLight ? '255, 255, 255' : '180, 220, 255';
-    const color2 = isLight ? '255, 246, 176' : '124, 92, 255';
+    const c1 = isLight ? '255, 255, 255' : '180, 220, 255';
+    const c2 = isLight ? '255, 246, 176' : '124, 92, 255';
     if (now < B.activateAt) {
       const charge = (now - (B.activateAt - 1500)) / 1500;
       ctx.beginPath();
       ctx.arc(x, y, B.radius * (0.5 + charge * 0.5), 0, Math.PI * 2);
-      ctx.strokeStyle = `rgba(${color1}, ${0.6 + Math.sin(now * 0.02) * 0.3})`;
+      ctx.strokeStyle = `rgba(${c1}, ${0.6 + Math.sin(now * 0.02) * 0.3})`;
       ctx.lineWidth = 4;
       ctx.stroke();
-      ctx.fillStyle = `rgba(${color2}, ${0.15 + charge * 0.15})`;
+      ctx.fillStyle = `rgba(${c2}, ${0.15 + charge * 0.15})`;
       ctx.fill();
       const secLeft = Math.max(0, (B.activateAt - now) / 1000).toFixed(1);
       ctx.font = 'bold 24px Arial';
@@ -3159,13 +3355,13 @@ function drawControlBeams() {
     } else if (now < B.until) {
       const alpha = Math.max(0, (B.until - now) / (B.until - B.activateAt));
       const g = ctx.createRadialGradient(x, y - 200, 0, x, y, B.radius);
-      g.addColorStop(0, `rgba(${color1}, ${alpha})`);
-      g.addColorStop(0.4, `rgba(${color1}, ${alpha * 0.9})`);
-      g.addColorStop(1, `rgba(${color2}, ${alpha * 0.5})`);
+      g.addColorStop(0, `rgba(${c1}, ${alpha})`);
+      g.addColorStop(0.4, `rgba(${c1}, ${alpha * 0.9})`);
+      g.addColorStop(1, `rgba(${c2}, ${alpha * 0.5})`);
       ctx.fillStyle = g;
       ctx.fillRect(x - B.radius, y - 800, B.radius * 2, 800);
       ctx.beginPath(); ctx.arc(x, y, B.radius, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(${color1}, ${alpha * 0.4})`;
+      ctx.fillStyle = `rgba(${c1}, ${alpha * 0.4})`;
       ctx.fill();
       ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
       ctx.lineWidth = 5; ctx.stroke();
@@ -3234,7 +3430,6 @@ function drawRemoteAttacks() {
       const halo = ctx.createRadialGradient(0, 0, 0, 0, 0, 36);
       halo.addColorStop(0, 'rgba(255,255,255,0.95)'); halo.addColorStop(0.5, 'rgba(255,246,176,0.6)'); halo.addColorStop(1, 'rgba(255,246,176,0)');
       ctx.beginPath(); ctx.arc(0, 0, 36, 0, Math.PI * 2); ctx.fillStyle = halo; ctx.fill();
-      // Лезвие
       ctx.beginPath();
       ctx.moveTo(len, 0);
       ctx.lineTo(len * 0.3, -wid);
@@ -3246,7 +3441,6 @@ function drawRemoteAttacks() {
       kg.addColorStop(0, '#c9a800'); kg.addColorStop(0.5, '#fff6b0'); kg.addColorStop(1, '#ffffff');
       ctx.fillStyle = kg; ctx.fill();
       ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2.5; ctx.stroke();
-      // Сердцевина
       ctx.fillStyle = 'rgba(255,255,255,0.95)';
       ctx.fillRect(-len * 0.5, -1.5, len * 1.3, 3);
       ctx.restore();
@@ -3520,6 +3714,109 @@ function drawPirates() {
     }
     ctx.globalAlpha = 1;
   }
+}
+
+// ==================== БОСС: КАПИТАН ПИРАТОВ (ОТРИСОВКА) ====================
+function drawBoss() {
+  if (!boss.active && !boss.dead) return;
+  if (boss.dead && boss.deathTimer <= 0) return;
+  const x = boss.x - camera.x, y = boss.y - camera.y;
+  const now = performance.now();
+  let al = 1, sc = 1;
+  if (boss.dead) { const t = boss.deathTimer / 60; al = t; sc = 0.5 + t * 0.5; }
+  ctx.globalAlpha = al;
+  // Аура босса (красная)
+  const aura = ctx.createRadialGradient(x, y, boss.radius * 0.7, x, y, boss.radius * 2.4 * sc);
+  aura.addColorStop(0, 'rgba(255, 40, 40, 0.35)');
+  aura.addColorStop(0.5, 'rgba(150, 0, 0, 0.2)');
+  aura.addColorStop(1, 'rgba(80, 0, 0, 0)');
+  ctx.beginPath(); ctx.arc(x, y, boss.radius * 2.4 * sc, 0, Math.PI * 2); ctx.fillStyle = aura; ctx.fill();
+  // Тень
+  ctx.beginPath(); ctx.ellipse(x, y + boss.radius * 0.9 * sc, boss.radius * 0.9 * sc, 12, 0, 0, Math.PI * 2); ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fill();
+  // Тело
+  const isHit = boss.hitFlash > 0, isFrozen = now < boss.frozenUntil, isStunned = now < boss.stunUntil;
+  let bc = isHit ? '#ffffff' : boss.color;
+  if (isFrozen && !isHit) bc = '#66c8ff';
+  else if (isStunned && !isHit) bc = '#999999';
+  const g = ctx.createRadialGradient(x - boss.radius * 0.35, y - boss.radius * 0.35, 3, x, y, boss.radius * sc);
+  g.addColorStop(0, lightenColor(bc, 0.35)); g.addColorStop(1, bc);
+  ctx.beginPath(); ctx.arc(x, y, boss.radius * sc, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
+  ctx.strokeStyle = darkenColor(bc, 0.6); ctx.lineWidth = 4; ctx.stroke();
+  // Шляпа капитана
+  ctx.beginPath();
+  ctx.arc(x, y - boss.radius * 0.3 * sc, boss.radius * 0.95 * sc, Math.PI * 1.05, Math.PI * 1.95);
+  ctx.strokeStyle = '#0a0a0a'; ctx.lineWidth = 9 * sc; ctx.lineCap = 'round'; ctx.stroke();
+  // Корона поверх шляпы
+  const crownY = y - boss.radius * 1.15 * sc;
+  const crownW = boss.radius * 1.4 * sc;
+  const crownH = boss.radius * 0.5 * sc;
+  ctx.beginPath();
+  ctx.moveTo(x - crownW / 2, crownY + crownH);
+  ctx.lineTo(x - crownW / 2, crownY);
+  ctx.lineTo(x - crownW * 0.25, crownY + crownH * 0.5);
+  ctx.lineTo(x, crownY - crownH * 0.25);
+  ctx.lineTo(x + crownW * 0.25, crownY + crownH * 0.5);
+  ctx.lineTo(x + crownW / 2, crownY);
+  ctx.lineTo(x + crownW / 2, crownY + crownH);
+  ctx.closePath();
+  const cg = ctx.createLinearGradient(x, crownY, x, crownY + crownH);
+  cg.addColorStop(0, '#ffe680'); cg.addColorStop(0.5, '#ffbb00'); cg.addColorStop(1, '#c98800');
+  ctx.fillStyle = cg; ctx.fill();
+  ctx.strokeStyle = '#7a4f00'; ctx.lineWidth = 2; ctx.stroke();
+  // Драгоценные камни на короне
+  ctx.beginPath(); ctx.arc(x - crownW * 0.25, crownY + crownH * 0.55, 3, 0, Math.PI * 2); ctx.fillStyle = '#ff2244'; ctx.fill();
+  ctx.beginPath(); ctx.arc(x, crownY + crownH * 0.45, 3.5, 0, Math.PI * 2); ctx.fillStyle = '#22ff44'; ctx.fill();
+  ctx.beginPath(); ctx.arc(x + crownW * 0.25, crownY + crownH * 0.55, 3, 0, Math.PI * 2); ctx.fillStyle = '#2244ff'; ctx.fill();
+  // Глаза
+  const eo = boss.radius * 0.35 * sc, er = boss.radius * 0.15 * sc;
+  ctx.fillStyle = 'white';
+  ctx.beginPath(); ctx.arc(x - eo, y - boss.radius * 0.05, er, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x + eo, y - boss.radius * 0.05, er, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#8a0000';
+  ctx.beginPath(); ctx.arc(x - eo + 1, y - boss.radius * 0.05, er * 0.55, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x + eo + 1, y - boss.radius * 0.05, er * 0.55, 0, Math.PI * 2); ctx.fill();
+  // Кулак (анимация атаки)
+  if (boss.attackAnim > 0.1) {
+    const pd = Math.atan2(player.y - boss.y, player.x - boss.x);
+    const px = x + Math.cos(pd) * (boss.radius + 15 + boss.attackAnim * 40);
+    const py = y + Math.sin(pd) * (boss.radius + 15 + boss.attackAnim * 40);
+    ctx.beginPath(); ctx.arc(px, py, 22 + boss.attackAnim * 10, 0, Math.PI * 2);
+    const pg = ctx.createRadialGradient(px - 4, py - 4, 3, px, py, 22); pg.addColorStop(0, '#ff8844'); pg.addColorStop(1, '#8a0000');
+    ctx.fillStyle = pg; ctx.fill(); ctx.strokeStyle = '#3a0000'; ctx.lineWidth = 3; ctx.stroke();
+  }
+  // Значок "БОСС" над головой
+  if (!boss.dead) {
+    const bob = Math.sin(now * 0.005) * 5;
+    ctx.font = 'bold 20px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
+    ctx.strokeText('💀 БОСС', x, y - boss.radius * 1.7 * sc + bob);
+    ctx.fillStyle = '#ff2222';
+    ctx.fillText('💀 БОСС', x, y - boss.radius * 1.7 * sc + bob);
+  }
+  // HP-бар
+  if (!boss.dead) {
+    const hw = 200, hh = 22, hx = x - hw / 2, hy = y - boss.radius * 1.4 * sc;
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.85)'; roundRect(hx - 4, hy - 4, hw + 8, hh + 8, 6); ctx.fill();
+    ctx.fillStyle = '#3a0000'; roundRect(hx, hy, hw, hh, 4); ctx.fill();
+    const hr = boss.hp / boss.maxHp;
+    if (hr > 0) {
+      const hg = ctx.createLinearGradient(hx, hy, hx, hy + hh);
+      hg.addColorStop(0, '#ff5555'); hg.addColorStop(1, '#8a0000');
+      ctx.fillStyle = hg; roundRect(hx, hy, hw * hr, hh, 4); ctx.fill();
+    }
+    ctx.strokeStyle = '#ffe680'; ctx.lineWidth = 2; roundRect(hx, hy, hw, hh, 4); ctx.stroke();
+    ctx.fillStyle = 'white'; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
+    const txt = `${Math.round(boss.hp)} / ${boss.maxHp}`;
+    ctx.strokeText(txt, x, hy + hh / 2); ctx.fillText(txt, x, hy + hh / 2);
+  }
+  // Имя босса
+  ctx.font = 'bold 16px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
+  ctx.strokeText('⚔️ Капитан пиратов', x, y - boss.radius * 1.85 * sc);
+  ctx.fillStyle = '#ffdd44';
+  ctx.fillText('⚔️ Капитан пиратов', x, y - boss.radius * 1.85 * sc);
+  ctx.globalAlpha = 1;
 }
 
 function drawRemotePlayers() {
@@ -3813,25 +4110,23 @@ function drawDamageNumbers() {
 function drawPlayer() {
   const x = player.x - camera.x, y = player.y - camera.y;
   const inWater = isInWaterForm();
-  const flying = isFlying();
+  const flying = player.flying;
   const t = performance.now() * 0.005;
   if (flying) {
-    // Эффект искры света вокруг игрока
-    const flyAlpha = Math.min(1, (player.flightUntil - performance.now()) / 400);
-    const fr = player.radius + 18 + Math.sin(t * 6) * 4;
-    const fg = ctx.createRadialGradient(x, y, player.radius * 0.4, x, y, fr * 1.6);
-    fg.addColorStop(0, `rgba(255, 255, 255, ${flyAlpha * 0.9})`);
-    fg.addColorStop(0.4, `rgba(255, 246, 176, ${flyAlpha * 0.6})`);
+    const fr = player.radius + 22 + Math.sin(t * 8) * 5;
+    const fg = ctx.createRadialGradient(x, y, player.radius * 0.4, x, y, fr * 1.8);
+    fg.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
+    fg.addColorStop(0.4, 'rgba(255, 246, 176, 0.7)');
     fg.addColorStop(1, 'rgba(255, 246, 176, 0)');
-    ctx.beginPath(); ctx.arc(x, y, fr * 1.6, 0, Math.PI * 2); ctx.fillStyle = fg; ctx.fill();
-    for (let i = 0; i < 10; i++) {
-      const a = t * 3 + i * (Math.PI / 5);
-      const r = player.radius + 8 + Math.sin(t * 5 + i) * 8;
+    ctx.beginPath(); ctx.arc(x, y, fr * 1.8, 0, Math.PI * 2); ctx.fillStyle = fg; ctx.fill();
+    for (let i = 0; i < 14; i++) {
+      const a = t * 4 + i * (Math.PI / 7);
+      const r = player.radius + 6 + Math.sin(t * 6 + i) * 10;
       const px = x + Math.cos(a) * r, py = y + Math.sin(a) * r;
-      const spark = ctx.createRadialGradient(px, py, 0, px, py, 6);
-      spark.addColorStop(0, `rgba(255, 255, 255, ${flyAlpha})`);
+      const spark = ctx.createRadialGradient(px, py, 0, px, py, 7);
+      spark.addColorStop(0, 'rgba(255, 255, 255, 1)');
       spark.addColorStop(1, 'rgba(255, 246, 176, 0)');
-      ctx.beginPath(); ctx.arc(px, py, 6, 0, Math.PI * 2); ctx.fillStyle = spark; ctx.fill();
+      ctx.beginPath(); ctx.arc(px, py, 7, 0, Math.PI * 2); ctx.fillStyle = spark; ctx.fill();
     }
   }
   if (!isOnIsland(player.x, player.y) && !inWater && !flying) {
@@ -3888,11 +4183,6 @@ function drawPlayer() {
     const rem = (player.waterFormUntil - performance.now()) / TRANSFORM_DURATION;
     ctx.beginPath(); ctx.arc(x, y, player.radius + 35, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * rem);
     ctx.strokeStyle = 'rgba(150,230,255,0.85)'; ctx.lineWidth = 3; ctx.stroke();
-  }
-  if (flying) {
-    const rem = (player.flightUntil - performance.now()) / LIGHT_FLIGHT_DURATION_MS;
-    ctx.beginPath(); ctx.arc(x, y, player.radius + 35, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.max(0, rem));
-    ctx.strokeStyle = 'rgba(255, 246, 176, 0.9)'; ctx.lineWidth = 3; ctx.stroke();
   }
 }
 
@@ -3954,13 +4244,11 @@ function drawPowerIcon(cx, cy, radius, name) {
     const bg = ctx.createRadialGradient(cx, cy, 1, cx, cy, radius * 1.2); bg.addColorStop(0, '#2a2000'); bg.addColorStop(1, '#100a00');
     ctx.beginPath(); ctx.arc(cx, cy, radius * 1.1, 0, Math.PI * 2); ctx.fillStyle = bg; ctx.fill(); ctx.strokeStyle = '#fff6b0'; ctx.lineWidth = 2.5; ctx.stroke();
     const t = performance.now() * 0.003;
-    // Сияющее ядро
     const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius * 1.1);
     core.addColorStop(0, 'rgba(255, 255, 255, 1)');
     core.addColorStop(0.4, 'rgba(255, 246, 176, 0.95)');
     core.addColorStop(1, 'rgba(255, 220, 80, 0)');
     ctx.beginPath(); ctx.arc(cx, cy, radius * 1.1, 0, Math.PI * 2); ctx.fillStyle = core; ctx.fill();
-    // Лучики
     ctx.save(); ctx.translate(cx, cy); ctx.rotate(t * 0.5);
     for (let i = 0; i < 8; i++) {
       ctx.rotate(Math.PI / 4);
@@ -3988,7 +4276,6 @@ function drawFruitIcon(cx, cy, radius, color) {
   ctx.stroke();
 }
 
-// ==================== РЕДКОСТЬ: ФОН ЯЧЕЙКИ ====================
 function getRarityBgColor(name) {
   const rar = getFruitRarity(name);
   if (rar === 'mythic')    return 'rgba(200, 40, 40, 0.40)';
@@ -4111,6 +4398,10 @@ function drawAbilityGuide() {
       if (inZone) { statusText = '🌀 В зоне ✓'; statusColor = '#88ff88'; }
       else { statusText = '❌ Не в зоне'; statusColor = '#ff5555'; }
     }
+    if (ab.holdKey) {
+      statusText = '✋ Зажми клавишу';
+      statusColor = '#ffe066';
+    }
     ctx.fillStyle = statusColor; ctx.font = 'bold 10px Arial';
     ctx.fillText(statusText, ix + ir + 8, abY + rh - 14);
     if (ab.usesWaterMeter) {
@@ -4215,7 +4506,13 @@ function drawPlayerStats() {
     ctx.strokeText(wt2, x + bw / 2, nextY + bh / 2); ctx.fillText(wt2, x + bw / 2, nextY + bh / 2);
     nextY += bh + 10;
   }
-  if (!isOnIsland(player.x, player.y) && !isInWaterForm() && !isFlying()) {
+  if (player.flying) {
+    ctx.fillStyle = 'rgba(0,0,0,0.6)'; roundRect(x - 4, nextY - 4, bw + 8, 24, 6); ctx.fill();
+    ctx.fillStyle = '#fff6b0'; ctx.font = 'bold 13px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('✨ ПОЛЁТ!', x + bw / 2, nextY + 8);
+    nextY += 30;
+  }
+  if (!isOnIsland(player.x, player.y) && !isInWaterForm() && !player.flying) {
     const pulse = 0.6 + Math.sin(performance.now() * 0.01) * 0.4;
     ctx.fillStyle = `rgba(80,180,255,${pulse})`; ctx.font = 'bold 16px Arial'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
     const wt3 = '🌊 ТОНЕШЬ! -30 HP/сек';
@@ -4232,23 +4529,45 @@ function drawPlayerStats() {
 }
 
 function drawActiveQuest() {
-  if (!quest.active) return;
-  const x = canvas.width - 300, y = 200, w = 280, h = 110;
-  ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.strokeStyle = 'rgba(255,215,0,0.6)'; ctx.lineWidth = 2;
-  roundRect(x, y, w, h, 10); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = '#ffd700'; ctx.font = 'bold 15px Arial'; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
-  ctx.strokeText('📜 Квест: Убить пиратов', x + 12, y + 10); ctx.fillText('📜 Квест: Убить пиратов', x + 12, y + 10);
-  ctx.fillStyle = 'white'; ctx.font = 'bold 14px Arial';
-  const pt = `Прогресс: ${quest.active.current} / ${quest.active.target}`;
-  ctx.strokeText(pt, x + 12, y + 34); ctx.fillText(pt, x + 12, y + 34);
-  ctx.fillStyle = '#ffd700'; ctx.font = 'bold 13px Arial';
-  const rt = `Награда: 200 💰 + ${quest.active.rewardXp} XP`;
-  ctx.strokeText(rt, x + 12, y + 58); ctx.fillText(rt, x + 12, y + 58);
-  ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.font = '11px Arial';
-  ctx.fillText('+5 💰 и +70 mastery XP за пирата', x + 12, y + 78);
-  const bx = x + 12, by = y + h - 14, bw = w - 24, bh = 6;
-  ctx.fillStyle = 'rgba(0,0,0,0.7)'; roundRect(bx, by, bw, bh, 3); ctx.fill();
-  ctx.fillStyle = '#ffd700'; roundRect(bx, by, bw * (quest.active.current / quest.active.target), bh, 3); ctx.fill();
+  let yy = 200;
+  // Квест на пиратов
+  if (quest.active) {
+    const x = canvas.width - 300, y = yy, w = 280, h = 110;
+    ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.strokeStyle = 'rgba(255,215,0,0.6)'; ctx.lineWidth = 2;
+    roundRect(x, y, w, h, 10); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#ffd700'; ctx.font = 'bold 15px Arial'; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
+    ctx.strokeText('📜 Квест: Убить пиратов', x + 12, y + 10); ctx.fillText('📜 Квест: Убить пиратов', x + 12, y + 10);
+    ctx.fillStyle = 'white'; ctx.font = 'bold 14px Arial';
+    const pt = `Прогресс: ${quest.active.current} / ${quest.active.target}`;
+    ctx.strokeText(pt, x + 12, y + 34); ctx.fillText(pt, x + 12, y + 34);
+    ctx.fillStyle = '#ffd700'; ctx.font = 'bold 13px Arial';
+    const rt = `Награда: 200 💰 + ${quest.active.rewardXp} XP`;
+    ctx.strokeText(rt, x + 12, y + 58); ctx.fillText(rt, x + 12, y + 58);
+    ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.font = '11px Arial';
+    ctx.fillText('+25 XP и +70 🌟 mastery XP за пирата', x + 12, y + 78);
+    const bx = x + 12, by = y + h - 14, bw = w - 24, bh = 6;
+    ctx.fillStyle = 'rgba(0,0,0,0.7)'; roundRect(bx, by, bw, bh, 3); ctx.fill();
+    ctx.fillStyle = '#ffd700'; roundRect(bx, by, bw * (quest.active.current / quest.active.target), bh, 3); ctx.fill();
+    yy += 125;
+  }
+  // КВЕСТ БОССА
+  if (questBoss.active === 'active') {
+    const x = canvas.width - 320, y = yy, w = 300, h = 130;
+    const pulse = 0.6 + Math.sin(performance.now() * 0.005) * 0.4;
+    ctx.fillStyle = 'rgba(40,0,0,0.7)'; ctx.strokeStyle = `rgba(255,60,60,${pulse})`; ctx.lineWidth = 3;
+    roundRect(x, y, w, h, 12); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#ff4444'; ctx.font = 'bold 18px Arial'; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
+    ctx.strokeText('⚔️ КВЕСТ БОССА', x + 12, y + 10); ctx.fillText('⚔️ КВЕСТ БОССА', x + 12, y + 10);
+    ctx.fillStyle = 'white'; ctx.font = 'bold 15px Arial'; ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
+    ctx.strokeText('Капитан пиратов', x + 12, y + 38); ctx.fillText('Капитан пиратов', x + 12, y + 38);
+    ctx.fillStyle = '#ff8844'; ctx.font = '13px Arial';
+    const posTxt = boss.active ? `📍 Ищи на карте (${Math.round(boss.x)}, ${Math.round(boss.y)})` : '📍 Босс не появился';
+    ctx.fillText(posTxt, x + 12, y + 62);
+    ctx.fillStyle = '#ffd700'; ctx.font = 'bold 12px Arial';
+    ctx.fillText('💰 1000 монет + 500 XP + 200 🌟', x + 12, y + 84);
+    ctx.fillStyle = 'rgba(255,200,200,0.7)'; ctx.font = '11px Arial';
+    ctx.fillText('500 HP · 25 урона кулаком', x + 12, y + 104);
+  }
 }
 
 function drawQuestDialog() {
@@ -4259,25 +4578,54 @@ function drawQuestDialog() {
   ctx.fillStyle = 'rgba(20,15,25,0.95)'; ctx.strokeStyle = 'rgba(255,215,0,0.8)'; ctx.lineWidth = 3;
   roundRect(p.x, p.y, p.w, p.h, 16); ctx.fill(); ctx.stroke();
   ctx.fillStyle = '#ffd700'; ctx.font = 'bold 26px Arial'; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
-  ctx.strokeText('⚓ Капитан Барнс', p.x + 30, p.y + 25); ctx.fillText('⚓ Капитан Барнс', p.x + 30, p.y + 25);
-  ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.font = 'italic 16px Arial'; ctx.strokeStyle = 'transparent';
-  const dt = quest.active ? `Квест активен! Осталось ${quest.active.target - quest.active.current} пиратов.` : 'Йо-хо-хо! Убей пиратов — дам 200 монет!';
-  ctx.fillText(dt, p.x + 30, p.y + 75);
-  ctx.fillStyle = 'rgba(255,215,0,0.85)'; ctx.font = 'bold 15px Arial';
-  ctx.fillText(`💰 Награда: 200 монет + 100 XP + 70 mastery за пирата`, p.x + 30, p.y + 105);
-  ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.font = '13px Arial';
-  ctx.fillText(`📈 Мастерство: Lv0→Lv1 = 100 XP, дальше +10%`, p.x + 30, p.y + 130);
-  const c = b.close;
-  ctx.fillStyle = 'rgba(255,80,80,0.85)'; roundRect(c.x, c.y, c.w, c.h, 6); ctx.fill();
-  ctx.fillStyle = 'white'; ctx.font = 'bold 18px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText('✕', c.x + c.w / 2, c.y + c.h / 2);
+  ctx.strokeText('⚓ Капитан Барнс', p.x + 30, p.y + 22); ctx.fillText('⚓ Капитан Барнс', p.x + 30, p.y + 22);
+  ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.font = 'italic 14px Arial'; ctx.strokeStyle = 'transparent';
+  ctx.fillText('Йо-хо-хо! У меня есть для тебя два дела.', p.x + 30, p.y + 62);
+  // Разделитель
+  ctx.strokeStyle = 'rgba(255,215,0,0.4)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(p.x + 20, p.y + 90); ctx.lineTo(p.x + p.w - 20, p.y + 90); ctx.stroke();
+  // Кнопка 1: обычный квест
+  ctx.fillStyle = 'rgba(255,215,0,0.9)'; ctx.font = 'bold 16px Arial'; ctx.textBaseline = 'top';
+  ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
+  ctx.strokeText('📜 Обычный квест: убить 4 пиратов', p.x + 30, p.y + 105);
+  ctx.fillText('📜 Обычный квест: убить 4 пиратов', p.x + 30, p.y + 105);
+  ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.font = '13px Arial';
+  ctx.fillText('💰 +200 монет + 100 XP + 70 🌟 за пирата', p.x + 30, p.y + 130);
   const tq = b.takeQuest;
   ctx.fillStyle = quest.active ? 'rgba(80,80,80,0.6)' : 'rgba(76,175,80,0.9)';
   roundRect(tq.x, tq.y, tq.w, tq.h, 10); ctx.fill();
   ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2; ctx.stroke();
-  ctx.fillStyle = 'white'; ctx.font = 'bold 20px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = 'white'; ctx.font = 'bold 18px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   const tt = quest.active ? '⏳ Квест уже активен' : '📜 Взять квест на пиратов';
   ctx.fillText(tt, tq.x + tq.w / 2, tq.y + tq.h / 2);
+  // Разделитель
+  ctx.strokeStyle = 'rgba(255,60,60,0.5)'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(p.x + 20, p.y + 312); ctx.lineTo(p.x + p.w - 20, p.y + 312); ctx.stroke();
+  // Кнопка 2: босс-квест
+  ctx.fillStyle = '#ff4444'; ctx.font = 'bold 17px Arial'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
+  ctx.strokeText('⚔️ КВЕСТ БОССА: Капитан пиратов', p.x + 30, p.y + 322);
+  ctx.fillText('⚔️ КВЕСТ БОССА: Капитан пиратов', p.x + 30, p.y + 322);
+  ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.font = '12px Arial';
+  ctx.fillText('💰 +1000 монет + 500 XP + 200 🌟 mastery · 🔒 нужен 5 уровень', p.x + 30, p.y + 348);
+  ctx.fillStyle = 'rgba(255,150,150,0.85)'; ctx.font = '11px Arial';
+  ctx.fillText('Босс: 500 HP · 25 урона кулаком · ⚠️ Опасно!', p.x + 30, p.y + 368);
+  const tb = b.takeBoss;
+  let bossBtnColor, bossBtnText;
+  if (bossDefeated) { bossBtnColor = 'rgba(60,60,60,0.7)'; bossBtnText = '🏆 Босс уже побеждён'; }
+  else if (stats.level < 5) { bossBtnColor = 'rgba(80,40,40,0.7)'; bossBtnText = '🔒 Нужен 5 уровень'; }
+  else if (questBoss.active) { bossBtnColor = 'rgba(120,80,40,0.85)'; bossBtnText = '⚔️ Квест уже активен'; }
+  else { bossBtnColor = 'rgba(200,40,40,0.95)'; bossBtnText = '⚔️ ВЗЯТЬ КВЕСТ БОССА'; }
+  ctx.fillStyle = bossBtnColor;
+  roundRect(tb.x, tb.y, tb.w, tb.h, 10); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = 'white'; ctx.font = 'bold 20px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(bossBtnText, tb.x + tb.w / 2, tb.y + tb.h / 2);
+  // Кнопка закрытия
+  const c = b.close;
+  ctx.fillStyle = 'rgba(255,80,80,0.85)'; roundRect(c.x, c.y, c.w, c.h, 6); ctx.fill();
+  ctx.fillStyle = 'white'; ctx.font = 'bold 18px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('✕', c.x + c.w / 2, c.y + c.h / 2);
 }
 
 function drawRollDialog() {
@@ -4604,16 +4952,17 @@ function render() {
     drawControlBeams();
     drawControlMeteors();
     drawControlSlashes();
-    drawLightBeams();              // НОВОЕ: световые лучи локальные
-    drawRemoteLightBeams();        // НОВОЕ: чужие
-    drawLightFlightTrails();       // НОВОЕ: локальные полосы
-    drawRemoteLightTrails();       // НОВОЕ: чужие полосы
+    drawLightBeams();
+    drawRemoteLightBeams();
+    drawLightFlightTrails();
+    drawRemoteLightTrails();
     drawRemoteSlashes();
     drawRemoteAttacks();
     drawQuestNpc();
     drawRollNpc();
     drawNpc();
     drawPirates();
+    drawBoss();           // НОВОЕ
     drawRemotePlayers();
     drawMeteors();
     drawSharkBites();
