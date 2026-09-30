@@ -213,7 +213,6 @@ function addMasteryXp(power, amount) {
   return ups;
 }
 
-// ЗАДАЧА: сохраняем состояние квестов (включая босс-квест)
 function applySave(d) {
   if (!d) return;
   stats.level = d.level || 1;
@@ -282,7 +281,6 @@ function applySave(d) {
 
   bag.length = 0;
   if (Array.isArray(d.bag)) for (const it of d.bag) bag.push(it);
-  // Квесты: убийство пиратов + босс
   if (d.quest) quest.active = d.quest;
   if (d.questBoss) questBoss.active = d.questBoss;
   if (typeof d.bossDefeated === 'boolean') bossDefeated = d.bossDefeated;
@@ -770,7 +768,6 @@ const CONTROL_ABILITIES = [
   { id: 'control_meteor', name: 'Метеор контроля', key: 'C', requiredMasteryLevel: 30, cooldown: 12, stamina: 50, damage: 30, description: '30 урона, +2 по зоне · кд 12с (в зоне)', zoneOnly: true },
   { id: 'control_beam', name: 'Луч контроля', key: 'V', requiredMasteryLevel: 45, cooldown: 20, stamina: 70, damage: 45, description: '45 урона через 2с · кд 20с (в зоне)', zoneOnly: true }
 ];
-// СВЕТ (Легендарный)
 const LIGHT_ABILITIES = [
   { id: 'light_beam', name: 'Луч света', key: 'Z', requiredMasteryLevel: 0, cooldown: 8, stamina: 25, damage: 12, description: 'Световой лазер 2с · 12 урона · кд 8с', aiming: false },
   { id: 'light_flight', name: 'Полёт искры', key: 'F', requiredMasteryLevel: 3, cooldown: 0, stamina: 0, damage: 0, description: 'Зажми F — летишь ×7 скорости, не тонешь', holdKey: true },
@@ -859,9 +856,7 @@ function getRollCost() {
 }
 
 // ==================== КВЕСТЫ ====================
-// Квест на пиратов
 const quest = { active: null, completed: false };
-// КВЕСТ НА БОССА
 const questBoss = { active: null };
 let bossDefeated = false;
 
@@ -886,7 +881,6 @@ const player = {
   waterFormUntil: 0, waterRage: 0,
   seaDamageTimer: 0,
   controlLmbCooldown: 0,
-  // ПОЛЁТ: теперь через зажатие F
   flying: false,
   flightDir: { x: 1, y: 0 },
   flightKeyDown: false
@@ -895,13 +889,14 @@ const TRANSFORM_DURATION = 90000;
 const HP_REGEN_PER_TICK = 0.02 / 1.7;
 const HP_REGEN_DELAY_MS = 7000;
 const STAMINA_REGEN_PER_TICK = 0.3 / 2.5;
-const PIRATE_MASTERY_XP_REWARD = 70;    // ТОЛЬКО для mastery
-const PIRATE_LEVEL_XP_REWARD = 25;      // ТОЛЬКО для уровня
-const BOSS_MASTERY_XP_REWARD = 200;     // ТОЛЬКО для mastery
-const BOSS_LEVEL_XP_REWARD = 500;       // ТОЛЬКО для уровня
+const PIRATE_MASTERY_XP_REWARD = 70;
+const PIRATE_LEVEL_XP_REWARD = 25;
+const BOSS_MASTERY_XP_REWARD = 200;
+const BOSS_LEVEL_XP_REWARD = 500;
 const BOSS_MONEY_REWARD = 1000;
 const LIGHT_FLIGHT_SPEED_MULT = 7;
-const LIGHT_FLIGHT_STAMINA_DRAIN = 6;   // стамина/сек во время полёта
+const LIGHT_FLIGHT_STAMINA_DRAIN = 6;
+const LIGHT_FLIGHT_TRAIL_LIFE = 40;
 
 // ==================== КОНТРОЛЬ ====================
 let controlZone = null;
@@ -971,9 +966,9 @@ function spawnPirate(spawnIdx) {
 for (let i = 0; i < MAX_PIRATES; i++) spawnPirate(i);
 
 // ==================== БОСС: КАПИТАН ПИРАТОВ ====================
-// Спавн: если questBoss.active === 'active' и bossDefeated === false
-const BOSS_SPAWN_X = -1800;
-const BOSS_SPAWN_Y = -1400;
+// ФИКС: справа на острове (правая сторона), чтобы можно было дойти
+const BOSS_SPAWN_X = 1000;
+const BOSS_SPAWN_Y = -200;
 const BOSS_HP = 500;
 const BOSS_DAMAGE = 25;
 const BOSS_ATTACK_INTERVAL = 1500;
@@ -1226,7 +1221,6 @@ function consumeFruit(item) {
     };
     player.cooldowns = {};
     player.waterFormUntil = 0;
-    // Останавливаем полёт если меняли фрукт
     player.flying = false;
     if (aimingAbility) aimingAbility = null;
     saveNow();
@@ -1285,7 +1279,6 @@ function punchFist() {
     if (pir.dead) continue;
     if (Math.hypot(pir.x - px, pir.y - py) < hr) { damagePirate(pir, f); pir.chasing = true; }
   }
-  // Урон по боссу
   if (boss.active && !boss.dead) {
     if (Math.hypot(boss.x - px, boss.y - py) < hr + boss.radius * 0.5) damageBoss(f);
   }
@@ -1398,27 +1391,20 @@ function activateWaterTransform() {
   showToast('🌊 ВОДНЫЙ ОБЛИК! 90 секунд');
 }
 
-// ==================== ПОЛЁТ СВЕТА (F — ЗАЖАТЬ) ====================
-// НЕ рывок! Игрок держит F — пока держит — летит.
-// Скорость ×7. Пока летит — не тонет. Постоянно оставляет полосу и искры.
+// ==================== ПОЛЁТ СВЕТА (F зажать) ====================
+// Единая точка старта — только в update(). Здесь ничего не вызываем.
 function startLightFlight() {
+  if (player.flying) return;
   const held = getHeldPower();
   if (!held || held.power.name !== 'Свет') return;
   const ab = held.abilities.find(a => a.id === 'light_flight');
   if (!ab) return;
   const myLevel = held.power.masteryLevel || 0;
-  if (myLevel < ab.requiredMasteryLevel) {
-    showToast(`🔒 Нужен Mastery Lv.${ab.requiredMasteryLevel} (у тебя Lv.${myLevel})`);
-    return;
-  }
-  if (player.flying) return;
-  if (player.stamina < 5) { showToast('Мало стамины!'); return; }
+  if (myLevel < ab.requiredMasteryLevel) return;
+  if (player.stamina < 5) return;
   player.flying = true;
-  showToast('✨ ИСКРА СВЕТА!');
 }
-
 function stopLightFlight() {
-  if (!player.flying) return;
   player.flying = false;
 }
 
@@ -1434,7 +1420,7 @@ function startAbility(powerName, abilityId) {
     return;
   }
   if (ab.usesWaterMeter) { activateWaterTransform(); return; }
-  if (abilityId === 'light_flight') { startLightFlight(); return; }
+  if (abilityId === 'light_flight') { return; }
   if (ab.zoneOnly && !isInControlZone(player.x, player.y)) {
     showToast('❌ Только внутри зоны контроля!');
     return;
@@ -1728,9 +1714,6 @@ function damagePirate(pirate, dmg) {
     pirate.dead = true;
     pirate.deathTimer = 40;
     pirate.respawnAt = performance.now() + PIRATE_RESPAWN_TIME;
-    // РАЗДЕЛЕНИЕ XP:
-    // +25 XP (для УРОВНЯ)
-    // +70 mastery XP (для МАСТЕРСТВА)
     pendingXp.push(PIRATE_LEVEL_XP_REWARD);
     const held = getHeldPower();
     if (held) {
@@ -1767,7 +1750,6 @@ function damageNpc(dmg) {
   damageNumbers.push({ x: npc.x, y: npc.y - npc.radius, vy: -1.6, life: 60, maxLife: 60, text: formatDmg(dmg), color: '#ffdd00' });
 }
 
-// ==================== УРОН ПО БОССУ ====================
 function damageBoss(dmg) {
   if (!boss.active || boss.dead) return;
   boss.hp = Math.max(0, boss.hp - dmg);
@@ -1780,10 +1762,6 @@ function damageBoss(dmg) {
     boss.deathTimer = 60;
     boss.active = false;
     bossDefeated = true;
-    // НАГРАДА ЗА БОССА:
-    // +500 XP (для УРОВНЯ)
-    // +200 mastery XP (для МАСТЕРСТВА)
-    // +1000 монет
     pendingXp.push(BOSS_LEVEL_XP_REWARD);
     const held = getHeldPower();
     if (held) {
@@ -1791,13 +1769,11 @@ function damageBoss(dmg) {
     }
     player.money += BOSS_MONEY_REWARD;
     updateMoneyUi();
-    // Завершаем квест босса
     questBoss.active = null;
     showToast('🏆 БОСС ПОВЕРЖЕН! Награда: +1000💰 +500 XP +200 🌟');
     damageNumbers.push({ x: boss.x, y: boss.y - boss.radius - 20, vy: -1.4, life: 90, maxLife: 90, text: '+1000💰', color: '#ffd700' });
     damageNumbers.push({ x: boss.x, y: boss.y - boss.radius - 42, vy: -1.4, life: 90, maxLife: 90, text: '+' + BOSS_LEVEL_XP_REWARD + ' XP', color: '#aaffaa' });
     damageNumbers.push({ x: boss.x, y: boss.y - boss.radius - 64, vy: -1.4, life: 90, maxLife: 90, text: '+' + BOSS_MASTERY_XP_REWARD + ' 🌟', color: '#ffd700' });
-    // Взрыв эффектов
     for (let k = 0; k < 120; k++) {
       const a = Math.random() * Math.PI * 2;
       const s = 3 + Math.random() * 12;
@@ -1820,7 +1796,6 @@ function damagePlayer(dmg) {
   if (player.hp <= 0) { showToast('Ты погиб!'); player.hp = getMaxHp(); player.x = 0; player.y = 0; player.flying = false; }
 }// ==================== МОРСКОЙ УРОН ====================
 function applySeaDamage() {
-  // Пока летит Свет — не тонет
   if (!isOnIsland(player.x, player.y) && !isInWaterForm() && !isFlying()) {
     player.hp = Math.max(0, player.hp - 30);
     player.lastDamageTime = performance.now();
@@ -1969,22 +1944,18 @@ function getQuestDialogButtons() {
   return {
     panel: { x: px, y: py, w: pw, h: ph },
     close: { x: px + pw - 44, y: py + 15, w: 30, h: 30 },
-    // Кнопка 1: обычный квест (пираты)
     takeQuest: { x: px + 30, y: py + 240, w: pw - 60, h: 60 },
-    // Кнопка 2: босс-квест (доступна с 5 уровня)
     takeBoss: { x: px + 30, y: py + 320, w: pw - 60, h: 80 }
   };
 }
 function handleQuestDialogClick(mx, my) {
   const b = getQuestDialogButtons();
   if (mx >= b.close.x && mx <= b.close.x + b.close.w && my >= b.close.y && my <= b.close.y + b.close.h) { closeQuestDialog(); return; }
-  // Кнопка обычного квеста
   if (mx >= b.takeQuest.x && mx <= b.takeQuest.x + b.takeQuest.w && my >= b.takeQuest.y && my <= b.takeQuest.y + b.takeQuest.h) {
     if (quest.active) { showToast('Квест уже активен!'); }
     else { quest.active = { type: 'kill', target: 4, current: 0, rewardXp: 100 }; showToast('📜 Квест: убить 4 пирата (+200 💰)'); closeQuestDialog(); }
     return;
   }
-  // Кнопка босс-квеста
   if (mx >= b.takeBoss.x && mx <= b.takeBoss.x + b.takeBoss.w && my >= b.takeBoss.y && my <= b.takeBoss.y + b.takeBoss.h) {
     if (stats.level < 5) {
       showToast('🔒 Нужен 5 уровень для квеста на босса!');
@@ -2000,7 +1971,7 @@ function handleQuestDialogClick(mx, my) {
     }
     questBoss.active = 'active';
     spawnBoss();
-    showToast('⚔️ КВЕСТ БОССА АКТИВЕН! Найди Капитана пиратов');
+    showToast('⚔️ КВЕСТ БОССА АКТИВЕН! Найди Капитана пиратов справа на острове');
     closeQuestDialog();
     saveNow();
     return;
@@ -2346,23 +2317,13 @@ window.addEventListener('keydown', (e) => {
   if (code === 'KeyC' || k === 'c' || k === 'с') { tc('C'); return; }
   if (code === 'KeyR' || k === 'r' || k === 'к') { tc('R'); return; }
   if (code === 'KeyV' || k === 'v' || k === 'м') { tc('V'); return; }
-  // НОВОЕ: F — ПОЛЁТ. Работает как HOLD (зажать).
+  // ФИКС ЗАВИСАНИЯ НА F:
+  // Никаких вызовов startLightFlight() и showToast() тут! Просто ставим флаг.
+  // Всё решает update() — и старт, и остановку, и показ тоста (один раз).
   if (code === 'KeyF' || k === 'f' || k === 'а') {
-    if (e.repeat) return; // игнорируем автоповтор
+    if (e.repeat) return; // защита от автоповтора
     player.flightKeyDown = true;
-    // Пробуем стартовать полёт
-    if (!bagOpen && !contextMenu && !aimingAbility && !statsOpen && !questDialogOpen && !rollDialogOpen) {
-      const held = getHeldPower();
-      if (held && held.power.name === 'Свет') {
-        const ab = held.abilities.find(a => a.id === 'light_flight');
-        if (ab) {
-          const myLevel = held.power.masteryLevel || 0;
-          if (myLevel >= ab.requiredMasteryLevel) {
-            startLightFlight();
-          }
-        }
-      }
-    }
+    e.preventDefault();
     return;
   }
   if (e.key === 'Escape') {
@@ -2396,10 +2357,9 @@ window.addEventListener('keydown', (e) => {
 window.addEventListener('keyup', (e) => {
   const k = e.key.toLowerCase(), code = e.code;
   keys[k] = false;
-  // НОВОЕ: F отпустили — стопаем полёт
+  // ФИКС: отпустили F — просто сбрасываем флаг. Остановит полёт update().
   if (code === 'KeyF' || k === 'f' || k === 'а') {
     player.flightKeyDown = false;
-    stopLightFlight();
   }
 });// ==================== ОБНОВЛЕНИЕ ====================
 function update() {
@@ -2446,26 +2406,38 @@ function update() {
 
   if (now > player.seaDamageTimer && !blocked) { player.seaDamageTimer = now + 1000; applySeaDamage(); }
 
-  // ============ ПОЛЁТ СВЕТА (HOLD F) ============
-  // Пока player.flying === true — игрок летит ×7 скорости.
-  // Летит в направлении lookX/lookY (WASD меняет направление на ходу).
-  // Каждый тик тратит стамину. Если стамина кончилась или F отпустили — стоп.
-  if (player.flying) {
-    // Проверяем условия для продолжения полёта
-    const held = getHeldPower();
-    const lightOk = held && held.power.name === 'Свет';
-    const levelOk = lightOk && (held.power.masteryLevel || 0) >= 3;
-    if (!lightOk || !levelOk || !player.flightKeyDown) {
-      // Фрукт сменился или F отпустили
-      player.flying = false;
-    } else if (player.stamina <= 0) {
-      player.flying = false;
-      showToast('⚡ Стамина кончилась — приземление');
-    } else if (blocked) {
-      // Открыли меню — стоп
-      player.flying = false;
-    } else {
-      // Летим!
+  // ============ ПОЛЁТ СВЕТА (HOLD F) — ЕДИНАЯ ТОЧКА ============
+  // Всё в одном месте: старт (с тостом ОДИН РАЗ), движение, полоса, стамина, стоп.
+  {
+    const heldNow = getHeldPower();
+    const canFly = player.flightKeyDown
+      && heldNow
+      && heldNow.power.name === 'Свет'
+      && (heldNow.power.masteryLevel || 0) >= 3
+      && player.stamina > 0
+      && !blocked
+      && !aimingAbility;
+
+    if (canFly) {
+      if (!player.flying) {
+        // Старт полёта — тост ровно ОДИН РАЗ
+        player.flying = true;
+        showToast('✨ ИСКРА СВЕТА!');
+        // Начальный залп искр при взлёте
+        for (let i = 0; i < 30; i++) {
+          const a = Math.random() * Math.PI * 2;
+          const s = 3 + Math.random() * 6;
+          particles.push({
+            x: player.x + (Math.random() - 0.5) * 30,
+            y: player.y + (Math.random() - 0.5) * 30,
+            vx: Math.cos(a) * s, vy: Math.sin(a) * s - 1,
+            life: 25 + Math.random() * 20, maxLife: 45,
+            radius: 3 + Math.random() * 4,
+            color: Math.random() < 0.5 ? '#fff6b0' : '#ffffff'
+          });
+        }
+      }
+      // Летим
       let dx = player.lookX, dy = player.lookY;
       if (dx === 0 && dy === 0) { dx = 1; dy = 0; }
       const dl = Math.hypot(dx, dy) || 1;
@@ -2473,19 +2445,17 @@ function update() {
       player.flightDir = { x: dx, y: dy };
       const flySpeed = spd * LIGHT_FLIGHT_SPEED_MULT;
       tryMoveWithZone(player, dx * flySpeed, dy * flySpeed);
-
-      // Тратим стамину (в тиках 60/сек)
       player.stamina = Math.max(0, player.stamina - LIGHT_FLIGHT_STAMINA_DRAIN / 60);
 
-      // Постоянно оставляем полосу за собой
+      // Постоянная полоса (1 точка за тик)
       lightFlightTrails.push({
-        x: player.x + (Math.random() - 0.5) * 20,
-        y: player.y + (Math.random() - 0.5) * 20,
+        x: player.x + (Math.random() - 0.5) * 18,
+        y: player.y + (Math.random() - 0.5) * 18,
         life: LIGHT_FLIGHT_TRAIL_LIFE, maxLife: LIGHT_FLIGHT_TRAIL_LIFE,
         radius: 18 + Math.random() * 6
       });
-      // Искры
-      if (Math.random() < 0.5) {
+      // Искры — 1 из 6 тиков (без нагрузки)
+      if (Math.random() < 0.16) {
         const a = Math.random() * Math.PI * 2;
         const s = 2 + Math.random() * 4;
         particles.push({
@@ -2496,6 +2466,10 @@ function update() {
           radius: 3 + Math.random() * 4,
           color: Math.random() < 0.5 ? '#fff6b0' : '#ffffff'
         });
+      }
+    } else {
+      if (player.flying) {
+        player.flying = false;
       }
     }
   }
@@ -2553,6 +2527,7 @@ function update() {
   if (player.punchAnim > 0) player.punchAnim = Math.max(0, player.punchAnim - 0.08);
   if (player.controlLmbCooldown > 0) player.controlLmbCooldown -= 1/60;
 
+  // Зона Контроля: закрытие
   if (controlZone && now >= controlZone.until) {
     for (let i = 0; i < 40; i++) {
       const a = (i / 40) * Math.PI * 2;
@@ -2964,7 +2939,7 @@ function update() {
     if (dist < pir.radius + player.radius + 8 && now - pir.lastAttackTime > PIRATE_ATTACK_INTERVAL) { pir.lastAttackTime = now; damagePlayer(PIRATE_DAMAGE); }
   }
 
-  // ============ БОСС: КАПИТАН ПИРАТОВ ============
+  // ============ БОСС ============
   if (boss.active && !boss.dead) {
     if (boss.hitFlash > 0) boss.hitFlash--;
     if (boss.attackAnim > 0) boss.attackAnim = Math.max(0, boss.attackAnim - 0.08);
@@ -2980,12 +2955,10 @@ function update() {
         const hx = boss.homeX - boss.x, hy = boss.homeY - boss.y, hd = Math.hypot(hx, hy);
         if (hd > 5) { const nx = hx / hd, ny = hy / hd; tryMove(boss, nx * spd2, ny * spd2); }
       }
-      // Атака кулаком
       if (dist < boss.radius + player.radius + 30 && now - boss.lastAttackTime > BOSS_ATTACK_INTERVAL) {
         boss.lastAttackTime = now;
         boss.attackAnim = 1;
         damagePlayer(BOSS_DAMAGE);
-        // Визуал удара
         for (let k = 0; k < 20; k++) {
           const a = Math.atan2(dy, dx) + (Math.random() - 0.5) * 1.5;
           const s = 4 + Math.random() * 6;
@@ -3716,7 +3689,7 @@ function drawPirates() {
   }
 }
 
-// ==================== БОСС: КАПИТАН ПИРАТОВ (ОТРИСОВКА) ====================
+// ==================== БОСС: ОТРИСОВКА ====================
 function drawBoss() {
   if (!boss.active && !boss.dead) return;
   if (boss.dead && boss.deathTimer <= 0) return;
@@ -3725,7 +3698,7 @@ function drawBoss() {
   let al = 1, sc = 1;
   if (boss.dead) { const t = boss.deathTimer / 60; al = t; sc = 0.5 + t * 0.5; }
   ctx.globalAlpha = al;
-  // Аура босса (красная)
+  // Аура
   const aura = ctx.createRadialGradient(x, y, boss.radius * 0.7, x, y, boss.radius * 2.4 * sc);
   aura.addColorStop(0, 'rgba(255, 40, 40, 0.35)');
   aura.addColorStop(0.5, 'rgba(150, 0, 0, 0.2)');
@@ -3746,7 +3719,7 @@ function drawBoss() {
   ctx.beginPath();
   ctx.arc(x, y - boss.radius * 0.3 * sc, boss.radius * 0.95 * sc, Math.PI * 1.05, Math.PI * 1.95);
   ctx.strokeStyle = '#0a0a0a'; ctx.lineWidth = 9 * sc; ctx.lineCap = 'round'; ctx.stroke();
-  // Корона поверх шляпы
+  // Корона
   const crownY = y - boss.radius * 1.15 * sc;
   const crownW = boss.radius * 1.4 * sc;
   const crownH = boss.radius * 0.5 * sc;
@@ -3763,7 +3736,6 @@ function drawBoss() {
   cg.addColorStop(0, '#ffe680'); cg.addColorStop(0.5, '#ffbb00'); cg.addColorStop(1, '#c98800');
   ctx.fillStyle = cg; ctx.fill();
   ctx.strokeStyle = '#7a4f00'; ctx.lineWidth = 2; ctx.stroke();
-  // Драгоценные камни на короне
   ctx.beginPath(); ctx.arc(x - crownW * 0.25, crownY + crownH * 0.55, 3, 0, Math.PI * 2); ctx.fillStyle = '#ff2244'; ctx.fill();
   ctx.beginPath(); ctx.arc(x, crownY + crownH * 0.45, 3.5, 0, Math.PI * 2); ctx.fillStyle = '#22ff44'; ctx.fill();
   ctx.beginPath(); ctx.arc(x + crownW * 0.25, crownY + crownH * 0.55, 3, 0, Math.PI * 2); ctx.fillStyle = '#2244ff'; ctx.fill();
@@ -3775,7 +3747,7 @@ function drawBoss() {
   ctx.fillStyle = '#8a0000';
   ctx.beginPath(); ctx.arc(x - eo + 1, y - boss.radius * 0.05, er * 0.55, 0, Math.PI * 2); ctx.fill();
   ctx.beginPath(); ctx.arc(x + eo + 1, y - boss.radius * 0.05, er * 0.55, 0, Math.PI * 2); ctx.fill();
-  // Кулак (анимация атаки)
+  // Кулак
   if (boss.attackAnim > 0.1) {
     const pd = Math.atan2(player.y - boss.y, player.x - boss.x);
     const px = x + Math.cos(pd) * (boss.radius + 15 + boss.attackAnim * 40);
@@ -3784,7 +3756,6 @@ function drawBoss() {
     const pg = ctx.createRadialGradient(px - 4, py - 4, 3, px, py, 22); pg.addColorStop(0, '#ff8844'); pg.addColorStop(1, '#8a0000');
     ctx.fillStyle = pg; ctx.fill(); ctx.strokeStyle = '#3a0000'; ctx.lineWidth = 3; ctx.stroke();
   }
-  // Значок "БОСС" над головой
   if (!boss.dead) {
     const bob = Math.sin(now * 0.005) * 5;
     ctx.font = 'bold 20px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -3793,7 +3764,6 @@ function drawBoss() {
     ctx.fillStyle = '#ff2222';
     ctx.fillText('💀 БОСС', x, y - boss.radius * 1.7 * sc + bob);
   }
-  // HP-бар
   if (!boss.dead) {
     const hw = 200, hh = 22, hx = x - hw / 2, hy = y - boss.radius * 1.4 * sc;
     ctx.fillStyle = 'rgba(0, 0, 0, 0.85)'; roundRect(hx - 4, hy - 4, hw + 8, hh + 8, 6); ctx.fill();
@@ -3810,7 +3780,6 @@ function drawBoss() {
     const txt = `${Math.round(boss.hp)} / ${boss.maxHp}`;
     ctx.strokeText(txt, x, hy + hh / 2); ctx.fillText(txt, x, hy + hh / 2);
   }
-  // Имя босса
   ctx.font = 'bold 16px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
   ctx.strokeText('⚔️ Капитан пиратов', x, y - boss.radius * 1.85 * sc);
@@ -4113,20 +4082,19 @@ function drawPlayer() {
   const flying = player.flying;
   const t = performance.now() * 0.005;
   if (flying) {
+    // Аура
     const fr = player.radius + 22 + Math.sin(t * 8) * 5;
-    const fg = ctx.createRadialGradient(x, y, player.radius * 0.4, x, y, fr * 1.8);
+    const fg = ctx.createRadialGradient(x, y, player.radius * 0.4, x, y, fr * 1.6);
     fg.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
     fg.addColorStop(0.4, 'rgba(255, 246, 176, 0.7)');
     fg.addColorStop(1, 'rgba(255, 246, 176, 0)');
-    ctx.beginPath(); ctx.arc(x, y, fr * 1.8, 0, Math.PI * 2); ctx.fillStyle = fg; ctx.fill();
-    for (let i = 0; i < 14; i++) {
-      const a = t * 4 + i * (Math.PI / 7);
+    ctx.beginPath(); ctx.arc(x, y, fr * 1.6, 0, Math.PI * 2); ctx.fillStyle = fg; ctx.fill();
+    // 4 искры (легко)
+    for (let i = 0; i < 4; i++) {
+      const a = t * 4 + i * (Math.PI / 2);
       const r = player.radius + 6 + Math.sin(t * 6 + i) * 10;
       const px = x + Math.cos(a) * r, py = y + Math.sin(a) * r;
-      const spark = ctx.createRadialGradient(px, py, 0, px, py, 7);
-      spark.addColorStop(0, 'rgba(255, 255, 255, 1)');
-      spark.addColorStop(1, 'rgba(255, 246, 176, 0)');
-      ctx.beginPath(); ctx.arc(px, py, 7, 0, Math.PI * 2); ctx.fillStyle = spark; ctx.fill();
+      ctx.beginPath(); ctx.arc(px, py, 5, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'; ctx.fill();
     }
   }
   if (!isOnIsland(player.x, player.y) && !inWater && !flying) {
@@ -4530,7 +4498,6 @@ function drawPlayerStats() {
 
 function drawActiveQuest() {
   let yy = 200;
-  // Квест на пиратов
   if (quest.active) {
     const x = canvas.width - 300, y = yy, w = 280, h = 110;
     ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.strokeStyle = 'rgba(255,215,0,0.6)'; ctx.lineWidth = 2;
@@ -4550,7 +4517,6 @@ function drawActiveQuest() {
     ctx.fillStyle = '#ffd700'; roundRect(bx, by, bw * (quest.active.current / quest.active.target), bh, 3); ctx.fill();
     yy += 125;
   }
-  // КВЕСТ БОССА
   if (questBoss.active === 'active') {
     const x = canvas.width - 320, y = yy, w = 300, h = 130;
     const pulse = 0.6 + Math.sin(performance.now() * 0.005) * 0.4;
@@ -4561,7 +4527,7 @@ function drawActiveQuest() {
     ctx.fillStyle = 'white'; ctx.font = 'bold 15px Arial'; ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
     ctx.strokeText('Капитан пиратов', x + 12, y + 38); ctx.fillText('Капитан пиратов', x + 12, y + 38);
     ctx.fillStyle = '#ff8844'; ctx.font = '13px Arial';
-    const posTxt = boss.active ? `📍 Ищи на карте (${Math.round(boss.x)}, ${Math.round(boss.y)})` : '📍 Босс не появился';
+    const posTxt = boss.active ? `📍 Справа на острове: (${Math.round(boss.x)}, ${Math.round(boss.y)})` : '📍 Босс не появился';
     ctx.fillText(posTxt, x + 12, y + 62);
     ctx.fillStyle = '#ffd700'; ctx.font = 'bold 12px Arial';
     ctx.fillText('💰 1000 монет + 500 XP + 200 🌟', x + 12, y + 84);
@@ -4581,10 +4547,8 @@ function drawQuestDialog() {
   ctx.strokeText('⚓ Капитан Барнс', p.x + 30, p.y + 22); ctx.fillText('⚓ Капитан Барнс', p.x + 30, p.y + 22);
   ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.font = 'italic 14px Arial'; ctx.strokeStyle = 'transparent';
   ctx.fillText('Йо-хо-хо! У меня есть для тебя два дела.', p.x + 30, p.y + 62);
-  // Разделитель
   ctx.strokeStyle = 'rgba(255,215,0,0.4)'; ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(p.x + 20, p.y + 90); ctx.lineTo(p.x + p.w - 20, p.y + 90); ctx.stroke();
-  // Кнопка 1: обычный квест
   ctx.fillStyle = 'rgba(255,215,0,0.9)'; ctx.font = 'bold 16px Arial'; ctx.textBaseline = 'top';
   ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
   ctx.strokeText('📜 Обычный квест: убить 4 пиратов', p.x + 30, p.y + 105);
@@ -4598,10 +4562,8 @@ function drawQuestDialog() {
   ctx.fillStyle = 'white'; ctx.font = 'bold 18px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   const tt = quest.active ? '⏳ Квест уже активен' : '📜 Взять квест на пиратов';
   ctx.fillText(tt, tq.x + tq.w / 2, tq.y + tq.h / 2);
-  // Разделитель
   ctx.strokeStyle = 'rgba(255,60,60,0.5)'; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(p.x + 20, p.y + 312); ctx.lineTo(p.x + p.w - 20, p.y + 312); ctx.stroke();
-  // Кнопка 2: босс-квест
   ctx.fillStyle = '#ff4444'; ctx.font = 'bold 17px Arial'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
   ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
   ctx.strokeText('⚔️ КВЕСТ БОССА: Капитан пиратов', p.x + 30, p.y + 322);
@@ -4621,7 +4583,6 @@ function drawQuestDialog() {
   ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2; ctx.stroke();
   ctx.fillStyle = 'white'; ctx.font = 'bold 20px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText(bossBtnText, tb.x + tb.w / 2, tb.y + tb.h / 2);
-  // Кнопка закрытия
   const c = b.close;
   ctx.fillStyle = 'rgba(255,80,80,0.85)'; roundRect(c.x, c.y, c.w, c.h, 6); ctx.fill();
   ctx.fillStyle = 'white'; ctx.font = 'bold 18px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -4962,7 +4923,7 @@ function render() {
     drawRollNpc();
     drawNpc();
     drawPirates();
-    drawBoss();           // НОВОЕ
+    drawBoss();
     drawRemotePlayers();
     drawMeteors();
     drawSharkBites();
