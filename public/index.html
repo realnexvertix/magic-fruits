@@ -71,6 +71,26 @@ document.getElementById('fsBtn').addEventListener('click', () => {
   else document.exitFullscreen();
 });
 
+// ==================== УМНОЕ СРАВНЕНИЕ ПАРОЛЯ (учёт раскладки) ====================
+function normalizeLayout(str) {
+  const map = {
+    'й':'q','ц':'w','у':'e','к':'r','е':'t','н':'y','г':'u','ш':'i','щ':'o','з':'p','х':'[','ъ':']',
+    'ф':'a','ы':'s','в':'d','а':'f','п':'g','р':'h','о':'j','л':'k','д':'l','ж':';','э':"'",
+    'я':'z','ч':'x','с':'c','м':'v','и':'b','т':'n','ь':'m','б':',','ю':'.',
+    'Й':'Q','Ц':'W','У':'E','К':'R','Е':'T','Н':'Y','Г':'U','Ш':'I','Щ':'O','З':'P','Х':'{','Ъ':'}',
+    'Ф':'A','Ы':'S','В':'D','А':'F','П':'G','Р':'H','О':'J','Л':'K','Д':'L','Ж':':','Э':'"',
+    'Я':'Z','Ч':'X','С':'C','М':'V','И':'B','Т':'N','Ь':'M','Б':'<','Ю':'>'
+  };
+  let out = '';
+  for (const ch of str) out += (map[ch] || ch);
+  return out;
+}
+function passwordMatches(input, expected) {
+  if (input === expected) return true;
+  if (normalizeLayout(input) === expected) return true;
+  return false;
+}
+
 // ==================== АККАУНТЫ ====================
 let currentUser = null;
 const API = '/api';
@@ -285,7 +305,6 @@ function applySave(d) {
   if (d.questBoss) questBoss.active = d.questBoss;
   if (d.questDune) questDune.active = d.questDune;
   if (typeof d.bossDefeated === 'boolean') bossDefeated = d.bossDefeated;
-  // ФИКС: если босс уже убит — не респавнить
   if (bossDefeated) {
     boss.active = false;
     boss.dead = true;
@@ -721,8 +740,8 @@ const camera = { x: 0, y: 0 };
 // Пиратский остров
 const ISLAND = { x: -1200, y: -900, width: 2400, height: 1800 };
 const BEACH_WIDTH = 120;
-// Пустынный остров
-const DESERT = { x: 1800, y: -1400, width: 1800, height: 1400 };
+// ПУСТЫННЫЙ ОСТРОВ — РАССТОЯНИЕ ×4 (было 1800, -1400 → стало 7200, -5600)
+const DESERT = { x: 7200, y: -5600, width: 1800, height: 1400 };
 const DESERT_BEACH = 100;
 
 const obstacles = [];
@@ -796,7 +815,6 @@ const CONTROL_ABILITIES = [
   { id: 'control_meteor', name: 'Метеор контроля', key: 'C', requiredMasteryLevel: 30, cooldown: 12, stamina: 50, damage: 30, description: '30 урона, +2 по зоне · кд 12с (в зоне)', zoneOnly: true },
   { id: 'control_beam', name: 'Луч контроля', key: 'V', requiredMasteryLevel: 45, cooldown: 20, stamina: 70, damage: 45, description: '45 урона через 2с · кд 20с (в зоне)', zoneOnly: true }
 ];
-// ФИКС: полёт — кд 10с
 const LIGHT_ABILITIES = [
   { id: 'light_beam', name: 'Луч света', key: 'Z', requiredMasteryLevel: 0, cooldown: 8, stamina: 25, damage: 12, description: 'Световой лазер 2с · 12 урона · кд 8с', aiming: false },
   { id: 'light_flight', name: 'Полёт искры', key: 'F', requiredMasteryLevel: 3, cooldown: 10, stamina: 0, damage: 0, description: 'Зажми F — летишь ×7 · кд 10с', holdKey: true },
@@ -1145,8 +1163,9 @@ function adminSubmit() {
   adminInput = '';
   if (!cmd) return;
 
+  // УМНЫЙ ПАРОЛЬ: passwordMatches учитывает раскладку
   if (!adminUnlocked) {
-    if (cmd === ADMIN_PASSWORD) {
+    if (passwordMatches(cmd, ADMIN_PASSWORD)) {
       adminUnlocked = true;
       adminLog('✅ Админ-доступ разрешён', '#66ff66');
     } else {
@@ -1254,12 +1273,11 @@ function canBeAt(x, y, r) {
       const ny = Math.max(ob.y, Math.min(y, ob.y + ob.h));
       if ((x - nx) ** 2 + (y - ny) ** 2 < r * r) return false;
     } else if (ob.type === 'pyramid') {
-      // ФИКС: простая и надёжная коллизия через bounding box
+      // Пирамида = bounding box
       const left = ob.x - ob.baseW / 2;
       const right = ob.x + ob.baseW / 2;
       const top = ob.y;
       const bottom = ob.y + ob.baseW * 0.6;
-      // Проверка пересечения окружности игрока с прямоугольником
       const closestX = Math.max(left, Math.min(x, right));
       const closestY = Math.max(top, Math.min(y, bottom));
       if ((x - closestX) ** 2 + (y - closestY) ** 2 < r * r) return false;
@@ -1287,7 +1305,6 @@ function tryMoveWithZone(ent, dx, dy) {
     tryMove(ent, dx, dy);
   }
 }
-// ФИКС: воины не уходят с пустынного острова
 function tryMoveDesert(ent, dx, dy) {
   const nx = ent.x + dx;
   const ny = ent.y + dy;
@@ -1507,8 +1524,6 @@ function activateWaterTransform() {
 }
 
 // ==================== ПОЛЁТ СВЕТА (F зажать) ====================
-// ФИКС: теперь это НЕ рывок. Игрок летит постоянно, пока держит F.
-// Скорость ×7, направление меняется через WASD на ходу.
 function startLightFlight() {
   if (player.flying) return;
   const held = getHeldPower();
@@ -2111,6 +2126,7 @@ function handleQuestDialogClick(mx, my) {
   if (mx >= b.close.x && mx <= b.close.x + b.close.w && my >= b.close.y && my <= b.close.y + b.close.h) { closeQuestDialog(); return; }
   if (mx >= b.takeQuest.x && mx <= b.takeQuest.x + b.takeQuest.w && my >= b.takeQuest.y && my <= b.takeQuest.y + b.takeQuest.h) {
     if (quest.active) { showToast('Квест уже активен!'); return; }
+    // ЗАМЕНА КВЕСТА: если есть другой — сбрасываем
     if (questBoss.active || questDune.active) {
       clearAllQuests();
       showToast('⚠️ Предыдущий квест отменён');
@@ -2611,20 +2627,66 @@ function update() {
 
   if (now > player.seaDamageTimer && !blocked) { player.seaDamageTimer = now + 1000; applySeaDamage(); }
 
-  // ============ ПОЛЁТ СВЕТА (HOLD F) — ФИКС: ПОСТОЯННОЕ ДВИЖЕНИЕ, НЕ РЫВОК ============
+  // ============ ПОЛЁТ СВЕТА (HOLD F) — ФИКС! ============
+  // КД проверяется ТОЛЬКО при старте. Если уже летим — кд не блокирует продолжение.
   {
     const heldNow = getHeldPower();
-    const canFly = player.flightKeyDown
-      && heldNow
-      && heldNow.power.name === 'Свет'
-      && (heldNow.power.masteryLevel || 0) >= 3
-      && player.stamina > 0
-      && (player.cooldowns['light_flight'] || 0) <= 0
-      && !blocked
-      && !aimingAbility;
-
-    if (canFly) {
-      if (!player.flying) {
+    if (player.flying) {
+      // Уже летим — проверяем только условия продолжения
+      const stillOk = player.flightKeyDown
+        && heldNow
+        && heldNow.power.name === 'Свет'
+        && player.stamina > 0
+        && !blocked;
+      if (!stillOk) {
+        player.flying = false;
+      } else {
+        // Летим непрерывно
+        let dx = 0, dy = 0;
+        if (keys['w'] || keys['arrowup'] || keys['ц']) dy -= 1;
+        if (keys['s'] || keys['arrowdown'] || keys['ы']) dy += 1;
+        if (keys['a'] || keys['arrowleft'] || keys['ф']) dx -= 1;
+        if (keys['d'] || keys['arrowright'] || keys['в']) dx += 1;
+        if (dx === 0 && dy === 0) { dx = player.lookX; dy = player.lookY; }
+        if (dx === 0 && dy === 0) { dx = 1; dy = 0; }
+        const dl = Math.hypot(dx, dy) || 1;
+        dx /= dl; dy /= dl;
+        player.flightDir = { x: dx, y: dy };
+        player.lookX = dx;
+        player.lookY = dy;
+        const flySpeed = spd * LIGHT_FLIGHT_SPEED_MULT * 3;
+        tryMoveWithZone(player, dx * flySpeed, dy * flySpeed);
+        player.stamina = Math.max(0, player.stamina - LIGHT_FLIGHT_STAMINA_DRAIN / 60);
+        lightFlightTrails.push({
+          x: player.x + (Math.random() - 0.5) * 18,
+          y: player.y + (Math.random() - 0.5) * 18,
+          life: LIGHT_FLIGHT_TRAIL_LIFE, maxLife: LIGHT_FLIGHT_TRAIL_LIFE,
+          radius: 18 + Math.random() * 6
+        });
+        if (Math.random() < 0.16) {
+          const a = Math.random() * Math.PI * 2;
+          const s = 2 + Math.random() * 4;
+          particles.push({
+            x: player.x + (Math.random() - 0.5) * 30,
+            y: player.y + (Math.random() - 0.5) * 30,
+            vx: Math.cos(a) * s, vy: Math.sin(a) * s - 1,
+            life: 25 + Math.random() * 15, maxLife: 40,
+            radius: 3 + Math.random() * 4,
+            color: Math.random() < 0.5 ? '#fff6b0' : '#ffffff'
+          });
+        }
+      }
+    } else {
+      // Пытаемся стартовать
+      const canStart = player.flightKeyDown
+        && heldNow
+        && heldNow.power.name === 'Свет'
+        && (heldNow.power.masteryLevel || 0) >= 3
+        && player.stamina > 0
+        && (player.cooldowns['light_flight'] || 0) <= 0
+        && !blocked
+        && !aimingAbility;
+      if (canStart) {
         player.flying = true;
         player.cooldowns['light_flight'] = 10;
         showToast('✨ ИСКРА СВЕТА!');
@@ -2640,48 +2702,6 @@ function update() {
             color: Math.random() < 0.5 ? '#fff6b0' : '#ffffff'
           });
         }
-      }
-      // НАПРАВЛЕНИЕ: WASD меняет на ходу, иначе смотрим куда смотрели
-      let dx = 0, dy = 0;
-      if (keys['w'] || keys['arrowup'] || keys['ц']) dy -= 1;
-      if (keys['s'] || keys['arrowdown'] || keys['ы']) dy += 1;
-      if (keys['a'] || keys['arrowleft'] || keys['ф']) dx -= 1;
-      if (keys['d'] || keys['arrowright'] || keys['в']) dx += 1;
-      if (dx === 0 && dy === 0) {
-        dx = player.lookX; dy = player.lookY;
-      }
-      if (dx === 0 && dy === 0) { dx = 1; dy = 0; }
-      const dl = Math.hypot(dx, dy) || 1;
-      dx /= dl; dy /= dl;
-      player.flightDir = { x: dx, y: dy };
-      player.lookX = dx;
-      player.lookY = dy;
-      // ГЛАВНОЕ: летим ПОСТОЯННО ×7 скорости × дополнительный множитель для ощущения полёта
-      const flySpeed = spd * LIGHT_FLIGHT_SPEED_MULT * 3;
-      tryMoveWithZone(player, dx * flySpeed, dy * flySpeed);
-      player.stamina = Math.max(0, player.stamina - LIGHT_FLIGHT_STAMINA_DRAIN / 60);
-
-      lightFlightTrails.push({
-        x: player.x + (Math.random() - 0.5) * 18,
-        y: player.y + (Math.random() - 0.5) * 18,
-        life: LIGHT_FLIGHT_TRAIL_LIFE, maxLife: LIGHT_FLIGHT_TRAIL_LIFE,
-        radius: 18 + Math.random() * 6
-      });
-      if (Math.random() < 0.16) {
-        const a = Math.random() * Math.PI * 2;
-        const s = 2 + Math.random() * 4;
-        particles.push({
-          x: player.x + (Math.random() - 0.5) * 30,
-          y: player.y + (Math.random() - 0.5) * 30,
-          vx: Math.cos(a) * s, vy: Math.sin(a) * s - 1,
-          life: 25 + Math.random() * 15, maxLife: 40,
-          radius: 3 + Math.random() * 4,
-          color: Math.random() < 0.5 ? '#fff6b0' : '#ffffff'
-        });
-      }
-    } else {
-      if (player.flying) {
-        player.flying = false;
       }
     }
   }
@@ -2755,7 +2775,6 @@ function update() {
     controlZone = null;
   }
 
-  // Life-таймеры слэшей и полос
   for (let i = controlSlashes.length - 1; i >= 0; i--) {
     controlSlashes[i].life--;
     if (controlSlashes[i].life <= 0) controlSlashes.splice(i, 1);
@@ -3193,7 +3212,7 @@ function update() {
     if (dist < pir.radius + player.radius + 8 && now - pir.lastAttackTime > PIRATE_ATTACK_INTERVAL) { pir.lastAttackTime = now; damagePlayer(PIRATE_DAMAGE); }
   }
 
-  // ПУСТЫННЫЕ ВОИНЫ — ФИКС: tryMoveDesert вместо tryMove
+  // ПУСТЫННЫЕ ВОИНЫ — tryMoveDesert (не уходят с острова)
   for (let i = duneWarriors.length - 1; i >= 0; i--) {
     const dw = duneWarriors[i];
     if (dw.dead) { if (dw.deathTimer > 0) dw.deathTimer--; if (now >= dw.respawnAt) { const idx = dw.spawnIdx; duneWarriors.splice(i, 1); spawnDuneWarrior(idx); } continue; }
@@ -3283,16 +3302,14 @@ function spawnLightImpact(x, y) {
 }// ==================== ОТРИСОВКА ====================
 function drawWorld() {
   const time = performance.now() * 0.001;
-  // Океан
   const seaGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
   seaGrad.addColorStop(0, '#3a89c8'); seaGrad.addColorStop(1, '#1a5a9c');
   ctx.fillStyle = seaGrad;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  // Волны
   ctx.strokeStyle = 'rgba(200, 240, 255, 0.25)'; ctx.lineWidth = 2;
   for (let i = 0; i < 40; i++) { const wx = ((i * 173) % (canvas.width + 200)) - 100 - (camera.x * 0.3) % 200; const wy = ((i * 251) % canvas.height) + Math.sin(time + i * 0.7) * 8; ctx.beginPath(); ctx.arc(wx, wy, 20 + (i % 5) * 6, 0, Math.PI, false); ctx.stroke(); }
 
-  // ============ ПИРАТСКИЙ ОСТРОВ ============
+  // ПИРАТСКИЙ ОСТРОВ
   const sx = ISLAND.x - camera.x, sy = ISLAND.y - camera.y;
   ctx.fillStyle = '#f2d68a';
   ctx.fillRect(sx, sy, ISLAND.width, ISLAND.height);
@@ -3308,7 +3325,7 @@ function drawWorld() {
   ctx.fillStyle = 'rgba(100, 180, 100, 0.6)';
   for (let i = 0; i < 100; i++) { const px = inX + ((i * 137) % inW); const py = inY + ((i * 251) % inH); const s = 5 + (i % 3) * 2; const sw = Math.sin(t + i * 0.5) * 1.5; ctx.fillRect(px + sw, py, 3, s); }
 
-  // ============ ПУСТЫННЫЙ ОСТРОВ ============
+  // ПУСТЫННЫЙ ОСТРОВ
   const dsx = DESERT.x - camera.x, dsy = DESERT.y - camera.y;
   ctx.fillStyle = '#e8d09a';
   ctx.fillRect(dsx, dsy, DESERT.width, DESERT.height);
@@ -3331,7 +3348,6 @@ function drawWorld() {
   ctx.strokeStyle = '#c9a86a'; ctx.lineWidth = 4;
   ctx.strokeRect(dsx, dsy, DESERT.width, DESERT.height);
 
-  // Опасная зона
   if (!isOnAnyLand(player.x, player.y)) {
     const pulse = 0.3 + Math.sin(performance.now() * 0.008) * 0.2;
     ctx.strokeStyle = `rgba(80, 200, 255, ${pulse})`;
@@ -3390,12 +3406,10 @@ function drawObstacles() {
       const by = ob.y + ob.baseW * 0.6 - camera.y;
       const topY = ob.y - camera.y;
       const halfW = ob.baseW / 2;
-      // Тень
       ctx.fillStyle = 'rgba(0,0,0,0.25)';
       ctx.beginPath();
       ctx.ellipse(cx + 30, by + 10, halfW * 1.1, 18, 0, 0, Math.PI * 2);
       ctx.fill();
-      // Пирамида
       const grad = ctx.createLinearGradient(cx - halfW, topY, cx + halfW, by);
       grad.addColorStop(0, '#e0c078');
       grad.addColorStop(0.5, '#d4a76a');
@@ -3407,7 +3421,6 @@ function drawObstacles() {
       ctx.closePath();
       ctx.fillStyle = grad; ctx.fill();
       ctx.strokeStyle = '#7a5a2a'; ctx.lineWidth = 3; ctx.stroke();
-      // Блоки-линии
       ctx.strokeStyle = 'rgba(120, 90, 40, 0.6)';
       ctx.lineWidth = 1.5;
       const lines = 8;
@@ -3430,7 +3443,6 @@ function drawObstacles() {
           ctx.beginPath(); ctx.moveTo(sx, y1); ctx.lineTo(sx, sy2); ctx.stroke();
         }
       }
-      // Верхушка
       ctx.fillStyle = '#c9a86a';
       ctx.beginPath();
       ctx.moveTo(cx - 12, topY + 10);
@@ -3439,7 +3451,6 @@ function drawObstacles() {
       ctx.closePath();
       ctx.fill();
       ctx.strokeStyle = '#7a5a2a'; ctx.lineWidth = 2; ctx.stroke();
-      // Вход
       ctx.fillStyle = 'rgba(20, 10, 5, 0.75)';
       ctx.beginPath();
       ctx.moveTo(cx - 30, by - 5);
@@ -4007,7 +4018,6 @@ function drawQuestNpc2() {
   const g = ctx.createRadialGradient(x - questNpc2.radius * 0.35, y - questNpc2.radius * 0.35, 3, x, y, questNpc2.radius); g.addColorStop(0, lightenColor(questNpc2.color, 0.3)); g.addColorStop(1, questNpc2.color);
   ctx.beginPath(); ctx.arc(x, y, questNpc2.radius, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
   ctx.strokeStyle = darkenColor(questNpc2.color, 0.4); ctx.lineWidth = 3; ctx.stroke();
-  // Тюрбан
   ctx.fillStyle = '#e8c88a';
   ctx.beginPath(); ctx.arc(x, y - questNpc2.radius * 0.5, questNpc2.radius * 0.9, Math.PI, 0); ctx.fill();
   ctx.strokeStyle = '#b8965a'; ctx.lineWidth = 2; ctx.stroke();
@@ -4161,17 +4171,14 @@ function drawDuneWarriors() {
     g.addColorStop(1, bc);
     ctx.beginPath(); ctx.arc(x, y, dw.radius * sc, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
     ctx.strokeStyle = darkenColor(bc, 0.5); ctx.lineWidth = 3; ctx.stroke();
-    // Тюрбан
     ctx.fillStyle = '#8b5a2b';
     ctx.beginPath(); ctx.arc(x, y - dw.radius * 0.5 * sc, dw.radius * 0.85 * sc, Math.PI, 0); ctx.fill();
     ctx.strokeStyle = '#5a3a1a'; ctx.lineWidth = 2; ctx.stroke();
     ctx.fillStyle = '#a06a3a';
     ctx.fillRect(x - dw.radius * 0.9 * sc, y - dw.radius * 0.7 * sc, dw.radius * 1.8 * sc, 5);
-    // Борода
     ctx.fillStyle = '#3a2a1a';
     ctx.beginPath();
     ctx.arc(x, y + dw.radius * 0.3 * sc, dw.radius * 0.4 * sc, 0, Math.PI); ctx.fill();
-    // Глаза
     const eo = dw.radius * 0.35 * sc, er = dw.radius * 0.13 * sc;
     ctx.fillStyle = 'white'; ctx.beginPath(); ctx.arc(x - eo, y - dw.radius * 0.05, er, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.arc(x + eo, y - dw.radius * 0.05, er, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#1a1a1a'; ctx.beginPath(); ctx.arc(x - eo + 1, y - dw.radius * 0.05, er * 0.55, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.arc(x + eo + 1, y - dw.radius * 0.05, er * 0.55, 0, Math.PI * 2); ctx.fill();
@@ -5023,7 +5030,7 @@ function drawActiveQuest() {
     ctx.fillStyle = 'white'; ctx.font = 'bold 15px Arial'; ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
     ctx.strokeText('Капитан пиратов', x + 12, y + 38); ctx.fillText('Капитан пиратов', x + 12, y + 38);
     ctx.fillStyle = '#ff8844'; ctx.font = '13px Arial';
-    const posTxt = boss.active ? `📍 Справа на пиратском острове: (${Math.round(boss.x)}, ${Math.round(boss.y)})` : '📍 Босс побеждён';
+    const posTxt = boss.active ? `📍 Справа: (${Math.round(boss.x)}, ${Math.round(boss.y)})` : '📍 Босс побеждён';
     ctx.fillText(posTxt, x + 12, y + 62);
     ctx.fillStyle = '#ffd700'; ctx.font = 'bold 12px Arial';
     ctx.fillText('💰 1000 монет + 500 XP + 200 🌟', x + 12, y + 84);
@@ -5377,6 +5384,99 @@ function drawAimCursor() {
   ctx.stroke();
 }
 
+// ==================== КОМПАС ====================
+function drawCompass() {
+  const cx = 90, cy = 130;
+  const R = 55;
+  ctx.beginPath(); ctx.arc(cx, cy, R + 6, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(20, 30, 50, 0.75)';
+  ctx.fill();
+  ctx.font = 'bold 11px Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = 'rgba(255,255,255,0.6)';
+  ctx.fillText('С', cx, cy - R + 10);
+  ctx.fillText('Ю', cx, cy + R - 10);
+  ctx.fillText('З', cx - R + 10, cy);
+  ctx.fillText('В', cx + R - 10, cy);
+
+  let targetX = null, targetY = null, targetName = '', targetColor = '#fff';
+  if (questBoss.active === 'active' && boss.active && !boss.dead) {
+    targetX = boss.x; targetY = boss.y; targetName = '👑 БОСС'; targetColor = '#ff4444';
+  } else if (questDune.active) {
+    targetX = DESERT.x + DESERT.width / 2;
+    targetY = DESERT.y + DESERT.height / 2;
+    targetName = '🏜️ Пустыня'; targetColor = '#d4a76a';
+  } else if (quest.active) {
+    let nearestPirate = null, nearestDist = 9999999;
+    for (const pir of pirates) {
+      if (pir.dead) continue;
+      const d = Math.hypot(pir.x - player.x, pir.y - player.y);
+      if (d < nearestDist) { nearestDist = d; nearestPirate = pir; }
+    }
+    if (nearestPirate) {
+      targetX = nearestPirate.x; targetY = nearestPirate.y;
+      targetName = '🏴‍☠️ Пират'; targetColor = '#ff6644';
+    } else {
+      targetX = -700; targetY = -400;
+      targetName = '⚓ Барнс'; targetColor = '#ffd700';
+    }
+  }
+
+  if (targetX === null) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(150,150,150,0.7)';
+    ctx.fill();
+    ctx.font = 'bold 10px Arial';
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.fillText('нет цели', cx, cy + R + 15);
+    return;
+  }
+
+  const dx = targetX - player.x;
+  const dy = targetY - player.y;
+  const angle = Math.atan2(dy, dx);
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(angle);
+  ctx.beginPath();
+  ctx.moveTo(R - 10, 0);
+  ctx.lineTo(R - 30, -10);
+  ctx.lineTo(R - 26, 0);
+  ctx.lineTo(R - 30, 10);
+  ctx.closePath();
+  const glow = stats.level >= 5;
+  if (glow) {
+    const pulse = 0.7 + Math.sin(performance.now() * 0.005) * 0.3;
+    ctx.shadowColor = targetColor;
+    ctx.shadowBlur = 15 * pulse;
+  }
+  ctx.fillStyle = targetColor;
+  ctx.fill();
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.restore();
+  ctx.font = 'bold 11px Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
+  ctx.strokeText(targetName, cx, cy + R + 16);
+  ctx.fillStyle = targetColor;
+  ctx.fillText(targetName, cx, cy + R + 16);
+  const dist = Math.round(Math.hypot(dx, dy));
+  ctx.font = 'bold 10px Arial';
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  ctx.fillText(dist + ' px', cx, cy + R + 30);
+}
+
 let toast = null;
 function showToast(t) { toast = { text: t, until: performance.now() + 1500 }; }
 function drawToast() {
@@ -5414,6 +5514,7 @@ function drawAdminConsole() {
     ctx.fillText('g mastery N фрукт имя        · пример: g mastery 5 свет Test1', px + 20, py + 86);
   } else {
     ctx.fillText('Введи пароль администратора и нажми Enter', px + 20, py + 50);
+    ctx.fillText('(работает на любой раскладке)', px + 20, py + 68);
   }
   const logY = py + 120;
   const logH = ph - 200;
@@ -5509,6 +5610,7 @@ function render() {
     drawStatsWindow();
     drawEatConfirm();
     drawAdminConsole();
+    drawCompass();
     drawToast();
   } else {
     ctx.fillStyle = '#0a1a3a';
