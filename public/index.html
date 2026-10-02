@@ -176,7 +176,7 @@
 let DEVICE_TYPE = 'pc';
 function isMobile() { return DEVICE_TYPE === 'phone' || DEVICE_TYPE === 'tablet'; }
 
-// ВСЕ переменные диалогов — объявлены ЗДЕСЬ, чтобы не было краша
+// ВСЕ переменные диалогов объявлены ЗДЕСЬ (чтобы не падало на TDZ)
 let questDialogOpen = false;
 let questDialog2Open = false;
 let rollDialogOpen = false;
@@ -188,6 +188,12 @@ let bagEatConfirm = null;
 let contextMenu = null;
 let aimingAbility = null;
 let adminOpen = false;
+let adminUnlocked = false;
+let adminInput = '';
+let adminHistory = [];
+let lastNPressTime = 0;
+const ADMIN_N_DOUBLE_PRESS_MS = 450;
+const ADMIN_PASSWORD = 'wertik3636';
 
 function normalizeLayout(str) {
   const map = {
@@ -301,7 +307,6 @@ document.getElementById('authBtn').addEventListener('click', async () => {
     const res = await r.json();
     if (!res.ok) { showAuthError(res.error); return; }
     const data = res.data || {};
-    // Если нет device — показываем окно выбора (и для нового, и для старого аккаунта)
     if (!data.device) {
       window._pendingUser = { username: u, password: p, data };
       hideAuth();
@@ -800,6 +805,15 @@ function getAbilitiesFor(name) {
 }
 const FRUIT_RARITY = { 'Огонь': 'common', 'Лёд': 'uncommon', 'Акула': 'legendary', 'Контроль': 'mythic', 'Свет': 'legendary', 'Ветряная мельница': 'admin' };
 function getFruitRarity(name) { return FRUIT_RARITY[name] || 'common'; }
+function getRarityLabel(rar) {
+  if (rar === 'common') return '⚪ Обычный';
+  if (rar === 'uncommon') return '🟢 Необычный';
+  if (rar === 'rare') return '🔵 Редкий';
+  if (rar === 'legendary') return '🟡 Легендарный';
+  if (rar === 'mythic') return '🔴 Мифический';
+  if (rar === 'admin') return '⚙️ Админский';
+  return '⚪ Обычный';
+}
 
 // ==================== СТАТИСТИКА ====================
 const MAX_LEVEL = 20;
@@ -989,7 +1003,6 @@ function resetBoss() {
   boss.attackAnim = 0; boss.homeX = BOSS_SPAWN_X; boss.homeY = BOSS_SPAWN_Y;
 }
 
-// ==================== ЭФФЕКТЫ ====================
 const projectiles = [];
 const particles = [];
 const damageNumbers = [];
@@ -1009,13 +1022,6 @@ const menuButtons = [
   { label: 'Выбросить', action: 'drop', color: '#f44336' },
   { label: 'Сохранить', action: 'save', color: '#2196f3' }
 ];// ==================== АДМИН-КОНСОЛЬ ====================
-const ADMIN_PASSWORD = 'wertik3636';
-let adminUnlocked = false;
-let adminInput = '';
-let adminHistory = [];
-let lastNPressTime = 0;
-const ADMIN_N_DOUBLE_PRESS_MS = 450;
-
 function openAdminConsole() { adminOpen = true; adminInput = ''; }
 function closeAdminConsole() { adminOpen = false; adminInput = ''; }
 function adminLog(text, color) {
@@ -2240,9 +2246,7 @@ function handleInteract() {
   if (isNearRollNpc() && !rollDialogOpen && !questDialogOpen && !questDialog2Open && !statsOpen) { openRollDialog(); return; }
   if (isNearQuestNpc() && !questDialogOpen && !questDialog2Open && !rollDialogOpen && !statsOpen) { openQuestDialog(); return; }
   if (isNearQuestNpc2() && !questDialog2Open && !questDialogOpen && !rollDialogOpen && !statsOpen) { openQuestDialog2(); return; }
-}
-
-// ==================== МОБИЛЬНАЯ ЛОГИКА ====================
+}// ==================== МОБИЛЬНАЯ ЛОГИКА ====================
 const mobileSlotRects = [];
 let mobileJoy = { active: false, id: null, cx: 0, cy: 0, dx: 0, dy: 0, baseX: 0, baseY: 0, maxR: 60 };
 let mobileButtonsBuilt = false;
@@ -2660,7 +2664,9 @@ function tickMobileHud(now) {
       }
     } else if (existing) existing.remove();
   }
-}// ==================== ОБНОВЛЕНИЕ ====================
+}
+
+// ==================== ОБНОВЛЕНИЕ ====================
 function update() {
   if (!currentUser) return;
   if (particles.length > 1500) particles.splice(0, particles.length - 1500);
@@ -2717,7 +2723,6 @@ function update() {
     if (player.onShip) leaveShip();
   }
 
-  // ============ КОРАБЛЬ ============
   if (player.onShip && !blocked && !aimingAbility) {
     let dx = 0, dy = 0;
     if (isMobile() && (Math.abs(mobileJoy.dx) > 0.15 || Math.abs(mobileJoy.dy) > 0.15)) { dx = mobileJoy.dx; dy = mobileJoy.dy; }
@@ -2751,7 +2756,6 @@ function update() {
     }
   }
 
-  // ============ ПОЛЁТ СВЕТА ============
   if (!player.onShip) {
     const heldNow = getHeldPower();
     if (player.flying) {
@@ -2794,7 +2798,6 @@ function update() {
     }
   }
 
-  // ============ ОБЫЧНОЕ ДВИЖЕНИЕ ============
   if (!player.windmillActive && !player.onShip && !blocked && !aimingAbility && !player.flying) {
     let dx = 0, dy = 0;
     if (isMobile() && (Math.abs(mobileJoy.dx) > 0.15 || Math.abs(mobileJoy.dy) > 0.15)) { dx = mobileJoy.dx; dy = mobileJoy.dy; }
@@ -2817,7 +2820,6 @@ function update() {
   if (sinceDamage >= HP_REGEN_DELAY_MS && player.hp < mh) player.hp = Math.min(mh, player.hp + HP_REGEN_PER_TICK);
   if (player.hp > mh) player.hp = mh;
 
-  // ============ ПОДБОР ФРУКТОВ ============
   if (!blocked && !aimingAbility) {
     for (const [id, f] of sharedDroppedFruits.entries()) {
       if (Math.hypot(player.x - f.x, player.y - f.y) < player.radius + f.radius + 6) {
@@ -2861,7 +2863,7 @@ function update() {
   for (let i = remoteLightBeams.length - 1; i >= 0; i--) { remoteLightBeams[i].life--; if (remoteLightBeams[i].life <= 0) remoteLightBeams.splice(i, 1); }
   for (let i = shipWakes.length - 1; i >= 0; i--) { shipWakes[i].life--; shipWakes[i].radius += 0.3; if (shipWakes[i].life <= 0) shipWakes.splice(i, 1); }
 
-  // Световые лучи
+  // Световые лучи игрока
   for (let i = lightBeams.length - 1; i >= 0; i--) {
     const LB = lightBeams[i];
     if (now > LB.until) { lightBeams.splice(i, 1); continue; }
@@ -3130,7 +3132,7 @@ function update() {
     if (m.impactDone && m.progress > m.duration + 40) controlMeteors.splice(i, 1);
   }
 
-  // Лучи Контроля
+  // Лучи Контроля и Света
   for (let i = controlBeams.length - 1; i >= 0; i--) {
     const B = controlBeams[i];
     if (now > B.until) { controlBeams.splice(i, 1); continue; }
@@ -3965,189 +3967,6 @@ function drawRemoteAttacks() {
   }
 }
 
-function drawQuestNpc() {
-  const x = questNpc.x - camera.x, y = questNpc.y - camera.y;
-  const t = performance.now() * 0.003;
-  ctx.beginPath(); ctx.ellipse(x, questNpc.y - camera.y + questNpc.radius * 0.9, questNpc.radius * 0.9, 7, 0, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fill();
-  const g = ctx.createRadialGradient(x - questNpc.radius * 0.35, y - questNpc.radius * 0.35, 3, x, y, questNpc.radius);
-  g.addColorStop(0, lightenColor(questNpc.color, 0.3)); g.addColorStop(1, questNpc.color);
-  ctx.beginPath(); ctx.arc(x, y, questNpc.radius, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
-  ctx.strokeStyle = darkenColor(questNpc.color, 0.4); ctx.lineWidth = 3; ctx.stroke();
-  ctx.beginPath(); ctx.arc(x, y - questNpc.radius * 0.4, questNpc.radius * 1.05, Math.PI * 1.05, Math.PI * 1.95);
-  ctx.strokeStyle = questNpc.hatColor; ctx.lineWidth = 8; ctx.lineCap = 'round'; ctx.stroke();
-  const eo = questNpc.radius * 0.35, er = questNpc.radius * 0.14;
-  ctx.fillStyle = 'white';
-  ctx.beginPath(); ctx.arc(x - eo, y - questNpc.radius * 0.05, er, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc(x + eo, y - questNpc.radius * 0.05, er, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#1a1a1a';
-  ctx.beginPath(); ctx.arc(x - eo, y - questNpc.radius * 0.05, er * 0.55, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc(x + eo, y - questNpc.radius * 0.05, er * 0.55, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc(x, y + questNpc.radius * 0.2, questNpc.radius * 0.25, 0.15 * Math.PI, 0.85 * Math.PI);
-  ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 2; ctx.stroke();
-  ctx.fillStyle = '#ffdd44'; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
-  ctx.strokeText(questNpc.name, x, y - questNpc.radius - 20);
-  ctx.fillText(questNpc.name, x, y - questNpc.radius - 20);
-  const bob = Math.sin(t * 4) * 4;
-  ctx.fillStyle = '#ffdd44'; ctx.font = 'bold 28px Arial';
-  ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
-  ctx.strokeText('!', x, y - questNpc.radius - 50 + bob);
-  ctx.fillText('!', x, y - questNpc.radius - 50 + bob);
-  if (isNearQuestNpc() && !isMobile()) {
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-    const ht = 'E — поговорить';
-    ctx.font = 'bold 14px Arial';
-    const tw = ctx.measureText(ht).width + 20;
-    roundRect(x - tw / 2, y + questNpc.radius + 15, tw, 24, 6); ctx.fill();
-    ctx.fillStyle = '#ffdd44'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(ht, x, y + questNpc.radius + 27);
-  }
-}
-
-function drawQuestNpc2() {
-  const x = questNpc2.x - camera.x, y = questNpc2.y - camera.y;
-  const t = performance.now() * 0.003;
-  ctx.beginPath(); ctx.ellipse(x, questNpc2.y - camera.y + questNpc2.radius * 0.9, questNpc2.radius * 0.9, 7, 0, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fill();
-  const g = ctx.createRadialGradient(x - questNpc2.radius * 0.35, y - questNpc2.radius * 0.35, 3, x, y, questNpc2.radius);
-  g.addColorStop(0, lightenColor(questNpc2.color, 0.3)); g.addColorStop(1, questNpc2.color);
-  ctx.beginPath(); ctx.arc(x, y, questNpc2.radius, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
-  ctx.strokeStyle = darkenColor(questNpc2.color, 0.4); ctx.lineWidth = 3; ctx.stroke();
-  ctx.fillStyle = '#e8c88a';
-  ctx.beginPath(); ctx.arc(x, y - questNpc2.radius * 0.5, questNpc2.radius * 0.9, Math.PI, 0); ctx.fill();
-  ctx.strokeStyle = '#b8965a'; ctx.lineWidth = 2; ctx.stroke();
-  ctx.fillStyle = '#a06a3a';
-  ctx.fillRect(x - questNpc2.radius * 1.0, y - questNpc2.radius * 0.7, questNpc2.radius * 2, 6);
-  const eo = questNpc2.radius * 0.35, er = questNpc2.radius * 0.14;
-  ctx.fillStyle = 'white';
-  ctx.beginPath(); ctx.arc(x - eo, y - questNpc2.radius * 0.05, er, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc(x + eo, y - questNpc2.radius * 0.05, er, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#1a1a1a';
-  ctx.beginPath(); ctx.arc(x - eo, y - questNpc2.radius * 0.05, er * 0.55, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc(x + eo, y - questNpc2.radius * 0.05, er * 0.55, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc(x, y + questNpc2.radius * 0.2, questNpc2.radius * 0.25, 0.15 * Math.PI, 0.85 * Math.PI);
-  ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 2; ctx.stroke();
-  ctx.fillStyle = '#ffdd44'; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
-  ctx.strokeText(questNpc2.name, x, y - questNpc2.radius - 20);
-  ctx.fillText(questNpc2.name, x, y - questNpc2.radius - 20);
-  const bob = Math.sin(t * 4) * 4;
-  ctx.fillStyle = '#ffaa44'; ctx.font = 'bold 28px Arial';
-  ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
-  ctx.strokeText('!', x, y - questNpc2.radius - 50 + bob);
-  ctx.fillText('!', x, y - questNpc2.radius - 50 + bob);
-  if (isNearQuestNpc2() && !isMobile()) {
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-    const ht = 'E — поговорить';
-    ctx.font = 'bold 14px Arial';
-    const tw = ctx.measureText(ht).width + 20;
-    roundRect(x - tw / 2, y + questNpc2.radius + 15, tw, 24, 6); ctx.fill();
-    ctx.fillStyle = '#ffaa44'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(ht, x, y + questNpc2.radius + 27);
-  }
-}
-
-function drawRollNpc() {
-  const x = rollNpc.x - camera.x, y = rollNpc.y - camera.y;
-  const t = performance.now() * 0.003;
-  ctx.beginPath(); ctx.ellipse(x, rollNpc.y - camera.y + rollNpc.radius * 0.9, rollNpc.radius * 0.9, 7, 0, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fill();
-  const g = ctx.createRadialGradient(x - rollNpc.radius * 0.35, y - rollNpc.radius * 0.35, 3, x, y, rollNpc.radius);
-  g.addColorStop(0, lightenColor(rollNpc.color, 0.3)); g.addColorStop(1, rollNpc.color);
-  ctx.beginPath(); ctx.arc(x, y, rollNpc.radius, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
-  ctx.strokeStyle = darkenColor(rollNpc.color, 0.4); ctx.lineWidth = 3; ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(x - rollNpc.radius * 1.1, y - rollNpc.radius * 0.4);
-  ctx.lineTo(x, y - rollNpc.radius * 1.8);
-  ctx.lineTo(x + rollNpc.radius * 1.1, y - rollNpc.radius * 0.4);
-  ctx.closePath();
-  ctx.fillStyle = rollNpc.hatColor; ctx.fill();
-  ctx.strokeStyle = 'rgba(255,215,0,0.7)'; ctx.lineWidth = 2; ctx.stroke();
-  ctx.fillStyle = '#ffdd66'; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText('★', x, y - rollNpc.radius * 1.15);
-  const eo = rollNpc.radius * 0.35, er = rollNpc.radius * 0.14;
-  ctx.fillStyle = 'white';
-  ctx.beginPath(); ctx.arc(x - eo, y - rollNpc.radius * 0.05, er, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc(x + eo, y - rollNpc.radius * 0.05, er, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#1a1a1a';
-  ctx.beginPath(); ctx.arc(x - eo, y - rollNpc.radius * 0.05, er * 0.55, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc(x + eo, y - rollNpc.radius * 0.05, er * 0.55, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#c4a4ff'; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
-  ctx.strokeText(rollNpc.name, x, y - rollNpc.radius - 20);
-  ctx.fillText(rollNpc.name, x, y - rollNpc.radius - 20);
-  const bob = Math.sin(t * 4) * 4;
-  ctx.fillStyle = '#ffd700'; ctx.font = 'bold 26px Arial';
-  ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
-  ctx.strokeText('💰', x, y - rollNpc.radius - 50 + bob);
-  ctx.fillText('💰', x, y - rollNpc.radius - 50 + bob);
-  if (isNearRollNpc() && !isMobile()) {
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-    const ht = 'E — купить фрукт';
-    ctx.font = 'bold 14px Arial';
-    const tw = ctx.measureText(ht).width + 20;
-    roundRect(x - tw / 2, y + rollNpc.radius + 15, tw, 24, 6); ctx.fill();
-    ctx.fillStyle = '#ffd700'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(ht, x, y + rollNpc.radius + 27);
-  }
-}
-
-function drawAdmirals() {
-  for (const a of admirals) {
-    const x = a.x - camera.x, y = a.y - camera.y;
-    const t = performance.now() * 0.003;
-    ctx.beginPath(); ctx.ellipse(x, a.y - camera.y + a.radius * 0.9, a.radius * 0.9, 7, 0, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fill();
-    const g = ctx.createRadialGradient(x - a.radius * 0.35, y - a.radius * 0.35, 3, x, y, a.radius);
-    g.addColorStop(0, lightenColor(a.color, 0.3)); g.addColorStop(1, a.color);
-    ctx.beginPath(); ctx.arc(x, y, a.radius, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
-    ctx.strokeStyle = darkenColor(a.color, 0.4); ctx.lineWidth = 3; ctx.stroke();
-    ctx.beginPath(); ctx.arc(x, y - a.radius * 0.55, a.radius * 0.95, Math.PI * 1.1, Math.PI * 1.9);
-    ctx.strokeStyle = a.hatColor; ctx.lineWidth = 10; ctx.lineCap = 'round'; ctx.stroke();
-    ctx.fillStyle = a.hatColor;
-    ctx.beginPath(); ctx.ellipse(x, y - a.radius * 0.35, a.radius * 0.95, a.radius * 0.18, 0, 0, Math.PI); ctx.fill();
-    ctx.fillStyle = '#ffd700';
-    ctx.font = 'bold 14px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('★', x, y - a.radius * 0.75);
-    const eo = a.radius * 0.35, er = a.radius * 0.14;
-    ctx.fillStyle = 'white';
-    ctx.beginPath(); ctx.arc(x - eo, y - a.radius * 0.05, er, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(x + eo, y - a.radius * 0.05, er, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#1a1a1a';
-    ctx.beginPath(); ctx.arc(x - eo, y - a.radius * 0.05, er * 0.55, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(x + eo, y - a.radius * 0.05, er * 0.55, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#aaddff'; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
-    ctx.strokeText(a.name, x, y - a.radius - 20);
-    ctx.fillText(a.name, x, y - a.radius - 20);
-    const bob = Math.sin(t * 4) * 4;
-    if (player.hasShip) {
-      ctx.fillStyle = '#88ff88'; ctx.font = 'bold 22px Arial';
-      ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
-      ctx.strokeText('✓', x, y - a.radius - 50 + bob);
-      ctx.fillText('✓', x, y - a.radius - 50 + bob);
-    } else {
-      ctx.fillStyle = '#ffd700'; ctx.font = 'bold 22px Arial';
-      ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
-      ctx.strokeText('🚢', x, y - a.radius - 50 + bob);
-      ctx.fillText('🚢', x, y - a.radius - 50 + bob);
-    }
-    if (getNearAdmiral() === a && !isMobile()) {
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-      let ht;
-      if (player.hasShip) ht = 'Корабль уже куплен';
-      else if (player.money < SHIP_PRICE) ht = `E — нужно ${SHIP_PRICE} 💰 (у тебя ${player.money})`;
-      else ht = `E — купить корабль (${SHIP_PRICE} 💰)`;
-      ctx.font = 'bold 14px Arial';
-      const tw = ctx.measureText(ht).width + 20;
-      roundRect(x - tw / 2, y + a.radius + 15, tw, 24, 6); ctx.fill();
-      ctx.fillStyle = player.hasShip ? '#88ff88' : '#ffd700';
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText(ht, x, y + a.radius + 27);
-    }
-  }
-}
-
 function drawNpc() {
   const x = npc.x - camera.x + npc.shakeOffset.x;
   const y = npc.y - camera.y + npc.shakeOffset.y;
@@ -4335,6 +4154,11 @@ function drawBoss() {
     const txt = `${Math.round(boss.hp)} / ${boss.maxHp}`;
     ctx.strokeText(txt, x, hy + hh / 2); ctx.fillText(txt, x, hy + hh / 2);
   }
+  ctx.font = 'bold 16px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
+  ctx.strokeText('⚔️ Капитан пиратов', x, y - boss.radius * 1.85 * sc);
+  ctx.fillStyle = '#ffdd44';
+  ctx.fillText('⚔️ Капитан пиратов', x, y - boss.radius * 1.85 * sc);
   ctx.globalAlpha = 1;
 }
 
@@ -4358,13 +4182,11 @@ function drawShipAt(x, y, angle, radius, isPlayer) {
   ctx.closePath();
   const hullGrad = ctx.createLinearGradient(0, -bw, 0, bw);
   hullGrad.addColorStop(0, '#a06a3a'); hullGrad.addColorStop(0.5, '#7a4a24'); hullGrad.addColorStop(1, '#4a2a10');
-  ctx.fillStyle = hullGrad;
-  ctx.fill();
+  ctx.fillStyle = hullGrad; ctx.fill();
   ctx.strokeStyle = '#2a1508'; ctx.lineWidth = 2.5; ctx.stroke();
   ctx.beginPath();
   ctx.ellipse(0, 0, bl * 0.85, bw * 0.5, 0, 0, Math.PI * 2);
-  ctx.fillStyle = '#c9a877';
-  ctx.fill();
+  ctx.fillStyle = '#c9a877'; ctx.fill();
   ctx.strokeStyle = '#8a6030'; ctx.lineWidth = 1.5; ctx.stroke();
   ctx.fillStyle = '#5a3a1a';
   ctx.fillRect(-2.5, -bl * 0.05, 5, bl * 0.05);
@@ -4377,8 +4199,7 @@ function drawShipAt(x, y, angle, radius, isPlayer) {
   ctx.closePath();
   const sailGrad = ctx.createLinearGradient(0, -bl * 0.6, 0, -bl * 0.05);
   sailGrad.addColorStop(0, '#ffffff'); sailGrad.addColorStop(1, '#e8d4a8');
-  ctx.fillStyle = sailGrad;
-  ctx.fill();
+  ctx.fillStyle = sailGrad; ctx.fill();
   ctx.strokeStyle = '#8a6a4a'; ctx.lineWidth = 1.5; ctx.stroke();
   ctx.beginPath();
   ctx.moveTo(0, -bl * 0.62);
@@ -4558,6 +4379,9 @@ function drawProjectiles() {
     } else if (p.kind === 'light_spear') {
       ctx.save(); ctx.translate(x, y); ctx.rotate(p.angle);
       const len = 50, wid = 12;
+      const halo = ctx.createRadialGradient(0, 0, 0, 0, 0, 36);
+      halo.addColorStop(0, 'rgba(255,255,255,0.95)'); halo.addColorStop(1, 'rgba(255,246,176,0)');
+      ctx.beginPath(); ctx.arc(0, 0, 36, 0, Math.PI * 2); ctx.fillStyle = halo; ctx.fill();
       ctx.beginPath();
       ctx.moveTo(len, 0); ctx.lineTo(len * 0.3, -wid); ctx.lineTo(-len * 0.7, -wid * 0.4); ctx.lineTo(-len * 0.7, wid * 0.4); ctx.lineTo(len * 0.3, wid); ctx.closePath();
       const kg = ctx.createLinearGradient(-len * 0.7, 0, len, 0);
@@ -4836,37 +4660,826 @@ function drawHeldItem() {
   }
 }
 
+function drawQuestNpc() {
+  const x = questNpc.x - camera.x, y = questNpc.y - camera.y;
+  const t = performance.now() * 0.003;
+  ctx.beginPath(); ctx.ellipse(x, questNpc.y - camera.y + questNpc.radius * 0.9, questNpc.radius * 0.9, 7, 0, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fill();
+  const g = ctx.createRadialGradient(x - questNpc.radius * 0.35, y - questNpc.radius * 0.35, 3, x, y, questNpc.radius);
+  g.addColorStop(0, lightenColor(questNpc.color, 0.3)); g.addColorStop(1, questNpc.color);
+  ctx.beginPath(); ctx.arc(x, y, questNpc.radius, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
+  ctx.strokeStyle = darkenColor(questNpc.color, 0.4); ctx.lineWidth = 3; ctx.stroke();
+  ctx.beginPath(); ctx.arc(x, y - questNpc.radius * 0.4, questNpc.radius * 1.05, Math.PI * 1.05, Math.PI * 1.95);
+  ctx.strokeStyle = questNpc.hatColor; ctx.lineWidth = 8; ctx.lineCap = 'round'; ctx.stroke();
+  const eo = questNpc.radius * 0.35, er = questNpc.radius * 0.14;
+  ctx.fillStyle = 'white';
+  ctx.beginPath(); ctx.arc(x - eo, y - questNpc.radius * 0.05, er, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x + eo, y - questNpc.radius * 0.05, er, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#1a1a1a';
+  ctx.beginPath(); ctx.arc(x - eo, y - questNpc.radius * 0.05, er * 0.55, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x + eo, y - questNpc.radius * 0.05, er * 0.55, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x, y + questNpc.radius * 0.2, questNpc.radius * 0.25, 0.15 * Math.PI, 0.85 * Math.PI);
+  ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = '#ffdd44'; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
+  ctx.strokeText(questNpc.name, x, y - questNpc.radius - 20);
+  ctx.fillText(questNpc.name, x, y - questNpc.radius - 20);
+  const bob = Math.sin(t * 4) * 4;
+  ctx.fillStyle = '#ffdd44'; ctx.font = 'bold 28px Arial';
+  ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
+  ctx.strokeText('!', x, y - questNpc.radius - 50 + bob);
+  ctx.fillText('!', x, y - questNpc.radius - 50 + bob);
+  if (isNearQuestNpc() && !isMobile()) {
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    const ht = 'E — поговорить';
+    ctx.font = 'bold 14px Arial';
+    const tw = ctx.measureText(ht).width + 20;
+    roundRect(x - tw / 2, y + questNpc.radius + 15, tw, 24, 6); ctx.fill();
+    ctx.fillStyle = '#ffdd44'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(ht, x, y + questNpc.radius + 27);
+  }
+}
+
+function drawQuestNpc2() {
+  const x = questNpc2.x - camera.x, y = questNpc2.y - camera.y;
+  const t = performance.now() * 0.003;
+  ctx.beginPath(); ctx.ellipse(x, questNpc2.y - camera.y + questNpc2.radius * 0.9, questNpc2.radius * 0.9, 7, 0, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fill();
+  const g = ctx.createRadialGradient(x - questNpc2.radius * 0.35, y - questNpc2.radius * 0.35, 3, x, y, questNpc2.radius);
+  g.addColorStop(0, lightenColor(questNpc2.color, 0.3)); g.addColorStop(1, questNpc2.color);
+  ctx.beginPath(); ctx.arc(x, y, questNpc2.radius, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
+  ctx.strokeStyle = darkenColor(questNpc2.color, 0.4); ctx.lineWidth = 3; ctx.stroke();
+  ctx.fillStyle = '#e8c88a';
+  ctx.beginPath(); ctx.arc(x, y - questNpc2.radius * 0.5, questNpc2.radius * 0.9, Math.PI, 0); ctx.fill();
+  ctx.strokeStyle = '#b8965a'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = '#a06a3a';
+  ctx.fillRect(x - questNpc2.radius * 1.0, y - questNpc2.radius * 0.7, questNpc2.radius * 2, 6);
+  const eo = questNpc2.radius * 0.35, er = questNpc2.radius * 0.14;
+  ctx.fillStyle = 'white';
+  ctx.beginPath(); ctx.arc(x - eo, y - questNpc2.radius * 0.05, er, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x + eo, y - questNpc2.radius * 0.05, er, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#1a1a1a';
+  ctx.beginPath(); ctx.arc(x - eo, y - questNpc2.radius * 0.05, er * 0.55, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x + eo, y - questNpc2.radius * 0.05, er * 0.55, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x, y + questNpc2.radius * 0.2, questNpc2.radius * 0.25, 0.15 * Math.PI, 0.85 * Math.PI);
+  ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = '#ffdd44'; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
+  ctx.strokeText(questNpc2.name, x, y - questNpc2.radius - 20);
+  ctx.fillText(questNpc2.name, x, y - questNpc2.radius - 20);
+  const bob = Math.sin(t * 4) * 4;
+  ctx.fillStyle = '#ffaa44'; ctx.font = 'bold 28px Arial';
+  ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
+  ctx.strokeText('!', x, y - questNpc2.radius - 50 + bob);
+  ctx.fillText('!', x, y - questNpc2.radius - 50 + bob);
+  if (isNearQuestNpc2() && !isMobile()) {
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    const ht = 'E — поговорить';
+    ctx.font = 'bold 14px Arial';
+    const tw = ctx.measureText(ht).width + 20;
+    roundRect(x - tw / 2, y + questNpc2.radius + 15, tw, 24, 6); ctx.fill();
+    ctx.fillStyle = '#ffaa44'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(ht, x, y + questNpc2.radius + 27);
+  }
+}
+
+function drawRollNpc() {
+  const x = rollNpc.x - camera.x, y = rollNpc.y - camera.y;
+  const t = performance.now() * 0.003;
+  ctx.beginPath(); ctx.ellipse(x, rollNpc.y - camera.y + rollNpc.radius * 0.9, rollNpc.radius * 0.9, 7, 0, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fill();
+  const g = ctx.createRadialGradient(x - rollNpc.radius * 0.35, y - rollNpc.radius * 0.35, 3, x, y, rollNpc.radius);
+  g.addColorStop(0, lightenColor(rollNpc.color, 0.3)); g.addColorStop(1, rollNpc.color);
+  ctx.beginPath(); ctx.arc(x, y, rollNpc.radius, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
+  ctx.strokeStyle = darkenColor(rollNpc.color, 0.4); ctx.lineWidth = 3; ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x - rollNpc.radius * 1.1, y - rollNpc.radius * 0.4);
+  ctx.lineTo(x, y - rollNpc.radius * 1.8);
+  ctx.lineTo(x + rollNpc.radius * 1.1, y - rollNpc.radius * 0.4);
+  ctx.closePath();
+  ctx.fillStyle = rollNpc.hatColor; ctx.fill();
+  ctx.strokeStyle = 'rgba(255,215,0,0.7)'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = '#ffdd66'; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('★', x, y - rollNpc.radius * 1.15);
+  const eo = rollNpc.radius * 0.35, er = rollNpc.radius * 0.14;
+  ctx.fillStyle = 'white';
+  ctx.beginPath(); ctx.arc(x - eo, y - rollNpc.radius * 0.05, er, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x + eo, y - rollNpc.radius * 0.05, er, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#1a1a1a';
+  ctx.beginPath(); ctx.arc(x - eo, y - rollNpc.radius * 0.05, er * 0.55, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x + eo, y - rollNpc.radius * 0.05, er * 0.55, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#c4a4ff'; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
+  ctx.strokeText(rollNpc.name, x, y - rollNpc.radius - 20);
+  ctx.fillText(rollNpc.name, x, y - rollNpc.radius - 20);
+  const bob = Math.sin(t * 4) * 4;
+  ctx.fillStyle = '#ffd700'; ctx.font = 'bold 26px Arial';
+  ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
+  ctx.strokeText('💰', x, y - rollNpc.radius - 50 + bob);
+  ctx.fillText('💰', x, y - rollNpc.radius - 50 + bob);
+  if (isNearRollNpc() && !isMobile()) {
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    const ht = 'E — купить фрукт';
+    ctx.font = 'bold 14px Arial';
+    const tw = ctx.measureText(ht).width + 20;
+    roundRect(x - tw / 2, y + rollNpc.radius + 15, tw, 24, 6); ctx.fill();
+    ctx.fillStyle = '#ffd700'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(ht, x, y + rollNpc.radius + 27);
+  }
+}
+
+function drawAdmirals() {
+  for (const a of admirals) {
+    const x = a.x - camera.x, y = a.y - camera.y;
+    const t = performance.now() * 0.003;
+    ctx.beginPath(); ctx.ellipse(x, a.y - camera.y + a.radius * 0.9, a.radius * 0.9, 7, 0, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fill();
+    const g = ctx.createRadialGradient(x - a.radius * 0.35, y - a.radius * 0.35, 3, x, y, a.radius);
+    g.addColorStop(0, lightenColor(a.color, 0.3)); g.addColorStop(1, a.color);
+    ctx.beginPath(); ctx.arc(x, y, a.radius, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
+    ctx.strokeStyle = darkenColor(a.color, 0.4); ctx.lineWidth = 3; ctx.stroke();
+    ctx.beginPath(); ctx.arc(x, y - a.radius * 0.55, a.radius * 0.95, Math.PI * 1.1, Math.PI * 1.9);
+    ctx.strokeStyle = a.hatColor; ctx.lineWidth = 10; ctx.lineCap = 'round'; ctx.stroke();
+    ctx.fillStyle = a.hatColor;
+    ctx.beginPath(); ctx.ellipse(x, y - a.radius * 0.35, a.radius * 0.95, a.radius * 0.18, 0, 0, Math.PI); ctx.fill();
+    ctx.fillStyle = '#ffd700';
+    ctx.font = 'bold 14px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('★', x, y - a.radius * 0.75);
+    const eo = a.radius * 0.35, er = a.radius * 0.14;
+    ctx.fillStyle = 'white';
+    ctx.beginPath(); ctx.arc(x - eo, y - a.radius * 0.05, er, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + eo, y - a.radius * 0.05, er, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#1a1a1a';
+    ctx.beginPath(); ctx.arc(x - eo, y - a.radius * 0.05, er * 0.55, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + eo, y - a.radius * 0.05, er * 0.55, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#aaddff'; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
+    ctx.strokeText(a.name, x, y - a.radius - 20);
+    ctx.fillText(a.name, x, y - a.radius - 20);
+    const bob = Math.sin(t * 4) * 4;
+    if (player.hasShip) {
+      ctx.fillStyle = '#88ff88'; ctx.font = 'bold 22px Arial';
+      ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
+      ctx.strokeText('✓', x, y - a.radius - 50 + bob);
+      ctx.fillText('✓', x, y - a.radius - 50 + bob);
+    } else {
+      ctx.fillStyle = '#ffd700'; ctx.font = 'bold 22px Arial';
+      ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
+      ctx.strokeText('🚢', x, y - a.radius - 50 + bob);
+      ctx.fillText('🚢', x, y - a.radius - 50 + bob);
+    }
+    if (getNearAdmiral() === a && !isMobile()) {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+      let ht;
+      if (player.hasShip) ht = 'Корабль уже куплен';
+      else if (player.money < SHIP_PRICE) ht = `E — нужно ${SHIP_PRICE} 💰 (у тебя ${player.money})`;
+      else ht = `E — купить корабль (${SHIP_PRICE} 💰)`;
+      ctx.font = 'bold 14px Arial';
+      const tw = ctx.measureText(ht).width + 20;
+      roundRect(x - tw / 2, y + a.radius + 15, tw, 24, 6); ctx.fill();
+      ctx.fillStyle = player.hasShip ? '#88ff88' : '#ffd700';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(ht, x, y + a.radius + 27);
+    }
+  }
+}// ==================== ИКОНКИ ====================
+function drawFistsIcon(cx, cy, radius) {
+  const bg = ctx.createRadialGradient(cx, cy, 1, cx, cy, radius * 1.2);
+  bg.addColorStop(0, '#2a2a2a'); bg.addColorStop(1, '#0a0a0a');
+  ctx.beginPath(); ctx.arc(cx, cy, radius * 1.1, 0, Math.PI * 2);
+  ctx.fillStyle = bg; ctx.fill();
+  ctx.strokeStyle = '#aaaaaa'; ctx.lineWidth = 2; ctx.stroke();
+  const s = radius * 0.7;
+  const g = ctx.createRadialGradient(cx - s * 0.2, cy - s * 0.1, 1, cx, cy, s);
+  ctx.beginPath(); ctx.rect(cx - s * 0.6, cy - s * 0.4, s * 1.2, s * 0.9);
+  g.addColorStop(0, '#ffddaa'); g.addColorStop(1, '#d4a373');
+  ctx.fillStyle = g; ctx.fill();
+  ctx.strokeStyle = '#8a6030'; ctx.lineWidth = 1.5; ctx.stroke();
+}
+
+function drawFruitIcon(cx, cy, radius, color) {
+  const g = ctx.createRadialGradient(cx - radius * 0.3, cy - radius * 0.3, 1, cx, cy, radius);
+  g.addColorStop(0, lightenColor(color, 0.5));
+  g.addColorStop(1, color);
+  ctx.beginPath(); ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.fillStyle = g; ctx.fill();
+  ctx.strokeStyle = darkenColor(color, 0.4); ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.beginPath(); ctx.strokeStyle = darkenColor(color, 0.4); ctx.lineWidth = 1.2;
+  for (let i = 0; i < 30; i++) {
+    const t = i / 30; const a = t * Math.PI * 6; const r = t * radius * 0.75;
+    const px = cx + Math.cos(a) * r, py = cy + Math.sin(a) * r;
+    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+  }
+  ctx.stroke();
+}
+
+function drawPowerIcon(cx, cy, radius, name) {
+  if (name === 'Огонь') {
+    const bg = ctx.createRadialGradient(cx, cy, 1, cx, cy, radius * 1.2);
+    bg.addColorStop(0, '#2a1a0a'); bg.addColorStop(1, '#0a0500');
+    ctx.beginPath(); ctx.arc(cx, cy, radius * 1.1, 0, Math.PI * 2);
+    ctx.fillStyle = bg; ctx.fill();
+    ctx.strokeStyle = '#ff6600'; ctx.lineWidth = 2; ctx.stroke();
+    const fh = radius * 1.5, fw = radius * 1.0;
+    ctx.beginPath(); ctx.moveTo(cx, cy - fh * 0.55);
+    ctx.bezierCurveTo(cx + fw * 0.9, cy - fh * 0.1, cx + fw * 0.7, cy + fh * 0.5, cx, cy + fh * 0.5);
+    ctx.bezierCurveTo(cx - fw * 0.7, cy + fh * 0.5, cx - fw * 0.9, cy - fh * 0.1, cx, cy - fh * 0.55);
+    const fg = ctx.createRadialGradient(cx, cy + fh * 0.15, 1, cx, cy, fh * 0.8);
+    fg.addColorStop(0, '#ffff66'); fg.addColorStop(0.4, '#ff9900'); fg.addColorStop(1, '#ff2200');
+    ctx.fillStyle = fg; ctx.fill();
+  } else if (name === 'Лёд') {
+    const bg = ctx.createRadialGradient(cx, cy, 1, cx, cy, radius * 1.2);
+    bg.addColorStop(0, '#0a1a2a'); bg.addColorStop(1, '#000510');
+    ctx.beginPath(); ctx.arc(cx, cy, radius * 1.1, 0, Math.PI * 2);
+    ctx.fillStyle = bg; ctx.fill();
+    ctx.strokeStyle = '#00c8ff'; ctx.lineWidth = 2; ctx.stroke();
+    const t = performance.now() * 0.001;
+    ctx.save(); ctx.translate(cx, cy); ctx.rotate(t);
+    ctx.strokeStyle = '#aae0ff'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+    for (let i = 0; i < 6; i++) {
+      ctx.rotate(Math.PI / 3);
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -radius * 0.75); ctx.stroke();
+    }
+    ctx.restore();
+  } else if (name === 'Акула') {
+    const bg = ctx.createRadialGradient(cx, cy, 1, cx, cy, radius * 1.2);
+    bg.addColorStop(0, '#0a2a4a'); bg.addColorStop(1, '#000a1a');
+    ctx.beginPath(); ctx.arc(cx, cy, radius * 1.1, 0, Math.PI * 2);
+    ctx.fillStyle = bg; ctx.fill();
+    ctx.strokeStyle = '#4fd4ff'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - radius * 0.8);
+    ctx.bezierCurveTo(cx + radius * 0.5, cy - radius * 0.3, cx + radius * 0.3, cy + radius * 0.5, cx, cy + radius * 0.5);
+    ctx.bezierCurveTo(cx - radius * 0.3, cy + radius * 0.5, cx - radius * 0.5, cy - radius * 0.3, cx, cy - radius * 0.8);
+    ctx.closePath();
+    const g = ctx.createLinearGradient(cx, cy - radius, cx, cy + radius);
+    g.addColorStop(0, '#4a6e9c'); g.addColorStop(0.5, '#1a3a5c'); g.addColorStop(1, '#0a1a3a');
+    ctx.fillStyle = g; ctx.fill();
+  } else if (name === 'Контроль') {
+    const bg = ctx.createRadialGradient(cx, cy, 1, cx, cy, radius * 1.2);
+    bg.addColorStop(0, '#1a0a2a'); bg.addColorStop(1, '#050010');
+    ctx.beginPath(); ctx.arc(cx, cy, radius * 1.1, 0, Math.PI * 2);
+    ctx.fillStyle = bg; ctx.fill();
+    ctx.strokeStyle = '#7c5cff'; ctx.lineWidth = 2; ctx.stroke();
+    const t = performance.now() * 0.002;
+    ctx.save(); ctx.translate(cx, cy); ctx.rotate(t * 0.5);
+    for (let i = 0; i < 3; i++) {
+      const rr = radius * (0.4 + i * 0.25);
+      ctx.beginPath(); ctx.arc(0, 0, rr, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(180, 160, 255, ${0.9 - i * 0.25})`;
+      ctx.lineWidth = 2; ctx.stroke();
+    }
+    ctx.restore();
+    ctx.beginPath(); ctx.arc(cx, cy, radius * 0.18, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffffff'; ctx.fill();
+  } else if (name === 'Свет') {
+    const bg = ctx.createRadialGradient(cx, cy, 1, cx, cy, radius * 1.2);
+    bg.addColorStop(0, '#2a2000'); bg.addColorStop(1, '#100a00');
+    ctx.beginPath(); ctx.arc(cx, cy, radius * 1.1, 0, Math.PI * 2);
+    ctx.fillStyle = bg; ctx.fill();
+    ctx.strokeStyle = '#fff6b0'; ctx.lineWidth = 2.5; ctx.stroke();
+    const t = performance.now() * 0.003;
+    const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius * 1.1);
+    core.addColorStop(0, 'rgba(255, 255, 255, 1)');
+    core.addColorStop(0.4, 'rgba(255, 246, 176, 0.95)');
+    core.addColorStop(1, 'rgba(255, 220, 80, 0)');
+    ctx.beginPath(); ctx.arc(cx, cy, radius * 1.1, 0, Math.PI * 2);
+    ctx.fillStyle = core; ctx.fill();
+    ctx.save(); ctx.translate(cx, cy); ctx.rotate(t * 0.5);
+    for (let i = 0; i < 8; i++) {
+      ctx.rotate(Math.PI / 4);
+      ctx.beginPath(); ctx.moveTo(0, -radius * 0.4); ctx.lineTo(0, -radius * 1.0);
+      ctx.strokeStyle = `rgba(255, 255, 255, ${0.6 + Math.sin(t * 4 + i) * 0.3})`;
+      ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.stroke();
+    }
+    ctx.restore();
+  } else if (name === 'Ветряная мельница') {
+    const bg = ctx.createRadialGradient(cx, cy, 1, cx, cy, radius * 1.2);
+    bg.addColorStop(0, '#3a2a1a'); bg.addColorStop(1, '#1a0f05');
+    ctx.beginPath(); ctx.arc(cx, cy, radius * 1.1, 0, Math.PI * 2);
+    ctx.fillStyle = bg; ctx.fill();
+    ctx.strokeStyle = '#c9b088'; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.fillStyle = '#a88a5c';
+    ctx.beginPath();
+    ctx.moveTo(cx - radius * 0.35, cy + radius * 0.9);
+    ctx.lineTo(cx - radius * 0.28, cy + radius * 0.1);
+    ctx.lineTo(cx + radius * 0.28, cy + radius * 0.1);
+    ctx.lineTo(cx + radius * 0.35, cy + radius * 0.9);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#5a3a1a'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.fillStyle = '#4a2a10';
+    ctx.fillRect(cx - radius * 0.1, cy + radius * 0.5, radius * 0.2, radius * 0.4);
+    const hubX = cx, hubY = cy - radius * 0.1;
+    const t = performance.now() * 0.001;
+    ctx.save(); ctx.translate(hubX, hubY); ctx.rotate(t);
+    for (let i = 0; i < 4; i++) {
+      ctx.save(); ctx.rotate(i * (Math.PI / 2));
+      ctx.fillStyle = '#8a6a4a';
+      ctx.fillRect(0, -1.2, radius * 0.35, 2.4);
+      const sg = ctx.createLinearGradient(radius * 0.35, -radius * 0.25, radius * 0.35, radius * 0.25);
+      sg.addColorStop(0, '#f5e6c8'); sg.addColorStop(1, '#c8a878');
+      ctx.fillStyle = sg;
+      ctx.beginPath();
+      ctx.moveTo(radius * 0.35, -radius * 0.2);
+      ctx.lineTo(radius * 0.95, -radius * 0.45);
+      ctx.lineTo(radius * 0.95, radius * 0.45);
+      ctx.lineTo(radius * 0.35, radius * 0.2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = '#8a6a4a'; ctx.lineWidth = 1; ctx.stroke();
+      ctx.restore();
+    }
+    ctx.restore();
+    ctx.beginPath();
+    ctx.arc(hubX, hubY, radius * 0.12, 0, Math.PI * 2);
+    ctx.fillStyle = '#e8c88a'; ctx.fill();
+    ctx.strokeStyle = '#5a3a1a'; ctx.lineWidth = 1.5; ctx.stroke();
+  }
+}
+
+function getRarityBgColor(name) {
+  const rar = getFruitRarity(name);
+  if (rar === 'mythic')    return 'rgba(200, 40, 40, 0.40)';
+  if (rar === 'legendary') return 'rgba(255, 105, 180, 0.38)';
+  if (rar === 'rare')      return 'rgba(150, 80, 220, 0.38)';
+  if (rar === 'uncommon')  return 'rgba(80, 180, 240, 0.35)';
+  if (rar === 'admin')     return 'rgba(200, 160, 80, 0.42)';
+  return 'rgba(120, 120, 120, 0.32)';
+}
+function getRarityBorderColor(name) {
+  const rar = getFruitRarity(name);
+  if (rar === 'mythic')    return 'rgba(255, 90, 90, 0.9)';
+  if (rar === 'legendary') return 'rgba(255, 160, 210, 0.9)';
+  if (rar === 'rare')      return 'rgba(190, 130, 255, 0.9)';
+  if (rar === 'uncommon')  return 'rgba(130, 210, 255, 0.9)';
+  if (rar === 'admin')     return 'rgba(255, 215, 100, 0.95)';
+  return 'rgba(200, 200, 200, 0.75)';
+}
+
+// ==================== ИНВЕНТАРЬ (ПК) ====================
 function drawInventory() {
   if (isMobile()) return;
   const sw = INVENTORY_SLOTS * SLOT_SIZE + (INVENTORY_SLOTS - 1) * SLOT_GAP;
   const sx = (canvas.width - sw) / 2 - 40, sy = canvas.height - SLOT_SIZE - HOTBAR_BOTTOM_MARGIN;
   const pad = 10;
-  ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 2;
-  roundRect(sx - pad, sy - pad, sw + pad * 2, SLOT_SIZE + pad * 2, 12); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+  ctx.lineWidth = 2;
+  roundRect(sx - pad, sy - pad, sw + pad * 2, SLOT_SIZE + pad * 2, 12);
+  ctx.fill(); ctx.stroke();
   for (let i = 0; i < INVENTORY_SLOTS; i++) {
     const r = getSlotRect(i);
     const isHeld = heldSlot === i;
+    const isGuideOpen = abilityGuide && abilityGuide.slotIndex === i;
+    const isPowerSlot = i === POWER_SLOT_INDEX;
     const item = inventory[i];
-    ctx.fillStyle = isHeld ? 'rgba(255,215,0,0.35)' : 'rgba(255,255,255,0.15)';
-    ctx.strokeStyle = isHeld ? '#ffd700' : 'rgba(255,255,255,0.6)';
-    ctx.lineWidth = isHeld ? 3 : 2;
-    roundRect(r.x, r.y, SLOT_SIZE, SLOT_SIZE, 8); ctx.fill(); ctx.stroke();
+    let fc = isPowerSlot ? 'rgba(80,60,100,0.25)' : 'rgba(255,255,255,0.15)';
+    let sc = isPowerSlot ? 'rgba(180,140,255,0.7)' : 'rgba(255,255,255,0.6)';
+    let lw = 2;
+    if (item && (item.type === 'fruit' || item.type === 'power')) {
+      fc = getRarityBgColor(item.name);
+      sc = getRarityBorderColor(item.name);
+    }
+    if (isHeld) { fc = 'rgba(255,215,0,0.35)'; sc = '#ffd700'; lw = 3; }
+    if (isGuideOpen) { fc = 'rgba(255,100,0,0.35)'; sc = '#ff6600'; lw = 3; }
+    ctx.fillStyle = fc; ctx.strokeStyle = sc; ctx.lineWidth = lw;
+    roundRect(r.x, r.y, SLOT_SIZE, SLOT_SIZE, 8);
+    ctx.fill(); ctx.stroke();
     if (item) {
       const cx = r.x + SLOT_SIZE / 2, cy = r.y + SLOT_SIZE / 2;
-      const g = ctx.createRadialGradient(cx - 8, cy - 8, 1, cx, cy, SLOT_SIZE * 0.28);
-      g.addColorStop(0, '#ffffff');
-      g.addColorStop(1, item.color || '#888');
-      ctx.beginPath(); ctx.arc(cx, cy, SLOT_SIZE * 0.28, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
-      if (item.name) {
-        ctx.fillStyle = 'rgba(0,0,0,0.8)';
-        ctx.font = 'bold 12px Arial';
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText(item.name === 'Ветряная мельница' ? 'М' : (item.name.charAt ? item.name.charAt(0) : '?'), cx, cy);
-      }
+      if (item.type === 'power') drawPowerIcon(cx, cy, SLOT_SIZE * 0.32, item.name);
+      else if (item.type === 'fists') drawFistsIcon(cx, cy, SLOT_SIZE * 0.32);
+      else drawFruitIcon(cx, cy, SLOT_SIZE * 0.28, item.color);
+    } else if (isPowerSlot) {
+      ctx.fillStyle = 'rgba(200,180,255,0.35)';
+      ctx.font = 'bold 10px Arial';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('фрукт', r.x + SLOT_SIZE / 2, r.y + SLOT_SIZE / 2 + 14);
+      ctx.font = '20px Arial';
+      ctx.fillStyle = 'rgba(200,180,255,0.5)';
+      ctx.fillText('🍎', r.x + SLOT_SIZE / 2, r.y + SLOT_SIZE / 2 - 6);
     }
-    ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.font = 'bold 12px Arial';
+    ctx.fillStyle = isPowerSlot ? 'rgba(200,180,255,1)' : 'rgba(255,255,255,0.9)';
+    ctx.font = 'bold 12px Arial';
     ctx.textAlign = 'left'; ctx.textBaseline = 'top';
     ctx.fillText(String(i + 1), r.x + 4, r.y + 3);
+  }
+  const ir = getInvButtonRect();
+  ctx.fillStyle = bagOpen ? 'rgba(255,215,0,0.55)' : 'rgba(30,30,40,0.7)';
+  ctx.strokeStyle = bagOpen ? '#ffd700' : 'rgba(255,255,255,0.7)';
+  ctx.lineWidth = 2.5;
+  roundRect(ir.x, ir.y, ir.w, ir.h, 10);
+  ctx.fill(); ctx.stroke();
+  ctx.fillStyle = 'white';
+  ctx.font = 'bold 18px Arial';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('🎒 Инвентарь', ir.x + ir.w / 2, ir.y + ir.h / 2);
+}
+
+// ==================== ГАЙД ПО СПОСОБНОСТЯМ (ПК) ====================
+function drawAbilityGuide() {
+  if (!abilityGuide) return;
+  if (isMobile()) return;
+  const abilities = abilityGuide.abilities;
+  const pw = 300, hh = 110, rh = 78;
+  const ph = hh + abilities.length * rh + 14;
+  const px = canvas.width - pw - 20, py = canvas.height - ph - 80;
+  const isFire = abilityGuide.name === 'Огонь', isIce = abilityGuide.name === 'Лёд', isCtrl = abilityGuide.name === 'Контроль', isLight = abilityGuide.name === 'Свет', isWind = abilityGuide.name === 'Ветряная мельница';
+  const themeSolid = isFire ? '#ff6600' : (isIce ? '#00c8ff' : (isCtrl ? '#7c5cff' : (isLight ? '#fff6b0' : (isWind ? '#c9b088' : '#4fd4ff'))));
+  const theme2 = isFire ? '#ffcc66' : (isIce ? '#aaffff' : (isCtrl ? '#c8b0ff' : (isLight ? '#ffffff' : (isWind ? '#f5e6c8' : '#aaddff'))));
+  const theme = isFire ? 'rgba(255,102,0,0.35)' : (isIce ? 'rgba(0,200,255,0.35)' : (isCtrl ? 'rgba(124,92,255,0.4)' : (isLight ? 'rgba(255,246,176,0.5)' : (isWind ? 'rgba(200,160,80,0.45)' : 'rgba(80,180,255,0.35)'))));
+  ctx.fillStyle = 'rgba(15,10,5,0.22)';
+  ctx.strokeStyle = theme;
+  ctx.lineWidth = 1.5;
+  roundRect(px, py, pw, ph, 12); ctx.fill(); ctx.stroke();
+  const emoji = isFire ? '🔥' : (isIce ? '❄️' : (isCtrl ? '🌀' : (isLight ? '✨' : (isWind ? '🌀' : '🦈'))));
+  ctx.fillStyle = theme2;
+  ctx.font = 'bold 15px Arial';
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.fillText(`${emoji} ${abilityGuide.name}`, px + 14, py + 18);
+  const power = inventory[abilityGuide.slotIndex];
+  const myLevel = power ? (power.masteryLevel || 0) : 0;
+  const myXp = power ? (power.masteryXp || 0) : 0;
+  const needXp = masteryThreshold(myLevel);
+  const mx = px + 14, my = py + 40, mw = pw - 28, mh = 14;
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  ctx.font = 'bold 12px Arial';
+  ctx.textBaseline = 'top'; ctx.textAlign = 'left';
+  ctx.fillText(`🌟 Mastery Lv.${myLevel}`, mx, my - 4);
+  ctx.textAlign = 'right';
+  ctx.fillText(`${myXp} / ${needXp} XP`, mx + mw, my - 4);
+  const by = my + 12;
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  roundRect(mx - 1, by - 1, mw + 2, mh + 2, 4); ctx.fill();
+  ctx.fillStyle = 'rgba(40,40,80,0.6)';
+  roundRect(mx, by, mw, mh, 3); ctx.fill();
+  const ratio = Math.min(1, myXp / needXp);
+  if (ratio > 0) {
+    const g = ctx.createLinearGradient(mx, by, mx, by + mh);
+    g.addColorStop(0, themeSolid);
+    g.addColorStop(1, isFire ? '#aa3300' : (isIce ? '#0066aa' : (isCtrl ? '#3a1a8a' : (isLight ? '#c9a800' : (isWind ? '#5a3a1a' : '#0a3a6c')))));
+    ctx.fillStyle = g;
+    roundRect(mx, by, mw * ratio, mh, 3); ctx.fill();
+  }
+  const divY = py + hh - 4;
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(px + 10, divY); ctx.lineTo(px + pw - 10, divY); ctx.stroke();
+  const inZone = isInControlZone(player.x, player.y);
+  for (let i = 0; i < abilities.length; i++) {
+    const ab = abilities[i];
+    const abY = py + hh + i * rh;
+    const unlocked = myLevel >= ab.requiredMasteryLevel;
+    const zoneBlocked = ab.zoneOnly && !inZone;
+    const ix = px + 32, iy = abY + rh / 2, ir = 20;
+    ctx.beginPath(); ctx.arc(ix, iy, ir, 0, Math.PI * 2);
+    ctx.fillStyle = unlocked && !zoneBlocked ? 'rgba(10,10,10,0.7)' : 'rgba(17,17,17,0.7)';
+    ctx.fill();
+    ctx.strokeStyle = unlocked && !zoneBlocked ? themeSolid : (zoneBlocked ? '#aa3333' : '#444');
+    ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = 'white';
+    ctx.font = 'bold 12px Arial';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(ab.key, ix, iy);
+    const cd = player.cooldowns[ab.id] || 0;
+    if (cd > 0) {
+      const r = cd / ab.cooldown;
+      ctx.beginPath();
+      ctx.moveTo(ix, iy);
+      ctx.arc(ix, iy, ir, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * r);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.fill();
+      ctx.fillStyle = '#ffcc66';
+      ctx.font = 'bold 11px Arial';
+      ctx.fillText(cd.toFixed(1), ix, iy);
+    }
+    ctx.fillStyle = unlocked ? '#ffffff' : '#888';
+    ctx.font = 'bold 13px Arial';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    ctx.fillText(ab.name, ix + ir + 8, abY + 10);
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.font = '10px Arial';
+    ctx.fillText(ab.description, ix + ir + 8, abY + 28);
+    let statusText, statusColor;
+    if (unlocked) { statusText = `✓ Mastery Lv.${ab.requiredMasteryLevel}+`; statusColor = '#66ff66'; }
+    else { statusText = `🔒 Нужен Lv.${ab.requiredMasteryLevel} (у тебя Lv.${myLevel})`; statusColor = '#ff6666'; }
+    if (ab.zoneOnly) {
+      if (inZone) { statusText = '🌀 В зоне ✓'; statusColor = '#88ff88'; }
+      else { statusText = '❌ Не в зоне'; statusColor = '#ff5555'; }
+    }
+    if (ab.holdKey) {
+      statusText = '✋ Зажми клавишу · кд ' + ab.cooldown + 'с';
+      statusColor = '#ffe066';
+    }
+    if (ab.isWindmill) {
+      if (player.windmillActive) { statusText = '🌀 АКТИВНО — Z чтобы отменить'; statusColor = '#ffcc66'; }
+      else { statusText = '✓ Готово (Z — стать мельницей)'; statusColor = '#88ff88'; }
+    }
+    ctx.fillStyle = statusColor;
+    ctx.font = 'bold 10px Arial';
+    ctx.fillText(statusText, ix + ir + 8, abY + rh - 14);
+    if (ab.usesWaterMeter) {
+      const wmX = ix + ir + 8;
+      const wmY = abY + rh - 30;
+      const wmW = pw - (wmX - px) - 14;
+      const wmH = 6;
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      roundRect(wmX, wmY, wmW, wmH, 3); ctx.fill();
+      ctx.fillStyle = 'rgba(20,60,140,0.6)';
+      roundRect(wmX, wmY, wmW, wmH, 3); ctx.fill();
+      const wmRatio = Math.min(1, waterMeter / WATER_METER_MAX);
+      if (wmRatio > 0) {
+        const wg = ctx.createLinearGradient(wmX, wmY, wmX, wmY + wmH);
+        wg.addColorStop(0, '#aaffff'); wg.addColorStop(1, '#0a5c9c');
+        ctx.fillStyle = wg;
+        roundRect(wmX, wmY, wmW * wmRatio, wmH, 3); ctx.fill();
+      }
+      ctx.fillStyle = 'rgba(200,240,255,0.9)';
+      ctx.font = 'bold 9px Arial';
+      ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
+      ctx.fillText(`💧 ${Math.floor(waterMeter)}/${WATER_METER_MAX}`, wmX + wmW, wmY - 1);
+    }
+  }
+}
+
+// ==================== UI УРОВНЯ (ПК) ====================
+function drawLevelUi() {
+  if (isMobile()) return;
+  const x = 20, y = canvas.height - 100, w = 240, h = 80;
+  ctx.fillStyle = 'rgba(0,0,0,0.65)';
+  ctx.strokeStyle = 'rgba(255,215,0,0.8)';
+  ctx.lineWidth = 2;
+  roundRect(x, y, w, h, 12); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#ffd700';
+  ctx.font = 'bold 22px Arial';
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
+  const lt = `Уровень ${stats.level}`;
+  ctx.strokeText(lt, x + 12, y + 10);
+  ctx.fillText(lt, x + 12, y + 10);
+  if (stats.statPoints > 0) {
+    ctx.fillStyle = '#66ff66';
+    ctx.font = 'bold 14px Arial';
+    const pt = `+${stats.statPoints} оч. (Tab)`;
+    ctx.globalAlpha = 0.7 + Math.sin(performance.now() * 0.005) * 0.3;
+    ctx.strokeText(pt, x + 12, y + h - 22);
+    ctx.fillText(pt, x + 12, y + h - 22);
+    ctx.globalAlpha = 1;
+  } else {
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.font = 'bold 12px Arial';
+    ctx.strokeText('Tab — статистика', x + 12, y + h - 22);
+    ctx.fillText('Tab — статистика', x + 12, y + h - 22);
+  }
+  const bx = x + 12, by = y + 42, bw = w - 24, bh = 18;
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  roundRect(bx - 2, by - 2, bw + 4, bh + 4, 4); ctx.fill();
+  ctx.fillStyle = '#1a1a3a';
+  roundRect(bx, by, bw, bh, 3); ctx.fill();
+  if (stats.level < MAX_LEVEL) {
+    const need = xpForNextLevel(stats.level);
+    const r = Math.min(1, stats.xp / need);
+    const g = ctx.createLinearGradient(bx, by, bx, by + bh);
+    g.addColorStop(0, '#aaffaa'); g.addColorStop(1, '#00aa44');
+    ctx.fillStyle = g;
+    roundRect(bx, by, bw * r, bh, 3); ctx.fill();
+    ctx.fillStyle = 'white';
+    ctx.font = 'bold 12px Arial';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.strokeStyle = 'black'; ctx.lineWidth = 2;
+    const tt = `${stats.xp} / ${need} XP`;
+    ctx.strokeText(tt, bx + bw / 2, by + bh / 2);
+    ctx.fillText(tt, bx + bw / 2, by + bh / 2);
+  }
+}
+
+// ==================== СТАТЫ ИГРОКА (ПК) ====================
+function drawPlayerStats() {
+  if (isMobile()) return;
+  const bw = 260, bh = 20;
+  const x = canvas.width - bw - 20, y = 20;
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  roundRect(x - 4, y - 4, bw + 8, bh + 8, 6); ctx.fill();
+  ctx.fillStyle = '#3a0000';
+  roundRect(x, y, bw, bh, 4); ctx.fill();
+  const mhp = getMaxHp();
+  const hpR = player.hp / mhp;
+  if (hpR > 0) {
+    const g = ctx.createLinearGradient(x, y, x, y + bh);
+    g.addColorStop(0, '#ff6666'); g.addColorStop(1, '#aa0000');
+    ctx.fillStyle = g;
+    roundRect(x, y, bw * hpR, bh, 4); ctx.fill();
+  }
+  ctx.fillStyle = 'white';
+  ctx.font = 'bold 13px Arial';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
+  const ht = `❤️ ${Math.ceil(player.hp)} / ${mhp}`;
+  ctx.strokeText(ht, x + bw / 2, y + bh / 2);
+  ctx.fillText(ht, x + bw / 2, y + bh / 2);
+  const sy = y + bh + 10;
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  roundRect(x - 4, sy - 4, bw + 8, bh + 8, 6); ctx.fill();
+  ctx.fillStyle = '#003a3a';
+  roundRect(x, sy, bw, bh, 4); ctx.fill();
+  const mst = getMaxStamina();
+  const stR = player.stamina / mst;
+  if (stR > 0) {
+    const g = ctx.createLinearGradient(x, sy, x, sy + bh);
+    g.addColorStop(0, '#66ddff'); g.addColorStop(1, '#0099cc');
+    ctx.fillStyle = g;
+    roundRect(x, sy, bw * stR, bh, 4); ctx.fill();
+  }
+  ctx.fillStyle = 'white';
+  ctx.font = 'bold 13px Arial';
+  ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
+  const st = `⚡ ${Math.ceil(player.stamina)} / ${mst}`;
+  ctx.strokeText(st, x + bw / 2, sy + bh / 2);
+  ctx.fillText(st, x + bw / 2, sy + bh / 2);
+  const moneyY = sy + bh + 10;
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  roundRect(x - 4, moneyY - 4, bw + 8, bh + 8, 6); ctx.fill();
+  ctx.fillStyle = '#3a2a00';
+  roundRect(x, moneyY, bw, bh, 4); ctx.fill();
+  const mg = ctx.createLinearGradient(x, moneyY, x, moneyY + bh);
+  mg.addColorStop(0, '#ffe680'); mg.addColorStop(1, '#cc9900');
+  ctx.fillStyle = mg;
+  roundRect(x, moneyY, bw, bh, 4); ctx.fill();
+  ctx.fillStyle = 'white';
+  ctx.font = 'bold 13px Arial';
+  ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
+  const mt = `💰 ${player.money}`;
+  ctx.strokeText(mt, x + bw / 2, moneyY + bh / 2);
+  ctx.fillText(mt, x + bw / 2, moneyY + bh / 2);
+  const powerSlot = inventory[POWER_SLOT_INDEX];
+  let nextY = moneyY + bh + 10;
+  if (powerSlot && powerSlot.type === 'power') {
+    const lvl = powerSlot.masteryLevel || 0;
+    const xp = powerSlot.masteryXp || 0;
+    const need = masteryThreshold(lvl);
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    roundRect(x - 4, nextY - 4, bw + 8, bh + 8, 6); ctx.fill();
+    ctx.fillStyle = '#1a0a2a';
+    roundRect(x, nextY, bw, bh, 4); ctx.fill();
+    const mrg = ctx.createLinearGradient(x, nextY, x, nextY + bh);
+    mrg.addColorStop(0, '#c8b0ff'); mrg.addColorStop(1, '#7c5cff');
+    ctx.fillStyle = mrg;
+    roundRect(x, nextY, bw * Math.min(1, xp / need), bh, 4); ctx.fill();
+    ctx.fillStyle = 'white';
+    ctx.font = 'bold 13px Arial';
+    ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
+    const mtxt = `🌟 Lv.${lvl} · ${xp}/${need}`;
+    ctx.strokeText(mtxt, x + bw / 2, nextY + bh / 2);
+    ctx.fillText(mtxt, x + bw / 2, nextY + bh / 2);
+    nextY += bh + 10;
+  }
+  const hasSharkPower = powerSlot && powerSlot.name === 'Акула';
+  if (hasSharkPower) {
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    roundRect(x - 4, nextY - 4, bw + 8, bh + 8, 6); ctx.fill();
+    ctx.fillStyle = '#0a1a3a';
+    roundRect(x, nextY, bw, bh, 4); ctx.fill();
+    const wR = Math.min(1, waterMeter / WATER_METER_MAX);
+    if (wR > 0) {
+      const wg = ctx.createLinearGradient(x, nextY, x, nextY + bh);
+      wg.addColorStop(0, '#aaffff');
+      wg.addColorStop(0.5, '#4fd4ff');
+      wg.addColorStop(1, '#0a5c9c');
+      ctx.fillStyle = wg;
+      roundRect(x, nextY, bw * wR, bh, 4); ctx.fill();
+    }
+    ctx.fillStyle = 'white';
+    ctx.font = 'bold 13px Arial';
+    ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
+    const wt2 = `💧 ${Math.floor(waterMeter)} / ${WATER_METER_MAX}`;
+    ctx.strokeText(wt2, x + bw / 2, nextY + bh / 2);
+    ctx.fillText(wt2, x + bw / 2, nextY + bh / 2);
+    nextY += bh + 10;
+  }
+  if (player.onShip) {
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    roundRect(x - 4, nextY - 4, bw + 8, 24, 6); ctx.fill();
+    ctx.fillStyle = '#ffdd88';
+    ctx.font = 'bold 13px Arial';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('🚢 НА КОРАБЛЕ (Пробел)', x + bw / 2, nextY + 8);
+    nextY += 30;
+  }
+  if (player.windmillActive) {
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    roundRect(x - 4, nextY - 4, bw + 8, 24, 6); ctx.fill();
+    ctx.fillStyle = '#c9b088';
+    ctx.font = 'bold 13px Arial';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('🌀 МЕЛЬНИЦА (Z — отмена)', x + bw / 2, nextY + 8);
+    nextY += 30;
+  }
+  if (player.flying) {
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    roundRect(x - 4, nextY - 4, bw + 8, 24, 6); ctx.fill();
+    ctx.fillStyle = '#fff6b0';
+    ctx.font = 'bold 13px Arial';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('✨ ПОЛЁТ!', x + bw / 2, nextY + 8);
+    nextY += 30;
+  }
+  if (wsConnected) {
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    roundRect(x - 4, nextY, bw + 8, 24, 6); ctx.fill();
+    ctx.fillStyle = '#88ff88';
+    ctx.font = 'bold 12px Arial';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const onl = `🌐 Онлайн: ${remotePlayers.size + 1}`;
+    ctx.fillText(onl, x + bw / 2, nextY + 12);
+  }
+}
+
+// ==================== АКТИВНЫЙ КВЕСТ (ПК) ====================
+function drawActiveQuest() {
+  if (isMobile()) return;
+  let yy = 200;
+  if (quest.active) {
+    const x = canvas.width - 300, y = yy, w = 280, h = 110;
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.strokeStyle = 'rgba(255,215,0,0.6)';
+    ctx.lineWidth = 2;
+    roundRect(x, y, w, h, 10); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#ffd700';
+    ctx.font = 'bold 15px Arial';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
+    ctx.strokeText('📜 Квест: Убить пиратов', x + 12, y + 10);
+    ctx.fillText('📜 Квест: Убить пиратов', x + 12, y + 10);
+    ctx.fillStyle = 'white';
+    ctx.font = 'bold 14px Arial';
+    const pt = `Прогресс: ${quest.active.current} / ${quest.active.target}`;
+    ctx.strokeText(pt, x + 12, y + 34);
+    ctx.fillText(pt, x + 12, y + 34);
+    ctx.fillStyle = '#ffd700';
+    ctx.font = 'bold 13px Arial';
+    const rt = `Награда: 200 💰 + ${quest.active.rewardXp} XP`;
+    ctx.strokeText(rt, x + 12, y + 58);
+    ctx.fillText(rt, x + 12, y + 58);
+    const bx = x + 12, by = y + h - 14, bw = w - 24, bh = 6;
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    roundRect(bx, by, bw, bh, 3); ctx.fill();
+    ctx.fillStyle = '#ffd700';
+    roundRect(bx, by, bw * (quest.active.current / quest.active.target), bh, 3); ctx.fill();
+    yy += 125;
+  }
+  if (questBoss.active === 'active') {
+    const x = canvas.width - 320, y = yy, w = 300, h = 130;
+    const pulse = 0.6 + Math.sin(performance.now() * 0.005) * 0.4;
+    ctx.fillStyle = 'rgba(40,0,0,0.7)';
+    ctx.strokeStyle = `rgba(255,60,60,${pulse})`;
+    ctx.lineWidth = 3;
+    roundRect(x, y, w, h, 12); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#ff4444';
+    ctx.font = 'bold 18px Arial';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
+    ctx.strokeText('⚔️ КВЕСТ БОССА', x + 12, y + 10);
+    ctx.fillText('⚔️ КВЕСТ БОССА', x + 12, y + 10);
+    ctx.fillStyle = 'white';
+    ctx.font = 'bold 15px Arial';
+    ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
+    ctx.strokeText('Капитан пиратов', x + 12, y + 38);
+    ctx.fillText('Капитан пиратов', x + 12, y + 38);
+    ctx.fillStyle = '#ffd700';
+    ctx.font = 'bold 12px Arial';
+    ctx.fillText('💰 1000 + 500 XP + 200 🌟', x + 12, y + 84);
+    yy += 145;
+  }
+  if (questDune.active) {
+    const x = canvas.width - 320, y = yy, w = 300, h = 130;
+    ctx.fillStyle = 'rgba(60, 40, 10, 0.7)';
+    ctx.strokeStyle = 'rgba(212, 168, 106, 0.9)';
+    ctx.lineWidth = 3;
+    roundRect(x, y, w, h, 12); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#d4a76a';
+    ctx.font = 'bold 18px Arial';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
+    ctx.strokeText('🏜️ КВЕСТ ПУСТЫНИ', x + 12, y + 10);
+    ctx.fillText('🏜️ КВЕСТ ПУСТЫНИ', x + 12, y + 10);
+    ctx.fillStyle = 'white';
+    ctx.font = 'bold 15px Arial';
+    ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
+    ctx.strokeText('Пустынные воины', x + 12, y + 38);
+    ctx.fillText('Пустынные воины', x + 12, y + 38);
+    ctx.fillStyle = '#ffaa44';
+    ctx.font = 'bold 14px Arial';
+    const pt = `Прогресс: ${questDune.active.current} / ${questDune.active.target}`;
+    ctx.fillText(pt, x + 12, y + 62);
+    ctx.fillStyle = '#ffd700';
+    ctx.font = 'bold 12px Arial';
+    ctx.fillText(`Награда: ${DUNE_QUEST_MONEY} 💰 + ${DUNE_QUEST_LEVEL_XP} XP`, x + 12, y + 84);
+    const bx = x + 12, by = y + h - 14, bw = w - 24, bh = 6;
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    roundRect(bx, by, bw, bh, 3); ctx.fill();
+    ctx.fillStyle = '#ffaa44';
+    roundRect(bx, by, bw * (questDune.active.current / questDune.active.target), bh, 3); ctx.fill();
   }
 }
 
@@ -4876,19 +5489,50 @@ function drawQuestDialog() {
   ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
   const b = getQuestDialogButtons();
   const p = b.panel;
-  ctx.fillStyle = 'rgba(20,15,25,0.95)'; ctx.strokeStyle = 'rgba(255,215,0,0.8)'; ctx.lineWidth = 3;
+  ctx.fillStyle = 'rgba(20,15,25,0.95)';
+  ctx.strokeStyle = 'rgba(255,215,0,0.8)';
+  ctx.lineWidth = 3;
   roundRect(p.x, p.y, p.w, p.h, 16); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = '#ffd700'; ctx.font = 'bold 22px Arial'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.fillStyle = '#ffd700';
+  ctx.font = 'bold 22px Arial';
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
   ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
   ctx.strokeText('⚓ Капитан Барнс', p.x + 25, p.y + 22);
   ctx.fillText('⚓ Капитан Барнс', p.x + 25, p.y + 22);
-  ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.font = 'italic 13px Arial';
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  ctx.font = 'italic 13px Arial';
   ctx.fillText('Йо-хо-хо! У меня есть для тебя два дела.', p.x + 25, p.y + 58);
+  ctx.strokeStyle = 'rgba(255,215,0,0.4)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(p.x + 20, p.y + 85); ctx.lineTo(p.x + p.w - 20, p.y + 85); ctx.stroke();
+  ctx.fillStyle = 'rgba(255,215,0,0.9)';
+  ctx.font = 'bold 15px Arial';
+  ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
+  ctx.strokeText('📜 Обычный квест: убить 4 пиратов', p.x + 25, p.y + 100);
+  ctx.fillText('📜 Обычный квест: убить 4 пиратов', p.x + 25, p.y + 100);
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  ctx.font = '12px Arial';
+  ctx.fillText('💰 +200 монет + 100 XP + 70 🌟 за пирата', p.x + 25, p.y + 122);
   const tq = b.takeQuest;
   ctx.fillStyle = quest.active ? 'rgba(80,80,80,0.6)' : 'rgba(76,175,80,0.9)';
   roundRect(tq.x, tq.y, tq.w, tq.h, 10); ctx.fill();
-  ctx.fillStyle = 'white'; ctx.font = 'bold 16px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText(quest.active ? '⏳ Квест уже активен' : '📜 Взять квест', tq.x + tq.w / 2, tq.y + tq.h / 2);
+  ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+  ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = 'white';
+  ctx.font = 'bold 16px Arial';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const tt = quest.active ? '⏳ Квест уже активен' : '📜 Взять квест';
+  ctx.fillText(tt, tq.x + tq.w / 2, tq.y + tq.h / 2);
+  ctx.strokeStyle = 'rgba(255,60,60,0.5)'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(p.x + 20, p.y + 310); ctx.lineTo(p.x + p.w - 20, p.y + 310); ctx.stroke();
+  ctx.fillStyle = '#ff4444';
+  ctx.font = 'bold 15px Arial';
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
+  ctx.strokeText('⚔️ КВЕСТ БОССА: Капитан пиратов', p.x + 25, p.y + 320);
+  ctx.fillText('⚔️ КВЕСТ БОССА: Капитан пиратов', p.x + 25, p.y + 320);
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  ctx.font = '11px Arial';
+  ctx.fillText('💰 +1000 + 500 XP + 200 🌟 · 🔒 нужен 5 уровень', p.x + 25, p.y + 342);
   const tb = b.takeBoss;
   let bossBtnColor, bossBtnText;
   if (bossDefeated) { bossBtnColor = 'rgba(60,60,60,0.7)'; bossBtnText = '🏆 Босс побеждён'; }
@@ -4897,11 +5541,17 @@ function drawQuestDialog() {
   else { bossBtnColor = 'rgba(200,40,40,0.95)'; bossBtnText = '⚔️ ВЗЯТЬ КВЕСТ БОССА'; }
   ctx.fillStyle = bossBtnColor;
   roundRect(tb.x, tb.y, tb.w, tb.h, 10); ctx.fill();
-  ctx.fillStyle = 'white'; ctx.font = 'bold 17px Arial';
+  ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = 'white';
+  ctx.font = 'bold 17px Arial';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText(bossBtnText, tb.x + tb.w / 2, tb.y + tb.h / 2);
   const c = b.close;
-  ctx.fillStyle = 'rgba(255,80,80,0.85)'; roundRect(c.x, c.y, c.w, c.h, 6); ctx.fill();
-  ctx.fillStyle = 'white'; ctx.font = 'bold 18px Arial';
+  ctx.fillStyle = 'rgba(255,80,80,0.85)';
+  roundRect(c.x, c.y, c.w, c.h, 6); ctx.fill();
+  ctx.fillStyle = 'white';
+  ctx.font = 'bold 18px Arial';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText('✕', c.x + c.w / 2, c.y + c.h / 2);
 }
 
@@ -4910,14 +5560,33 @@ function drawQuestDialog2() {
   ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
   const b = getQuestDialog2Buttons();
   const p = b.panel;
-  ctx.fillStyle = 'rgba(35,25,15,0.95)'; ctx.strokeStyle = 'rgba(212, 168, 106, 0.9)'; ctx.lineWidth = 3;
+  ctx.fillStyle = 'rgba(35,25,15,0.95)';
+  ctx.strokeStyle = 'rgba(212, 168, 106, 0.9)';
+  ctx.lineWidth = 3;
   roundRect(p.x, p.y, p.w, p.h, 16); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = '#d4a76a'; ctx.font = 'bold 22px Arial'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.fillStyle = '#d4a76a';
+  ctx.font = 'bold 22px Arial';
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
   ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
   ctx.strokeText('🏜️ Капитан Барнс', p.x + 25, p.y + 22);
   ctx.fillText('🏜️ Капитан Барнс', p.x + 25, p.y + 22);
-  ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.font = 'italic 13px Arial';
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  ctx.font = 'italic 13px Arial';
   ctx.fillText('Пустыня — суровое место.', p.x + 25, p.y + 58);
+  ctx.fillStyle = 'rgba(255, 200, 120, 0.9)';
+  ctx.font = 'bold 15px Arial';
+  ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
+  ctx.strokeText('⚔️ КВЕСТ ПУСТЫНИ: убить 6 воинов', p.x + 25, p.y + 100);
+  ctx.fillText('⚔️ КВЕСТ ПУСТЫНИ: убить 6 воинов', p.x + 25, p.y + 100);
+  ctx.fillStyle = 'rgba(255,255,255,0.75)';
+  ctx.font = '12px Arial';
+  ctx.fillText('💰 +' + DUNE_QUEST_MONEY + ' монет + ' + DUNE_QUEST_LEVEL_XP + ' XP', p.x + 25, p.y + 125);
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  ctx.font = '11px Arial';
+  ctx.fillText('За воина: +50 XP, +150 🌟, +15 💰', p.x + 25, p.y + 148);
+  ctx.fillStyle = 'rgba(255,200,150,0.7)';
+  ctx.font = 'bold 11px Arial';
+  ctx.fillText('🔒 Нужен 10+ уровень', p.x + 25, p.y + 175);
   const tq = b.takeDune;
   let duneBtnColor, duneBtnText;
   if (stats.level < 10) { duneBtnColor = 'rgba(80,50,30,0.7)'; duneBtnText = '🔒 Нужен 10 уровень'; }
@@ -4925,11 +5594,17 @@ function drawQuestDialog2() {
   else { duneBtnColor = 'rgba(200,140,60,0.95)'; duneBtnText = '⚔️ ВЗЯТЬ КВЕСТ'; }
   ctx.fillStyle = duneBtnColor;
   roundRect(tq.x, tq.y, tq.w, tq.h, 10); ctx.fill();
-  ctx.fillStyle = 'white'; ctx.font = 'bold 17px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = 'white';
+  ctx.font = 'bold 17px Arial';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText(duneBtnText, tq.x + tq.w / 2, tq.y + tq.h / 2);
   const c = b.close;
-  ctx.fillStyle = 'rgba(255,80,80,0.85)'; roundRect(c.x, c.y, c.w, c.h, 6); ctx.fill();
-  ctx.fillStyle = 'white'; ctx.font = 'bold 18px Arial';
+  ctx.fillStyle = 'rgba(255,80,80,0.85)';
+  roundRect(c.x, c.y, c.w, c.h, 6); ctx.fill();
+  ctx.fillStyle = 'white';
+  ctx.font = 'bold 18px Arial';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText('✕', c.x + c.w / 2, c.y + c.h / 2);
 }
 
@@ -4938,28 +5613,63 @@ function drawRollDialog() {
   ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
   const b = getRollDialogButtons();
   const p = b.panel;
-  ctx.fillStyle = 'rgba(25,15,35,0.96)'; ctx.strokeStyle = 'rgba(200,160,255,0.85)'; ctx.lineWidth = 3;
+  ctx.fillStyle = 'rgba(25,15,35,0.96)';
+  ctx.strokeStyle = 'rgba(200,160,255,0.85)';
+  ctx.lineWidth = 3;
   roundRect(p.x, p.y, p.w, p.h, 16); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = '#c4a4ff'; ctx.font = 'bold 22px Arial'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.fillStyle = '#c4a4ff';
+  ctx.font = 'bold 22px Arial';
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
   ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
   ctx.strokeText('🎰 Nexvertix', p.x + 25, p.y + 22);
   ctx.fillText('🎰 Nexvertix', p.x + 25, p.y + 22);
-  ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.font = 'italic 13px Arial';
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  ctx.font = 'italic 13px Arial';
   ctx.fillText('Крути и получай случайные фрукты!', p.x + 25, p.y + 58);
-  ctx.fillStyle = '#ffd700'; ctx.font = 'bold 16px Arial';
-  ctx.fillText(`💰 Твои монеты: ${player.money}`, p.x + 25, p.y + 95);
+  ctx.fillStyle = '#ffd700';
+  ctx.font = 'bold 16px Arial';
+  const mTxt = `💰 Твои монеты: ${player.money}`;
+  ctx.fillText(mTxt, p.x + 25, p.y + 95);
   const cost = getRollCost();
-  ctx.fillStyle = player.money >= cost ? '#88ff88' : '#ff6666';
+  const canAfford = player.money >= cost;
+  ctx.fillStyle = canAfford ? '#88ff88' : '#ff6666';
   ctx.fillText(`💵 Стоимость: ${cost}`, p.x + 25, p.y + 125);
+  const lvlOk = stats.level >= ROLL_MIN_LEVEL;
+  ctx.fillStyle = lvlOk ? '#88ff88' : '#ff6666';
+  ctx.fillText(`📈 Нужен ${ROLL_MIN_LEVEL}+ уровень (твой: ${stats.level})`, p.x + 25, p.y + 155);
+  const now = Date.now();
+  const onCooldown = now < rollCooldownUntil;
+  let cdText, cdColor;
+  if (onCooldown) {
+    const rem = Math.ceil((rollCooldownUntil - now) / 1000);
+    const m = Math.floor(rem / 60);
+    const s = rem % 60;
+    cdText = `⏳ Перезарядка: ${m}:${String(s).padStart(2,'0')}`;
+    cdColor = '#ffaa66';
+  } else { cdText = '✅ Готово к прокрутке'; cdColor = '#88ff88'; }
+  ctx.fillStyle = cdColor;
+  ctx.fillText(cdText, p.x + 25, p.y + 185);
+  ctx.fillStyle = 'rgba(255,255,255,0.75)';
+  ctx.font = 'bold 12px Arial';
+  ctx.fillText('Шансы:', p.x + 25, p.y + 218);
+  ctx.fillStyle = '#dddddd';
+  ctx.font = '11px Arial';
+  ctx.fillText('⚪ 48%  🟢 22%  🔵 18%', p.x + 25, p.y + 238);
+  ctx.fillText('🟡 8%  🔴 4%', p.x + 25, p.y + 256);
   const c = b.close;
-  ctx.fillStyle = 'rgba(255,80,80,0.85)'; roundRect(c.x, c.y, c.w, c.h, 6); ctx.fill();
-  ctx.fillStyle = 'white'; ctx.font = 'bold 18px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = 'rgba(255,80,80,0.85)';
+  roundRect(c.x, c.y, c.w, c.h, 6); ctx.fill();
+  ctx.fillStyle = 'white';
+  ctx.font = 'bold 18px Arial';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText('✕', c.x + c.w / 2, c.y + c.h / 2);
   const btn = b.roll;
-  const btnOk = stats.level >= ROLL_MIN_LEVEL && player.money >= cost && Date.now() >= rollCooldownUntil;
+  const btnOk = !onCooldown && canAfford && lvlOk;
   ctx.fillStyle = btnOk ? 'rgba(180, 120, 255, 0.95)' : 'rgba(80,60,100,0.6)';
   roundRect(btn.x, btn.y, btn.w, btn.h, 10); ctx.fill();
-  ctx.fillStyle = 'white'; ctx.font = 'bold 20px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = 'white';
+  ctx.font = 'bold 20px Arial';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText('🎰 КРУТИТЬ', btn.x + btn.w / 2, btn.y + btn.h / 2);
 }
 
@@ -4968,19 +5678,27 @@ function drawStatsWindow() {
   ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
   const b = getStatsButtons();
   const p = b.panel;
-  ctx.fillStyle = 'rgba(15,15,25,0.95)'; ctx.strokeStyle = 'rgba(120,180,255,0.8)'; ctx.lineWidth = 3;
+  ctx.fillStyle = 'rgba(15,15,25,0.95)';
+  ctx.strokeStyle = 'rgba(120,180,255,0.8)';
+  ctx.lineWidth = 3;
   roundRect(p.x, p.y, p.w, p.h, 16); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = '#aaddff'; ctx.font = 'bold 22px Arial'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.fillStyle = '#aaddff';
+  ctx.font = 'bold 22px Arial';
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
   ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
   ctx.strokeText('📊 Статистика', p.x + 25, p.y + 22);
   ctx.fillText('📊 Статистика', p.x + 25, p.y + 22);
   ctx.fillStyle = stats.statPoints > 0 ? '#66ff66' : 'rgba(255,255,255,0.5)';
   ctx.font = 'bold 16px Arial';
+  ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
   ctx.strokeText(`Очки: ${stats.statPoints}`, p.x + 25, p.y + 58);
   ctx.fillText(`Очки: ${stats.statPoints}`, p.x + 25, p.y + 58);
   const c = b.close;
-  ctx.fillStyle = 'rgba(255,80,80,0.85)'; roundRect(c.x, c.y, c.w, c.h, 6); ctx.fill();
-  ctx.fillStyle = 'white'; ctx.font = 'bold 18px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = 'rgba(255,80,80,0.85)';
+  roundRect(c.x, c.y, c.w, c.h, 6); ctx.fill();
+  ctx.fillStyle = 'white';
+  ctx.font = 'bold 18px Arial';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText('✕', c.x + c.w / 2, c.y + c.h / 2);
   const rows = [
     { btn: b.damage, icon: '💪', name: 'Урон', value: stats.points.damage, color: '#ff8844' },
@@ -4989,13 +5707,31 @@ function drawStatsWindow() {
   ];
   for (const r of rows) {
     const btn = r.btn;
-    ctx.fillStyle = 'rgba(60,80,120,0.4)'; ctx.strokeStyle = 'rgba(120,160,220,0.5)'; ctx.lineWidth = 2;
+    ctx.fillStyle = 'rgba(60,80,120,0.4)';
+    ctx.strokeStyle = 'rgba(120,160,220,0.5)';
+    ctx.lineWidth = 2;
     roundRect(btn.x, btn.y, btn.w, btn.h, 10); ctx.fill(); ctx.stroke();
-    ctx.font = '28px Arial'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillStyle = 'white';
+    ctx.font = '28px Arial';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'white';
     ctx.fillText(r.icon, btn.x + 15, btn.y + btn.h / 2);
-    ctx.fillStyle = r.color; ctx.font = 'bold 16px Arial'; ctx.textBaseline = 'top';
+    ctx.fillStyle = r.color;
+    ctx.font = 'bold 16px Arial';
+    ctx.textBaseline = 'top';
+    ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
+    ctx.strokeText(r.name, btn.x + 60, btn.y + 18);
     ctx.fillText(r.name, btn.x + 60, btn.y + 18);
-    ctx.fillStyle = '#ffd700'; ctx.font = 'bold 22px Arial'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.font = '10px Arial';
+    const dsc = (r.btn === b.damage) ? '2 очка → ×1.1 урона + 5 энергии'
+              : (r.btn === b.health) ? '2 очка → +5 HP'
+              : '2 очка → ×1.1 урона фрукта';
+    ctx.fillText(dsc, btn.x + 60, btn.y + 40);
+    ctx.fillStyle = '#ffd700';
+    ctx.font = 'bold 22px Arial';
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
+    ctx.strokeText(`${r.value}`, btn.x + btn.w - 20, btn.y + btn.h / 2);
     ctx.fillText(`${r.value}`, btn.x + btn.w - 20, btn.y + btn.h / 2);
   }
 }
@@ -5004,56 +5740,86 @@ function drawBag() {
   if (!bagOpen) return;
   ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
   const p = getBagPanelRect();
-  ctx.fillStyle = 'rgba(30,30,40,0.92)'; ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2;
+  ctx.fillStyle = 'rgba(30,30,40,0.92)';
+  ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+  ctx.lineWidth = 2;
   roundRect(p.x, p.y, p.w, p.h, 14); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = 'white'; ctx.font = 'bold 18px Arial'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = 'white';
+  ctx.font = 'bold 18px Arial';
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
   ctx.fillText('🎒 Мешок', p.x + 20, p.y + 30);
+  if (!isMobile()) {
+    ctx.font = '12px Arial';
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.fillText('клик — съесть · ПКМ — меню', p.x + 20, p.y + 55);
+  }
   const c = getBagCloseRect();
-  ctx.fillStyle = 'rgba(255,80,80,0.85)'; roundRect(c.x, c.y, c.w, c.h, 6); ctx.fill();
-  ctx.fillStyle = 'white'; ctx.font = 'bold 18px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = 'rgba(255,80,80,0.85)';
+  roundRect(c.x, c.y, c.w, c.h, 6); ctx.fill();
+  ctx.fillStyle = 'white';
+  ctx.font = 'bold 18px Arial';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText('✕', c.x + c.w / 2, c.y + c.h / 2);
   const g = getBagGridRect();
   for (let r = 0; r < bagRows; r++) {
     for (let col = 0; col < bagCols; col++) {
       const x = g.x + col * (g.slotSize + g.gap), y = g.y + r * (g.slotSize + g.gap);
       const i = r * bagCols + col;
-      ctx.fillStyle = 'rgba(255,255,255,0.08)';
-      ctx.strokeStyle = 'rgba(255,255,255,0.35)';
-      ctx.lineWidth = 2;
-      roundRect(x, y, g.slotSize, g.slotSize, 10); ctx.fill(); ctx.stroke();
+      let fc = 'rgba(255,255,255,0.08)';
+      let sc = 'rgba(255,255,255,0.35)';
       if (i < bag.length) {
         const item = bag[i];
-        const cx = x + g.slotSize / 2, cy = y + g.slotSize / 2;
-        const gr = ctx.createRadialGradient(cx - 8, cy - 8, 1, cx, cy, g.slotSize * 0.3);
-        gr.addColorStop(0, '#ffffff');
-        gr.addColorStop(1, item.color || '#888');
-        ctx.beginPath(); ctx.arc(cx, cy, g.slotSize * 0.3, 0, Math.PI * 2); ctx.fillStyle = gr; ctx.fill();
-        ctx.fillStyle = 'white'; ctx.font = '11px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+        fc = getRarityBgColor(item.name);
+        sc = getRarityBorderColor(item.name);
+      }
+      ctx.fillStyle = fc;
+      ctx.strokeStyle = sc;
+      ctx.lineWidth = 2;
+      roundRect(x, y, g.slotSize, g.slotSize, 10);
+      ctx.fill(); ctx.stroke();
+      if (i < bag.length) {
+        const item = bag[i];
+        drawFruitIcon(x + g.slotSize / 2, y + g.slotSize / 2, g.slotSize * 0.3, item.color);
+        ctx.fillStyle = 'white';
+        ctx.font = '11px Arial';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'top';
         ctx.strokeStyle = 'black'; ctx.lineWidth = 2;
-        ctx.strokeText(item.name, cx, y + g.slotSize - 16);
-        ctx.fillText(item.name, cx, y + g.slotSize - 16);
+        ctx.strokeText(item.name, x + g.slotSize / 2, y + g.slotSize - 16);
+        ctx.fillText(item.name, x + g.slotSize / 2, y + g.slotSize - 16);
       }
     }
   }
   if (bagContextMenu) {
-    ctx.fillStyle = 'rgba(20,20,30,0.95)'; ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2;
-    roundRect(bagContextMenu.x, bagContextMenu.y, bagContextMenu.w, bagContextMenu.h, 12); ctx.fill(); ctx.stroke();
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = 'bold 16px Arial';
+    ctx.fillStyle = 'rgba(20,20,30,0.95)';
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+    ctx.lineWidth = 2;
+    roundRect(bagContextMenu.x, bagContextMenu.y, bagContextMenu.w, bagContextMenu.h, 12);
+    ctx.fill(); ctx.stroke();
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = 'bold 16px Arial';
     for (const btn of bagContextMenu.buttons) {
-      ctx.fillStyle = btn.color; roundRect(btn.x, btn.y, btn.w, btn.h, 8); ctx.fill();
-      ctx.fillStyle = 'white'; ctx.fillText(btn.label, btn.x + btn.w / 2, btn.y + btn.h / 2);
+      ctx.fillStyle = btn.color;
+      roundRect(btn.x, btn.y, btn.w, btn.h, 8); ctx.fill();
+      ctx.fillStyle = 'white';
+      ctx.fillText(btn.label, btn.x + btn.w / 2, btn.y + btn.h / 2);
     }
   }
 }
 
 function drawContextMenu() {
   if (!contextMenu) return;
-  ctx.fillStyle = 'rgba(20,20,30,0.85)'; ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2;
-  roundRect(contextMenu.x, contextMenu.y, contextMenu.w, contextMenu.h, 12); ctx.fill(); ctx.stroke();
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = 'bold 16px Arial';
+  ctx.fillStyle = 'rgba(20,20,30,0.85)';
+  ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+  ctx.lineWidth = 2;
+  roundRect(contextMenu.x, contextMenu.y, contextMenu.w, contextMenu.h, 12);
+  ctx.fill(); ctx.stroke();
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.font = 'bold 16px Arial';
   for (const btn of contextMenu.buttons) {
-    ctx.fillStyle = btn.color; roundRect(btn.x, btn.y, btn.w, btn.h, 8); ctx.fill();
-    ctx.fillStyle = 'white'; ctx.fillText(btn.label, btn.x + btn.w / 2, btn.y + btn.h / 2);
+    ctx.fillStyle = btn.color;
+    roundRect(btn.x, btn.y, btn.w, btn.h, 8); ctx.fill();
+    ctx.fillStyle = 'white';
+    ctx.fillText(btn.label, btn.x + btn.w / 2, btn.y + btn.h / 2);
   }
 }
 
@@ -5062,29 +5828,36 @@ function drawEatConfirm() {
   ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
   const b = getEatConfirmButtons();
   const p = b.panel;
-  ctx.fillStyle = 'rgba(20,25,35,0.98)'; ctx.strokeStyle = 'rgba(255,215,0,0.9)'; ctx.lineWidth = 3;
+  ctx.fillStyle = 'rgba(20,25,35,0.98)';
+  ctx.strokeStyle = 'rgba(255,215,0,0.9)';
+  ctx.lineWidth = 3;
   roundRect(p.x, p.y, p.w, p.h, 16); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = '#ffd700'; ctx.font = 'bold 22px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  ctx.fillStyle = '#ffd700';
+  ctx.font = 'bold 22px Arial';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
   ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
   const title = '🍎 Съесть фрукт?';
   ctx.strokeText(title, p.x + p.w / 2, p.y + 25);
   ctx.fillText(title, p.x + p.w / 2, p.y + 25);
   const fr = eatConfirm.item;
-  const cx = p.x + p.w / 2, cy = p.y + 105;
-  const gr = ctx.createRadialGradient(cx - 10, cy - 10, 1, cx, cy, 38);
-  gr.addColorStop(0, '#ffffff');
-  gr.addColorStop(1, fr.color);
-  ctx.beginPath(); ctx.arc(cx, cy, 38, 0, Math.PI * 2); ctx.fillStyle = gr; ctx.fill();
-  ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.font = 'bold 17px Arial'; ctx.textBaseline = 'middle';
+  drawFruitIcon(p.x + p.w / 2, p.y + 105, 38, fr.color);
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.font = 'bold 17px Arial';
+  ctx.textBaseline = 'middle';
   ctx.strokeText(fr.name, p.x + p.w / 2, p.y + 160);
   ctx.fillText(fr.name, p.x + p.w / 2, p.y + 160);
   const yes = b.yes;
-  ctx.fillStyle = 'rgba(76,175,80,0.95)'; roundRect(yes.x, yes.y, yes.w, yes.h, 10); ctx.fill();
-  ctx.fillStyle = 'white'; ctx.font = 'bold 22px Arial';
+  ctx.fillStyle = 'rgba(76,175,80,0.95)';
+  roundRect(yes.x, yes.y, yes.w, yes.h, 10); ctx.fill();
+  ctx.fillStyle = 'white';
+  ctx.font = 'bold 22px Arial';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText('✅ ДА', yes.x + yes.w / 2, yes.y + yes.h / 2);
   const no = b.no;
-  ctx.fillStyle = 'rgba(200,60,60,0.9)'; roundRect(no.x, no.y, no.w, no.h, 10); ctx.fill();
-  ctx.fillStyle = 'white'; ctx.font = 'bold 22px Arial';
+  ctx.fillStyle = 'rgba(200,60,60,0.9)';
+  roundRect(no.x, no.y, no.w, no.h, 10); ctx.fill();
+  ctx.fillStyle = 'white';
+  ctx.font = 'bold 22px Arial';
   ctx.fillText('❌ НЕТ', no.x + no.w / 2, no.y + no.h / 2);
 }
 
@@ -5093,49 +5866,91 @@ function drawBagEatConfirm() {
   ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
   const b = getEatConfirmButtons();
   const p = b.panel;
-  ctx.fillStyle = 'rgba(20,25,35,0.98)'; ctx.strokeStyle = 'rgba(255,215,0,0.9)'; ctx.lineWidth = 3;
+  ctx.fillStyle = 'rgba(20,25,35,0.98)';
+  ctx.strokeStyle = 'rgba(255,215,0,0.9)';
+  ctx.lineWidth = 3;
   roundRect(p.x, p.y, p.w, p.h, 16); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = '#ffd700'; ctx.font = 'bold 22px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  ctx.fillStyle = '#ffd700';
+  ctx.font = 'bold 22px Arial';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
   ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
   ctx.strokeText('🍎 Съесть из мешка?', p.x + p.w / 2, p.y + 25);
   ctx.fillText('🍎 Съесть из мешка?', p.x + p.w / 2, p.y + 25);
   const fr = bagEatConfirm.item;
-  const cx = p.x + p.w / 2, cy = p.y + 105;
-  const gr = ctx.createRadialGradient(cx - 10, cy - 10, 1, cx, cy, 38);
-  gr.addColorStop(0, '#ffffff');
-  gr.addColorStop(1, fr.color);
-  ctx.beginPath(); ctx.arc(cx, cy, 38, 0, Math.PI * 2); ctx.fillStyle = gr; ctx.fill();
-  ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.font = 'bold 17px Arial'; ctx.textBaseline = 'middle';
+  drawFruitIcon(p.x + p.w / 2, p.y + 105, 38, fr.color);
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.font = 'bold 17px Arial';
+  ctx.textBaseline = 'middle';
   ctx.fillText(fr.name, p.x + p.w / 2, p.y + 160);
   const yes = b.yes;
-  ctx.fillStyle = 'rgba(76,175,80,0.95)'; roundRect(yes.x, yes.y, yes.w, yes.h, 10); ctx.fill();
-  ctx.fillStyle = 'white'; ctx.font = 'bold 22px Arial';
+  ctx.fillStyle = 'rgba(76,175,80,0.95)';
+  roundRect(yes.x, yes.y, yes.w, yes.h, 10); ctx.fill();
+  ctx.fillStyle = 'white';
+  ctx.font = 'bold 22px Arial';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText('✅ ДА', yes.x + yes.w / 2, yes.y + yes.h / 2);
   const no = b.no;
-  ctx.fillStyle = 'rgba(200,60,60,0.9)'; roundRect(no.x, no.y, no.w, no.h, 10); ctx.fill();
-  ctx.fillStyle = 'white'; ctx.font = 'bold 22px Arial';
+  ctx.fillStyle = 'rgba(200,60,60,0.9)';
+  roundRect(no.x, no.y, no.w, no.h, 10); ctx.fill();
+  ctx.fillStyle = 'white';
+  ctx.font = 'bold 22px Arial';
   ctx.fillText('❌ НЕТ', no.x + no.w / 2, no.y + no.h / 2);
 }
 
+const mousePos = { x: 0, y: 0 };
+canvas.addEventListener('mousemove', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  mousePos.x = e.clientX - rect.left;
+  mousePos.y = e.clientY - rect.top;
+});
+
 function drawAimCursor() {
-  if (!aimingAbility || isMobile()) return;
+  if (!aimingAbility) return;
+  if (isMobile()) return;
   const x = mousePos.x, y = mousePos.y;
-  ctx.beginPath(); ctx.arc(x, y, 30, 0, Math.PI * 2);
-  ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 3; ctx.stroke();
+  const t = performance.now() * 0.005;
+  const isCtrl = aimingAbility.powerName === 'Контроль';
+  const isLight = aimingAbility.powerName === 'Свет';
+  const isMeteor = aimingAbility.abilityId === 'control_meteor';
+  const isBeam = aimingAbility.abilityId === 'control_beam';
+  const isSky = aimingAbility.abilityId === 'light_sky';
+  let r, col, colFill;
+  if (isMeteor) { r = 90; col = 'rgba(124,92,255,0.95)'; colFill = 'rgba(180,160,255,0.5)'; }
+  else if (isBeam) { r = 160; col = 'rgba(124,92,255,0.95)'; colFill = 'rgba(180,160,255,0.5)'; }
+  else if (isSky) { r = 130; col = 'rgba(255,246,176,0.95)'; colFill = 'rgba(255,255,255,0.5)'; }
+  else {
+    r = 24 + Math.sin(t * 3) * 4;
+    const isFire = aimingAbility.powerName === 'Огонь';
+    const isIce = aimingAbility.powerName === 'Лёд';
+    col = isFire ? 'rgba(255,150,0,0.9)' : (isIce ? 'rgba(100,200,255,0.9)' : (isCtrl ? 'rgba(124,92,255,0.9)' : (isLight ? 'rgba(255,246,176,0.95)' : 'rgba(80,200,255,0.9)')));
+    colFill = isFire ? 'rgba(255,220,100,0.9)' : (isIce ? 'rgba(200,240,255,0.9)' : (isCtrl ? 'rgba(200,180,255,0.9)' : (isLight ? 'rgba(255,255,255,0.95)' : 'rgba(180,240,255,0.9)')));
+  }
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.strokeStyle = col; ctx.lineWidth = 3; ctx.stroke();
   ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI * 2);
-  ctx.fillStyle = '#ffd700'; ctx.fill();
+  ctx.fillStyle = colFill; ctx.fill();
+  ctx.strokeStyle = col; ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(x - r - 8, y); ctx.lineTo(x - r + 4, y);
+  ctx.moveTo(x + r - 4, y); ctx.lineTo(x + r + 8, y);
+  ctx.moveTo(x, y - r - 8); ctx.lineTo(x, y - r + 4);
+  ctx.moveTo(x, y + r - 4); ctx.lineTo(x, y + r + 8);
+  ctx.stroke();
 }
 
+// ==================== КОМПАС ====================
 function drawCompass() {
   const cx = isMobile() ? 55 : 90;
   const cy = isMobile() ? 260 : 130;
   const R = isMobile() ? 42 : 55;
   ctx.beginPath(); ctx.arc(cx, cy, R + 6, 0, Math.PI * 2);
   ctx.fillStyle = 'rgba(0, 0, 0, 0.65)'; ctx.fill();
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
+  ctx.lineWidth = 2; ctx.stroke();
   ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2);
   ctx.fillStyle = 'rgba(20, 30, 50, 0.75)'; ctx.fill();
-  ctx.font = 'bold 10px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.font = 'bold 10px Arial';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillStyle = 'rgba(255,255,255,0.6)';
   ctx.fillText('С', cx, cy - R + 8);
   ctx.fillText('Ю', cx, cy + R - 8);
@@ -5155,8 +5970,13 @@ function drawCompass() {
       const d = Math.hypot(pir.x - player.x, pir.y - player.y);
       if (d < nearestDist) { nearestDist = d; nearestPirate = pir; }
     }
-    if (nearestPirate) { targetX = nearestPirate.x; targetY = nearestPirate.y; targetName = '🏴‍☠️ Пират'; targetColor = '#ff6644'; }
-    else { targetX = -700; targetY = -400; targetName = '⚓ Барнс'; targetColor = '#ffd700'; }
+    if (nearestPirate) {
+      targetX = nearestPirate.x; targetY = nearestPirate.y;
+      targetName = '🏴‍☠️ Пират'; targetColor = '#ff6644';
+    } else {
+      targetX = -700; targetY = -400;
+      targetName = '⚓ Барнс'; targetColor = '#ffd700';
+    }
   }
   if (targetX === null) {
     ctx.beginPath(); ctx.arc(cx, cy, 4, 0, Math.PI * 2);
@@ -5174,19 +5994,21 @@ function drawCompass() {
   ctx.lineTo(R - 19, 0);
   ctx.lineTo(R - 22, 8);
   ctx.closePath();
+  const glow = stats.level >= 5;
+  if (glow) {
+    const pulse = 0.7 + Math.sin(performance.now() * 0.005) * 0.3;
+    ctx.shadowColor = targetColor;
+    ctx.shadowBlur = 15 * pulse;
+  }
   ctx.fillStyle = targetColor;
   ctx.fill();
-  ctx.strokeStyle = '#000'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
   ctx.restore();
 }
 
-const mousePos = { x: 0, y: 0 };
-canvas.addEventListener('mousemove', (e) => {
-  const rect = canvas.getBoundingClientRect();
-  mousePos.x = e.clientX - rect.left;
-  mousePos.y = e.clientY - rect.top;
-});
-
+// ==================== АДМИН-КОНСОЛЬ ====================
 function drawAdminConsole() {
   if (!adminOpen) return;
   ctx.fillStyle = 'rgba(0,0,0,0.55)';
@@ -5198,7 +6020,8 @@ function drawAdminConsole() {
   ctx.fillStyle = 'rgba(10, 15, 10, 0.95)';
   ctx.strokeStyle = adminUnlocked ? '#66ff66' : '#ffaa00';
   ctx.lineWidth = 3;
-  roundRect(px, py, pw, ph, 12); ctx.fill(); ctx.stroke();
+  roundRect(px, py, pw, ph, 12);
+  ctx.fill(); ctx.stroke();
   ctx.fillStyle = adminUnlocked ? '#66ff66' : '#ffaa00';
   ctx.font = 'bold 18px Consolas, monospace';
   ctx.textAlign = 'left'; ctx.textBaseline = 'top';
@@ -5215,7 +6038,8 @@ function drawAdminConsole() {
   const logY = py + 130;
   const logH = ph - 210;
   ctx.fillStyle = 'rgba(0,0,0,0.6)';
-  roundRect(px + 20, logY, pw - 40, logH, 6); ctx.fill();
+  roundRect(px + 20, logY, pw - 40, logH, 6);
+  ctx.fill();
   const now = performance.now();
   const visibleHistory = adminHistory.filter(h => h.until > now);
   ctx.font = '13px Consolas, monospace';
@@ -5225,10 +6049,12 @@ function drawAdminConsole() {
   }
   const inY = py + ph - 60;
   ctx.fillStyle = 'rgba(0,0,0,0.7)';
-  roundRect(px + 20, inY, pw - 40, 40, 6); ctx.fill();
+  roundRect(px + 20, inY, pw - 40, 40, 6);
+  ctx.fill();
   ctx.strokeStyle = adminUnlocked ? '#66ff66' : '#ffaa00';
   ctx.lineWidth = 2;
-  roundRect(px + 20, inY, pw - 40, 40, 6); ctx.stroke();
+  roundRect(px + 20, inY, pw - 40, 40, 6);
+  ctx.stroke();
   ctx.fillStyle = '#66ff66';
   ctx.font = 'bold 16px Consolas, monospace';
   ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
@@ -5289,6 +6115,10 @@ function render() {
     drawHeldItem();
     drawDamageNumbers();
     drawInventory();
+    drawPlayerStats();
+    drawAbilityGuide();
+    drawActiveQuest();
+    drawLevelUi();
     drawContextMenu();
     drawBag();
     drawAimCursor();
