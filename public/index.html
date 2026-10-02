@@ -17,7 +17,7 @@
   #fsBtn { position: absolute; top: 10px; right: 10px; width: 44px; height: 44px; background: rgba(0,0,0,0.5); border: 2px solid rgba(255,255,255,0.6); border-radius: 8px; color: white; font-size: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 100; }
   #fsBtn:hover { background: rgba(255,255,255,0.2); border-color: #ffd700; }
 
-  /* Авторизация */
+  /* ==================== АВТОРИЗАЦИЯ ==================== */
   #authOverlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: linear-gradient(135deg, #1a2a4a, #0a1a3a); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
   #authOverlay.hidden { display: none; }
   #authPanel { width: 100%; max-width: 420px; background: rgba(20,25,40,0.95); border: 3px solid rgba(255,215,0,0.6); border-radius: 16px; padding: 25px 30px; box-shadow: 0 20px 60px rgba(0,0,0,0.6); }
@@ -35,78 +35,81 @@
   #authBtn:disabled { opacity: 0.6; cursor: wait; }
   #authError { color: #ff5555; text-align: center; font-size: 13px; min-height: 18px; margin-top: 10px; font-weight: bold; }
   #authHint { color: rgba(255,255,255,0.4); text-align: center; font-size: 11px; margin-top: 18px; }
-  #logoutBtn { position: absolute; bottom: 10px; left: 10px; padding: 6px 12px; background: rgba(255,60,60,0.7); border: 2px solid rgba(255,255,255,0.4); border-radius: 6px; color: white; font-size: 12px; cursor: pointer; z-index: 50; display: none; }
-  #logoutBtn:hover { background: rgba(255,60,60,0.95); }
-  #playerName { position: absolute; bottom: 55px; left: 10px; padding: 8px 16px; background: rgba(0,0,0,0.55); border: 2px solid rgba(255,215,0,0.6); border-radius: 8px; color: #ffd700; font-size: 16px; font-weight: bold; z-index: 50; display: none; }
+
+  /* ==================== ВЫБОР УСТРОЙСТВА ==================== */
+  #deviceOverlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: linear-gradient(135deg, #1a2a4a, #0a1a3a); display: flex; align-items: center; justify-content: center; z-index: 1100; padding: 20px; }
+  #deviceOverlay.hidden { display: none; }
+  #devicePanel { width: 100%; max-width: 480px; background: rgba(20,25,40,0.96); border: 3px solid rgba(255,215,0,0.7); border-radius: 16px; padding: 28px 30px; box-shadow: 0 20px 60px rgba(0,0,0,0.7); text-align: center; }
+  #devicePanel h2 { color: #ffd700; margin: 0 0 8px; font-size: 24px; }
+  #devicePanel .subtitle { color: rgba(255,255,255,0.7); font-size: 13px; margin-bottom: 22px; line-height: 1.5; }
+  .deviceBtn { display: flex; align-items: center; gap: 14px; width: 100%; padding: 16px 20px; margin-bottom: 12px; background: rgba(60,80,120,0.5); border: 2px solid rgba(255,255,255,0.25); border-radius: 12px; color: white; font-size: 18px; font-weight: bold; cursor: pointer; transition: all 0.15s; }
+  .deviceBtn:hover { background: rgba(120,160,220,0.4); border-color: #ffd700; transform: scale(1.02); }
+  .deviceBtn .ico { font-size: 32px; }
+  .deviceBtn .info { text-align: left; flex: 1; }
+  .deviceBtn .info small { display: block; font-size: 12px; color: rgba(255,255,255,0.6); font-weight: normal; margin-top: 3px; }
 
   /* ==================== ПК-управление ==================== */
   #pcUi { position: absolute; top: 10px; left: 10px; color: white; font-size: 18px; text-shadow: 2px 2px 4px black; pointer-events: none; }
   #pchint { position: absolute; top: 40px; left: 10px; color: white; font-size: 13px; text-shadow: 2px 2px 4px black; pointer-events: none; opacity: 0.8; line-height: 1.4; }
+  #logoutBtn { position: absolute; bottom: 10px; left: 10px; padding: 6px 12px; background: rgba(255,60,60,0.7); border: 2px solid rgba(255,255,255,0.4); border-radius: 6px; color: white; font-size: 12px; cursor: pointer; z-index: 50; display: none; }
+  #logoutBtn:hover { background: rgba(255,60,60,0.95); }
+  #playerName { position: absolute; bottom: 55px; left: 10px; padding: 8px 16px; background: rgba(0,0,0,0.55); border: 2px solid rgba(255,215,0,0.6); border-radius: 8px; color: #ffd700; font-size: 16px; font-weight: bold; z-index: 50; display: none; }
 
   /* ==================== МОБИЛЬНЫЙ HUD ==================== */
   #mobileUi { display: none; }
   body.mobile #mobileUi { display: block; }
 
-  /* Джойстик */
-  #joystickBase { position: fixed; left: 20px; bottom: 20px; width: 140px; height: 140px; border-radius: 50%; background: rgba(0,0,0,0.35); border: 3px solid rgba(255,255,255,0.35); z-index: 200; touch-action: none; }
-  #joystickKnob { position: fixed; width: 60px; height: 60px; border-radius: 50%; background: rgba(255,215,0,0.75); border: 3px solid rgba(255,255,255,0.7); z-index: 201; pointer-events: none; transform: translate(-50%, -50%); }
-
-  /* Правый блок способностей */
-  #abilityBtns { position: fixed; right: 15px; bottom: 180px; display: flex; flex-direction: column; gap: 10px; z-index: 200; align-items: flex-end; }
-  .abBtn { width: 60px; height: 60px; border-radius: 50%; background: rgba(0,0,0,0.55); border: 3px solid rgba(255,255,255,0.6); color: white; font-size: 22px; font-weight: bold; display: flex; align-items: center; justify-content: center; z-index: 200; touch-action: none; }
-  .abBtn:active { background: rgba(255,215,0,0.6); border-color: #ffd700; }
-  .abBtn.locked { opacity: 0.35; }
-  .abBtn .cdOverlay { position: absolute; inset: 0; border-radius: 50%; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; font-size: 16px; color: #ffcc66; }
-
-  /* Нижний ряд кнопок */
-  #bottomBtns { position: fixed; right: 15px; bottom: 20px; display: flex; gap: 10px; z-index: 200; align-items: center; }
-  #bottomBtns .abBtn { width: 56px; height: 56px; font-size: 20px; }
-
-  /* Кнопка атаки (клик по экрану) */
-  #attackBtn { position: fixed; right: 15px; bottom: 90px; width: 80px; height: 80px; border-radius: 50%; background: rgba(200,40,40,0.6); border: 4px solid rgba(255,255,255,0.7); color: white; font-size: 32px; display: flex; align-items: center; justify-content: center; z-index: 200; touch-action: none; }
-  #attackBtn:active { background: rgba(255,80,80,0.9); }
-
-  /* Хотбар слотов */
-  #mobileSlots { position: fixed; left: 50%; transform: translateX(-50%); bottom: 20px; display: flex; gap: 8px; z-index: 200; }
-  .mSlot { width: 54px; height: 54px; border-radius: 10px; background: rgba(0,0,0,0.5); border: 3px solid rgba(255,255,255,0.5); display: flex; align-items: center; justify-content: center; position: relative; touch-action: none; }
-  .mSlot.active { border-color: #ffd700; background: rgba(255,215,0,0.3); }
-  .mSlot .num { position: absolute; top: 2px; left: 4px; font-size: 11px; color: rgba(255,255,255,0.8); font-weight: bold; }
-  .mSlot canvas { border-radius: 6px; }
-
-  /* Верхняя панель: HP / Энергия / Монеты */
-  #mobileTop { position: fixed; top: 10px; left: 10px; right: 60px; z-index: 200; display: flex; flex-direction: column; gap: 6px; }
-  .mBar { height: 20px; border-radius: 10px; background: rgba(0,0,0,0.6); overflow: hidden; position: relative; font-size: 12px; font-weight: bold; color: white; text-shadow: 1px 1px 2px black; display: flex; align-items: center; justify-content: center; border: 2px solid rgba(255,255,255,0.25); }
-  .mBar .fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0%; border-radius: 10px; }
+  /* Верхняя панель HP/энергия/деньги */
+  #mobileTop { position: fixed; top: 8px; left: 8px; right: 60px; z-index: 200; display: flex; flex-direction: column; gap: 5px; pointer-events: none; }
+  .mBar { height: 22px; border-radius: 11px; background: rgba(0,0,0,0.65); overflow: hidden; position: relative; font-size: 12px; font-weight: bold; color: white; text-shadow: 1px 1px 2px black; display: flex; align-items: center; justify-content: center; border: 2px solid rgba(255,255,255,0.25); }
+  .mBar .fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0%; border-radius: 11px; transition: width 0.15s; }
   .mBar .txt { position: relative; z-index: 2; }
   .mBarHp .fill { background: linear-gradient(180deg, #ff6666, #aa0000); }
   .mBarSt .fill { background: linear-gradient(180deg, #66ddff, #0099cc); }
-  .mBarMoney { background: linear-gradient(180deg, #ffe680, #cc9900); color: #3a2a00; text-shadow: none; justify-content: flex-end; padding-right: 10px; }
+  .mBarMoney { background: linear-gradient(180deg, #ffe680, #cc9900); color: #3a2a00; text-shadow: none; justify-content: flex-end; padding-right: 12px; height: 26px; }
   .mBarMastery .fill { background: linear-gradient(180deg, #c8b0ff, #7c5cff); }
   .mBarWater .fill { background: linear-gradient(180deg, #aaffff, #0a5c9c); }
 
-  /* Кнопка NPC — появляется только рядом */
-  #npcBtn { position: fixed; left: 50%; transform: translateX(-50%); bottom: 200px; padding: 16px 28px; background: linear-gradient(180deg, #ffd700, #cc9900); border: 3px solid rgba(255,255,255,0.8); border-radius: 14px; color: #3a2a00; font-size: 18px; font-weight: bold; z-index: 250; display: none; box-shadow: 0 6px 20px rgba(0,0,0,0.5); touch-action: none; }
-  #npcBtn:active { background: linear-gradient(180deg, #ffe680, #ffbb00); }
+  /* Кнопки меню справа сверху */
+  #menuBtns { position: fixed; top: 8px; right: 60px; display: flex; flex-direction: column; gap: 8px; z-index: 200; }
+  .menuBtn { width: 48px; height: 48px; border-radius: 12px; background: rgba(0,0,0,0.6); border: 2px solid rgba(255,255,255,0.5); color: white; font-size: 22px; display: flex; align-items: center; justify-content: center; touch-action: manipulation; user-select: none; }
+  .menuBtn:active { background: rgba(255,215,0,0.6); border-color: #ffd700; transform: scale(0.95); }
 
-  /* Кнопка "Съесть" / действие в инвентаре */
-  #invActionBtn { position: fixed; left: 50%; transform: translateX(-50%); bottom: 130px; padding: 14px 24px; background: linear-gradient(180deg, #4caf50, #2e7d32); border: 3px solid rgba(255,255,255,0.8); border-radius: 14px; color: white; font-size: 16px; font-weight: bold; z-index: 250; display: none; box-shadow: 0 6px 20px rgba(0,0,0,0.5); touch-action: none; }
+  /* Джойстик */
+  #joystickBase { position: fixed; left: 25px; bottom: 25px; width: 160px; height: 160px; border-radius: 50%; background: rgba(0,0,0,0.4); border: 3px solid rgba(255,255,255,0.35); z-index: 200; touch-action: none; user-select: none; }
+  #joystickBase::after { content: ''; position: absolute; inset: 15px; border-radius: 50%; border: 2px dashed rgba(255,255,255,0.2); pointer-events: none; }
+  #joystickKnob { position: fixed; width: 70px; height: 70px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #ffe680, #ffb300); border: 3px solid rgba(255,255,255,0.8); z-index: 201; pointer-events: none; transform: translate(-50%, -50%); box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
 
-  /* Кнопки Меню/Мешок/Стата — слева вверху вертикально */
-  #menuBtns { position: fixed; top: 10px; right: 60px; display: flex; flex-direction: column; gap: 8px; z-index: 200; }
-  .menuBtn { width: 44px; height: 44px; border-radius: 10px; background: rgba(0,0,0,0.55); border: 2px solid rgba(255,255,255,0.6); color: white; font-size: 20px; display: flex; align-items: center; justify-content: center; touch-action: none; }
-  .menuBtn:active { background: rgba(255,215,0,0.5); }
+  /* Кнопки способностей справа */
+  #abilityBtns { position: fixed; right: 20px; bottom: 220px; display: flex; flex-direction: column-reverse; gap: 12px; z-index: 200; align-items: flex-end; }
+  .abBtn { position: relative; width: 72px; height: 72px; border-radius: 50%; background: rgba(0,0,0,0.6); border: 3px solid rgba(255,255,255,0.6); color: white; font-size: 26px; font-weight: bold; display: flex; align-items: center; justify-content: center; z-index: 200; touch-action: manipulation; user-select: none; box-shadow: 0 4px 10px rgba(0,0,0,0.4); transition: transform 0.08s; }
+  .abBtn:active { background: rgba(255,215,0,0.7); border-color: #ffd700; transform: scale(0.92); }
+  .abBtn.locked { opacity: 0.35; }
+  .abBtn .cdOverlay { position: absolute; inset: 0; border-radius: 50%; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; font-size: 18px; color: #ffcc66; font-weight: bold; }
+
+  /* Кнопка атаки (большая, справа снизу) */
+  #attackBtn { position: fixed; right: 20px; bottom: 130px; width: 100px; height: 100px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #ff6666, #aa0000); border: 4px solid rgba(255,255,255,0.75); color: white; font-size: 40px; display: flex; align-items: center; justify-content: center; z-index: 200; touch-action: manipulation; user-select: none; box-shadow: 0 6px 18px rgba(0,0,0,0.5); }
+  #attackBtn:active { background: radial-gradient(circle at 35% 30%, #ffaaaa, #dd2222); transform: scale(0.92); }
+
+  /* Нижний ряд кнопок (корабль/полёт/пробел) */
+  #bottomBtns { position: fixed; right: 130px; bottom: 30px; display: flex; gap: 12px; z-index: 200; align-items: center; }
+  #bottomBtns .abBtn { width: 60px; height: 60px; font-size: 26px; }
+
+  /* Слоты 1-5 */
+  #mobileSlots { position: fixed; left: 50%; transform: translateX(-50%); bottom: 20px; display: flex; gap: 6px; z-index: 200; }
+  .mSlot { width: 52px; height: 52px; border-radius: 10px; background: rgba(0,0,0,0.55); border: 3px solid rgba(255,255,255,0.5); display: flex; align-items: center; justify-content: center; position: relative; touch-action: manipulation; user-select: none; }
+  .mSlot:active { transform: scale(0.95); }
+  .mSlot.active { border-color: #ffd700; background: rgba(255,215,0,0.35); box-shadow: 0 0 12px #ffd700; }
+  .mSlot .num { position: absolute; top: 2px; left: 5px; font-size: 11px; color: rgba(255,255,255,0.85); font-weight: bold; }
+  .mSlot canvas { border-radius: 6px; }
+
+  /* Кнопка NPC — по центру над слотами */
+  #npcBtn { position: fixed; left: 50%; transform: translateX(-50%); bottom: 90px; padding: 16px 28px; background: linear-gradient(180deg, #ffd700, #cc9900); border: 3px solid rgba(255,255,255,0.85); border-radius: 16px; color: #3a2a00; font-size: 17px; font-weight: bold; z-index: 250; display: none; box-shadow: 0 6px 20px rgba(0,0,0,0.5); touch-action: manipulation; user-select: none; }
+  #npcBtn:active { background: linear-gradient(180deg, #ffe680, #ffbb00); transform: translateX(-50%) scale(0.95); }
 
   /* Скрыть ПК-элементы на мобилке */
   body.mobile #pcUi, body.mobile #pchint, body.mobile #logoutBtn, body.mobile #playerName { display: none !important; }
-  body.mobile #fsBtn { top: 10px; right: 10px; }
-
-  /* Тач-зоны для ПК не мешают */
   body:not(.mobile) #mobileUi { display: none !important; }
-
-  /* Ориентация: горизонтальная — оптимально */
-  @media (orientation: portrait) and (max-width: 500px) {
-    #abilityBtns { bottom: 220px; }
-  }
 </style>
 </head>
 <body>
@@ -147,11 +150,11 @@
   <div id="mobileSlots"></div>
 
   <div id="npcBtn"></div>
-  <div id="invActionBtn"></div>
 </div>
 
 <button id="fsBtn" title="Полный экран">⛶</button>
 
+<!-- АВТОРИЗАЦИЯ -->
 <div id="authOverlay">
   <div id="authPanel">
     <h1>🍎 Magic Fruits</h1>
@@ -168,38 +171,39 @@
   </div>
 </div>
 
+<!-- ВЫБОР УСТРОЙСТВА (только для новых аккаунтов) -->
+<div id="deviceOverlay" class="hidden">
+  <div id="devicePanel">
+    <h2>🎮 На чём будешь играть?</h2>
+    <div class="subtitle">Это нужно один раз. Потом игра запомнит и будет сразу подстраивать интерфейс.</div>
+    <div class="deviceBtn" data-device="phone">
+      <div class="ico">📱</div>
+      <div class="info">
+        Телефон
+        <small>Виртуальный джойстик, тач-кнопки</small>
+      </div>
+    </div>
+    <div class="deviceBtn" data-device="tablet">
+      <div class="ico">📱</div>
+      <div class="info">
+        Планшет
+        <small>Джойстик, увеличенные кнопки</small>
+      </div>
+    </div>
+    <div class="deviceBtn" data-device="pc">
+      <div class="ico">💻</div>
+      <div class="info">
+        ПК / ноутбук
+        <small>Клавиатура WASD + мышь</small>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
-// ==================== ОПРЕДЕЛЕНИЕ УСТРОЙСТВА ====================
-const DEVICE = (function() {
-  const ua = navigator.userAgent || '';
-  const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-  const isIPad = /iPad/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  const isTablet = isIPad || (/Android/.test(ua) && !/Mobile/.test(ua)) || (/Tablet|PlayBook|Silk/.test(ua));
-  const isPhone = !isTablet && /Android|iPhone|iPod|Windows Phone|webOS|BlackBerry|Opera Mini|IEMobile|Mobile/i.test(ua);
-  const screenW = Math.max(window.innerWidth, window.innerHeight);
-  const screenH = Math.min(window.innerWidth, window.innerHeight);
-  let type = 'pc';
-  if (isPhone) type = 'phone';
-  else if (isTablet) type = 'tablet';
-  else if (isTouch && screenW < 1100) type = 'phone';
-  const isMobile = (type === 'phone' || type === 'tablet');
-  return { type, isMobile, isTouch, isTablet, isPhone, screenW, screenH };
-})();
-if (DEVICE.isMobile) document.body.classList.add('mobile');
-console.log('[device]', DEVICE.type, DEVICE);
-
-const canvas = document.getElementById('game');
-const ctx = canvas.getContext('2d');
-
-function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
-resize();
-window.addEventListener('resize', resize);
-window.addEventListener('orientationchange', () => setTimeout(resize, 200));
-
-document.getElementById('fsBtn').addEventListener('click', () => {
-  if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
-  else document.exitFullscreen();
-});
+// ==================== УСТРОЙСТВО (задаётся пользователем при регистрации) ====================
+let DEVICE_TYPE = 'pc'; // 'pc' | 'tablet' | 'phone'
+function isMobile() { return DEVICE_TYPE === 'phone' || DEVICE_TYPE === 'tablet'; }
 
 // ==================== УМНОЕ СРАВНЕНИЕ ПАРОЛЯ ====================
 function normalizeLayout(str) {
@@ -220,6 +224,19 @@ function passwordMatches(input, expected) {
   if (normalizeLayout(input) === expected) return true;
   return false;
 }
+
+// ==================== КАНВАС ====================
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+resize();
+window.addEventListener('resize', resize);
+window.addEventListener('orientationchange', () => setTimeout(resize, 200));
+
+document.getElementById('fsBtn').addEventListener('click', () => {
+  if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
+  else document.exitFullscreen();
+});
 
 // ==================== АККАУНТЫ ====================
 let currentUser = null;
@@ -303,7 +320,17 @@ document.getElementById('authBtn').addEventListener('click', async () => {
     });
     const res = await r.json();
     if (!res.ok) { showAuthError(res.error); return; }
-    loginAs(u, p, res.data);
+    // ЕСЛИ РЕГИСТРАЦИЯ — показываем окно выбора устройства
+    if (authTab === 'register') {
+      window._pendingUser = { username: u, password: p, data: res.data || {} };
+      hideAuth();
+      showDeviceChooser();
+    } else {
+      // ЛОГИН — берём device из сохранённых данных
+      const data = res.data || {};
+      const savedDevice = data.device || 'pc';
+      loginAs(u, p, data, savedDevice);
+    }
   } catch (e) {
     showAuthError('Сервер не отвечает. Подожди 30 сек и попробуй снова');
   } finally {
@@ -316,235 +343,48 @@ document.getElementById('authPassword').addEventListener('keydown', e => {
   if (e.key === 'Enter') document.getElementById('authBtn').click();
 });
 
-function loginAs(username, password, data) {
+// ==================== ВЫБОР УСТРОЙСТВА ====================
+function showDeviceChooser() {
+  document.getElementById('deviceOverlay').classList.remove('hidden');
+}
+function hideDeviceChooser() {
+  document.getElementById('deviceOverlay').classList.add('hidden');
+}
+document.querySelectorAll('.deviceBtn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const device = btn.dataset.device;
+    if (!window._pendingUser) { hideDeviceChooser(); showAuth(); return; }
+    const u = window._pendingUser.username;
+    const p = window._pendingUser.password;
+    const d = window._pendingUser.data || {};
+    d.device = device;
+    hideDeviceChooser();
+    window._pendingUser = null;
+    loginAs(u, p, d, device);
+  });
+});
+
+// ==================== ВХОД В ИГРУ ====================
+async function loginAs(username, password, data, device) {
+  DEVICE_TYPE = device || 'pc';
+  document.body.classList.toggle('mobile', isMobile());
   currentUser = { username, password, data };
   try { localStorage.setItem('mf_session', JSON.stringify({ username, password })); } catch(e) {}
   hideAuth();
+  hideDeviceChooser();
   applySave(data);
+  if (isMobile()) setupMobileHud();
+  // Сразу сохраняем, если device только что выбран
+  if (!data.device) {
+    saveNow();
+  }
   connectWebSocket();
 }
 
-// ==================== MASTERY ====================
-function masteryThreshold(level) {
-  return Math.floor(100 * Math.pow(1.1, level));
-}
-
-const powerMastery = {};
-
-function getMasteryFor(name) {
-  if (!powerMastery[name]) powerMastery[name] = { xp: 0, level: 0 };
-  return powerMastery[name];
-}
-
-function addMasteryXp(power, amount) {
-  if (!power || power.type !== 'power') return 0;
-  const m = getMasteryFor(power.name);
-  m.xp += amount;
-  power.masteryXp = m.xp;
-  power.masteryLevel = m.level;
-  let ups = 0;
-  let guard = 0;
-  while (guard < 200) {
-    guard++;
-    const need = masteryThreshold(m.level);
-    if (m.xp >= need) {
-      m.xp -= need;
-      m.level++;
-      ups++;
-    } else break;
-  }
-  if (ups > 0) {
-    power.masteryXp = m.xp;
-    power.masteryLevel = m.level;
-    for (let i = 0; i < 40; i++) {
-      const a = Math.random() * Math.PI * 2;
-      const s = 3 + Math.random() * 5;
-      particles.push({
-        x: player.x, y: player.y,
-        vx: Math.cos(a) * s, vy: Math.sin(a) * s - 2,
-        life: 60, maxLife: 90,
-        radius: 4 + Math.random() * 4,
-        color: '#ffd700'
-      });
-    }
-  }
-  return ups;
-}
-
-function applySave(d) {
-  if (!d) return;
-  stats.level = d.level || 1;
-  stats.xp = d.xp || 0;
-  stats.statPoints = d.statPoints || 0;
-  stats.points = d.points || { damage: 0, health: 0, fruit: 0 };
-  waterMeter = d.waterMeter || 0;
-  player.x = d.playerX || 0;
-  player.y = d.playerY || 0;
-  player.hp = d.hp || getMaxHp();
-  player.stamina = d.stamina || getMaxStamina();
-  player.fruitCount = d.fruitCount || 0;
-  player.money = d.money || 0;
-  player.hasShip = !!d.hasShip;
-  rollCooldownUntil = d.rollCooldownUntil || 0;
-  updateFruitUi();
-  updateMoneyUi();
-
-  for (const k of Object.keys(powerMastery)) delete powerMastery[k];
-  if (d.powerMastery && typeof d.powerMastery === 'object') {
-    for (const k of Object.keys(d.powerMastery)) {
-      const m = d.powerMastery[k] || {};
-      powerMastery[k] = { xp: m.xp || 0, level: m.level || 0 };
-    }
-  }
-  if (d.power && d.power.name && !powerMastery[d.power.name]) {
-    powerMastery[d.power.name] = {
-      xp: d.power.masteryXp || 0,
-      level: d.power.masteryLevel || 0
-    };
-  }
-
-  for (let i = 0; i < INVENTORY_SLOTS; i++) inventory[i] = null;
-  inventory[0] = { type: 'fists', name: 'Кулаки' };
-
-  if (Array.isArray(d.inventory)) {
-    for (let i = 0; i < INVENTORY_SLOTS; i++) {
-      const slot = d.inventory[i];
-      if (!slot) { inventory[i] = null; continue; }
-      if (slot.type === 'fists') { inventory[i] = { type: 'fists', name: 'Кулаки' }; continue; }
-      if (slot.type === 'power') {
-        const m = getMasteryFor(slot.name);
-        inventory[i] = {
-          type: 'power',
-          name: slot.name,
-          color: slot.color || '#888',
-          masteryXp: m.xp,
-          masteryLevel: m.level
-        };
-        continue;
-      }
-      if (slot.type === 'fruit') {
-        inventory[i] = { type: 'fruit', name: slot.name, color: slot.color || '#888' };
-        continue;
-      }
-    }
-  } else if (d.power && d.power.name) {
-    const m = getMasteryFor(d.power.name);
-    inventory[POWER_SLOT_INDEX] = {
-      type: 'power',
-      name: d.power.name,
-      color: d.power.color || '#888',
-      masteryXp: m.xp,
-      masteryLevel: m.level
-    };
-  }
-
-  bag.length = 0;
-  if (Array.isArray(d.bag)) for (const it of d.bag) bag.push(it);
-  if (d.quest) quest.active = d.quest;
-  if (d.questBoss) questBoss.active = d.questBoss;
-  if (d.questDune) questDune.active = d.questDune;
-  if (typeof d.bossDefeated === 'boolean') bossDefeated = d.bossDefeated;
-  if (bossDefeated) {
-    boss.active = false;
-    boss.dead = true;
-    boss.deathTimer = 0;
-  }
-  player.windmillActive = false;
-  player.windmillAngle = 0;
-  player.windmillSavedRadius = player.radius;
-  player.onShip = false;
-  camera.x = player.x - canvas.width / 2;
-  camera.y = player.y - canvas.height / 2;
-  if (DEVICE.isMobile) refreshMobileHud();
-}
-
-let saving = false;
-async function saveNow() {
-  if (!currentUser || saving) return;
-  saving = true;
-
-  const powerSlot = inventory[POWER_SLOT_INDEX];
-  const powerData = (powerSlot && powerSlot.type === 'power') ? {
-    name: powerSlot.name,
-    color: powerSlot.color
-  } : null;
-
-  const inventoryData = [];
-  for (let i = 0; i < INVENTORY_SLOTS; i++) {
-    const it = inventory[i];
-    if (!it) { inventoryData.push(null); continue; }
-    if (it.type === 'fists') { inventoryData.push({ type: 'fists', name: 'Кулаки' }); continue; }
-    if (it.type === 'power') {
-      inventoryData.push({ type: 'power', name: it.name, color: it.color });
-      continue;
-    }
-    if (it.type === 'fruit') {
-      inventoryData.push({ type: 'fruit', name: it.name, color: it.color });
-      continue;
-    }
-    inventoryData.push(null);
-  }
-
-  const powerMasteryData = {};
-  for (const k of Object.keys(powerMastery)) {
-    powerMasteryData[k] = { xp: powerMastery[k].xp, level: powerMastery[k].level };
-  }
-
-  const data = {
-    level: stats.level, xp: stats.xp, statPoints: stats.statPoints,
-    points: { ...stats.points }, waterMeter,
-    playerX: player.x, playerY: player.y,
-    hp: player.hp, stamina: player.stamina,
-    fruitCount: player.fruitCount,
-    money: player.money,
-    hasShip: player.hasShip,
-    rollCooldownUntil: rollCooldownUntil,
-    power: powerData,
-    powerMastery: powerMasteryData,
-    inventory: inventoryData,
-    bag: bag.map(i => ({ ...i })),
-    quest: quest.active,
-    questBoss: questBoss.active,
-    questDune: questDune.active,
-    bossDefeated: bossDefeated
-  };
-  try {
-    await fetch(API + '/save', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: currentUser.username, password: currentUser.password, data })
-    });
-  } catch (e) {}
-  saving = false;
-}
-
-document.getElementById('logoutBtn').addEventListener('click', async () => {
-  await saveNow();
-  try { if (ws) ws.close(); } catch (e) {}
-  ws = null;
-  try { localStorage.removeItem('mf_session'); } catch(e) {}
-  location.reload();
-});
-
-setInterval(saveNow, 15000);
-window.addEventListener('beforeunload', saveNow);
-
-(async function() {
-  try {
-    const s = localStorage.getItem('mf_session');
-    if (s) {
-      const { username, password } = JSON.parse(s);
-      const r = await fetch(API + '/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
-      });
-      const res = await r.json();
-      if (res.ok) return loginAs(username, password, res.data);
-    }
-  } catch(e) {}
-  showAuth();
-})();// ==================== МУЛЬТИПЛЕЕР (клиент) ====================
+// (продолжение в Части 2)
+</script>
+</body>
+</html>// ==================== СЕТЬ (клиент) ====================
 function connectWebSocket() {
   if (ws && (ws.readyState === 0 || ws.readyState === 1)) return;
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -883,81 +723,41 @@ function sendHit(targetUsername, dmg, kind) {
     }));
   } catch (e) {}
 }
-
 function sendAdminSetLevel(target, level) {
   if (!ws || ws.readyState !== 1) return;
-  try {
-    ws.send(JSON.stringify({
-      type: 'admin_setlevel',
-      password: ADMIN_PASSWORD,
-      target: target,
-      level: level
-    }));
-  } catch (e) {}
+  try { ws.send(JSON.stringify({ type: 'admin_setlevel', password: ADMIN_PASSWORD, target, level })); } catch (e) {}
 }
-
 function sendAdminSetMastery(target, fruitName, masteryLevel) {
   if (!ws || ws.readyState !== 1) return;
-  try {
-    ws.send(JSON.stringify({
-      type: 'admin_setmastery',
-      password: ADMIN_PASSWORD,
-      target: target,
-      fruit: fruitName,
-      mastery: masteryLevel
-    }));
-  } catch (e) {}
+  try { ws.send(JSON.stringify({ type: 'admin_setmastery', password: ADMIN_PASSWORD, target, fruit: fruitName, mastery: masteryLevel })); } catch (e) {}
 }
-
 function sendAttackUse(abilityId, x, y, dirX, dirY) {
   if (!ws || ws.readyState !== 1) return;
-  try {
-    ws.send(JSON.stringify({
-      type: 'attack_use',
-      abilityId: abilityId,
-      x: x, y: y,
-      dirX: dirX, dirY: dirY
-    }));
-  } catch (e) {}
+  try { ws.send(JSON.stringify({ type: 'attack_use', abilityId, x, y, dirX, dirY })); } catch (e) {}
 }
-
 function sendHeldChange(heldName) {
   if (!ws || ws.readyState !== 1) return;
-  try {
-    ws.send(JSON.stringify({ type: 'held_change', held: heldName }));
-  } catch (e) {}
+  try { ws.send(JSON.stringify({ type: 'held_change', held: heldName })); } catch (e) {}
 }
-
 function sendFruitDrop(fruitId, name, color, x, y) {
   if (!ws || ws.readyState !== 1) return;
-  try {
-    ws.send(JSON.stringify({ type: 'drop_fruit', fruitId, name, color, x, y }));
-  } catch (e) {}
+  try { ws.send(JSON.stringify({ type: 'drop_fruit', fruitId, name, color, x, y })); } catch (e) {}
 }
-
 function sendFruitPicked(fruitId) {
   if (!ws || ws.readyState !== 1) return;
-  try {
-    ws.send(JSON.stringify({ type: 'fruit_picked', fruitId }));
-  } catch (e) {}
+  try { ws.send(JSON.stringify({ type: 'fruit_picked', fruitId })); } catch (e) {}
 }
-
 function sendWindmillEnter(x, y, color) {
   if (!ws || ws.readyState !== 1) return;
-  try {
-    ws.send(JSON.stringify({ type: 'windmill_enter', x: Math.round(x), y: Math.round(y), color }));
-  } catch (e) {}
+  try { ws.send(JSON.stringify({ type: 'windmill_enter', x: Math.round(x), y: Math.round(y), color })); } catch (e) {}
 }
 function sendWindmillExit() {
   if (!ws || ws.readyState !== 1) return;
   try { ws.send(JSON.stringify({ type: 'windmill_exit' })); } catch (e) {}
 }
-
 function sendShipEnter(x, y, angle, color) {
   if (!ws || ws.readyState !== 1) return;
-  try {
-    ws.send(JSON.stringify({ type: 'ship_enter', x: Math.round(x), y: Math.round(y), angle, color }));
-  } catch (e) {}
+  try { ws.send(JSON.stringify({ type: 'ship_enter', x: Math.round(x), y: Math.round(y), angle, color })); } catch (e) {}
 }
 function sendShipExit() {
   if (!ws || ws.readyState !== 1) return;
@@ -1005,13 +805,12 @@ addCactus(DESERT.x + 500, DESERT.y + DESERT.height - 200);
 addCactus(DESERT.x + DESERT.width - 300, DESERT.y + 400);
 addCactus(DESERT.x + 800, DESERT.y + 900);
 
-// ==================== NPC-АДМИРАЛЫ ====================
+// ==================== АДМИРАЛЫ ====================
 const SHIP_PRICE = 5;
 const admirals = [
   { x: ISLAND.x + ISLAND.width - 60, y: 0, radius: 30, name: 'Морской Адмирал', color: '#2a4f8c', hatColor: '#0a1a3a' },
   { x: DESERT.x + 60, y: DESERT.y + DESERT.height / 2, radius: 30, name: 'Морской Адмирал', color: '#2a4f8c', hatColor: '#0a1a3a' }
 ];
-
 function getNearAdmiral() {
   for (const a of admirals) {
     if (Math.hypot(player.x - a.x, player.y - a.y) < player.radius + a.radius + 20) return a;
@@ -1278,7 +1077,6 @@ const PIRATE_RESPAWN_TIME = 5000;
 const PIRATE_SPAWN_POINTS = [
   { x: -900, y: 400 }, { x: -500, y: 500 }, { x: 300, y: 500 }, { x: 900, y: 200 }
 ];
-
 function spawnPirate(spawnIdx) {
   const pos = PIRATE_SPAWN_POINTS[spawnIdx];
   pirates.push({
@@ -1313,7 +1111,6 @@ const DUNE_SPAWN_POINTS = [
   { x: DESERT.x + 900, y: DESERT.y + 200 },
   { x: DESERT.x + 900, y: DESERT.y + DESERT.height - 300 }
 ];
-
 function spawnDuneWarrior(spawnIdx) {
   const pos = DUNE_SPAWN_POINTS[spawnIdx];
   duneWarriors.push({
@@ -1355,7 +1152,6 @@ const boss = {
   respawnAt: 0,
   attackAnim: 0
 };
-
 function resetBoss() {
   boss.x = BOSS_SPAWN_X; boss.y = BOSS_SPAWN_Y;
   boss.hp = BOSS_HP; boss.maxHp = BOSS_HP;
@@ -1447,15 +1243,15 @@ function adminSubmit() {
       const lvl = parseInt(parts[2], 10);
       const targetName = parts.slice(3).join(' ');
       if (!Number.isFinite(lvl) || lvl < 1 || lvl > 20) {
-        adminLog('❌ Уровень должен быть 1-20', '#ff5555');
+        adminLog('❌ Уровень 1-20', '#ff5555');
         return;
       }
       if (!targetName) {
-        adminLog('❌ Укажи имя игрока: g level 4 Test1', '#ff5555');
+        adminLog('❌ Укажи имя: g level 4 Test1', '#ff5555');
         return;
       }
       sendAdminSetLevel(targetName, lvl);
-      adminLog('📤 Запрос: ' + targetName + ' → уровень ' + lvl, '#aaddff');
+      adminLog('📤 ' + targetName + ' → уровень ' + lvl, '#aaddff');
       return;
     }
     if (parts[1].toLowerCase() === 'mastery' && parts.length >= 5) {
@@ -1463,7 +1259,7 @@ function adminSubmit() {
       const fruitArg = parts[3].toLowerCase();
       const targetName = parts.slice(4).join(' ');
       if (!Number.isFinite(masteryLvl) || masteryLvl < 0 || masteryLvl > 100) {
-        adminLog('❌ Mastery должен быть 0-100', '#ff5555');
+        adminLog('❌ Mastery 0-100', '#ff5555');
         return;
       }
       const fruitMap = {
@@ -1476,7 +1272,7 @@ function adminSubmit() {
       };
       const fruitName = fruitMap[fruitArg];
       if (!fruitName) {
-        adminLog('❌ Фрукт не найден: ' + fruitArg, '#ff5555');
+        adminLog('❌ Фрукт: ' + fruitArg, '#ff5555');
         return;
       }
       if (!targetName) {
@@ -1484,10 +1280,9 @@ function adminSubmit() {
         return;
       }
       sendAdminSetMastery(targetName, fruitName, masteryLvl);
-      adminLog('📤 Запрос: ' + targetName + ' ' + fruitName + ' → mastery ' + masteryLvl, '#aaddff');
+      adminLog('📤 ' + targetName + ' ' + fruitName + ' → ' + masteryLvl, '#aaddff');
       return;
     }
-
     const argAll = parts.slice(1).join(' ').toLowerCase();
     const fruitMap = {
       'огонь':  { name: 'Огонь', color: '#ff6600' },
@@ -1514,16 +1309,16 @@ function adminSubmit() {
     };
     const fruit = fruitMap[argAll];
     if (!fruit) {
-      adminLog('❌ Фрукт не найден: ' + argAll, '#ff5555');
-      adminLog('Доступно: огонь / лёд / акула / контроль / свет / ветряная мельница', '#ffdd66');
+      adminLog('❌ Фрукт: ' + argAll, '#ff5555');
+      adminLog('огонь / лёд / акула / контроль / свет / ветряная мельница', '#ffdd66');
       return;
     }
     giveFruitToSlot5(fruit.name, fruit.color);
-    adminLog('🍎 Выдан фрукт: ' + fruit.name + ' (слот 5)', '#66ff66');
+    adminLog('🍎 Выдан: ' + fruit.name + ' (слот 5)', '#66ff66');
     return;
   }
 
-  adminLog('❌ Неизвестная команда: ' + command, '#ff5555');
+  adminLog('❌ Неизвестно: ' + command, '#ff5555');
   adminLog('g [фрукт] | g level X имя | g mastery N фрукт имя', '#ffdd66');
 }
 
@@ -1617,6 +1412,7 @@ function consumeFruit(item) {
     if (player.onShip) leaveShip();
     if (aimingAbility) aimingAbility = null;
     saveNow();
+    if (isMobile()) refreshMobileHud();
     return true;
   } else {
     spawnEatEffect(player.x, player.y, item.color);
@@ -2185,9 +1981,7 @@ function damagePirate(pirate, dmg) {
     pirate.respawnAt = performance.now() + PIRATE_RESPAWN_TIME;
     pendingXp.push(PIRATE_LEVEL_XP_REWARD);
     const held = getHeldPower();
-    if (held) {
-      addMasteryXp(held.power, PIRATE_MASTERY_XP_REWARD);
-    }
+    if (held) addMasteryXp(held.power, PIRATE_MASTERY_XP_REWARD);
     waterMeter = Math.min(WATER_METER_MAX, waterMeter + WATER_METER_PER_KILL);
     player.money += 5;
     updateMoneyUi();
@@ -2230,9 +2024,7 @@ function damageDuneWarrior(warrior, dmg) {
     warrior.respawnAt = performance.now() + DUNE_RESPAWN_TIME;
     pendingXp.push(DUNE_LEVEL_XP_REWARD);
     const held = getHeldPower();
-    if (held) {
-      addMasteryXp(held.power, DUNE_MASTERY_XP_REWARD);
-    }
+    if (held) addMasteryXp(held.power, DUNE_MASTERY_XP_REWARD);
     player.money += DUNE_MONEY_REWARD;
     updateMoneyUi();
     damageNumbers.push({ x: warrior.x, y: warrior.y - warrior.radius - 20, vy: -1.4, life: 60, maxLife: 60, text: '+' + DUNE_LEVEL_XP_REWARD + ' XP', color: '#aaffaa' });
@@ -2270,9 +2062,7 @@ function damageBoss(dmg) {
     bossDefeated = true;
     pendingXp.push(BOSS_LEVEL_XP_REWARD);
     const held = getHeldPower();
-    if (held) {
-      addMasteryXp(held.power, BOSS_MASTERY_XP_REWARD);
-    }
+    if (held) addMasteryXp(held.power, BOSS_MASTERY_XP_REWARD);
     player.money += BOSS_MONEY_REWARD;
     updateMoneyUi();
     if (questBoss.active) questBoss.active = null;
@@ -2341,10 +2131,8 @@ function teleportEnemiesFromSea() {
   for (const pir of pirates) {
     if (pir.dead) continue;
     if (!isOnAnyLand(pir.x, pir.y)) {
-      pir.x = pir.homeX;
-      pir.y = pir.homeY;
-      pir.aggro = false;
-      pir.chasing = false;
+      pir.x = pir.homeX; pir.y = pir.homeY;
+      pir.aggro = false; pir.chasing = false;
       for (let k = 0; k < 20; k++) {
         const a = Math.random() * Math.PI * 2;
         const s = 2 + Math.random() * 5;
@@ -2355,10 +2143,8 @@ function teleportEnemiesFromSea() {
   for (const dw of duneWarriors) {
     if (dw.dead) continue;
     if (!isOnAnyLand(dw.x, dw.y)) {
-      dw.x = dw.homeX;
-      dw.y = dw.homeY;
-      dw.aggro = false;
-      dw.chasing = false;
+      dw.x = dw.homeX; dw.y = dw.homeY;
+      dw.aggro = false; dw.chasing = false;
       for (let k = 0; k < 20; k++) {
         const a = Math.random() * Math.PI * 2;
         const s = 2 + Math.random() * 5;
@@ -2367,10 +2153,8 @@ function teleportEnemiesFromSea() {
     }
   }
   if (boss.active && !boss.dead && !isOnAnyLand(boss.x, boss.y)) {
-    boss.x = boss.homeX;
-    boss.y = boss.homeY;
-    boss.aggro = false;
-    boss.chasing = false;
+    boss.x = boss.homeX; boss.y = boss.homeY;
+    boss.aggro = false; boss.chasing = false;
     for (let k = 0; k < 30; k++) {
       const a = Math.random() * Math.PI * 2;
       const s = 3 + Math.random() * 6;
@@ -2379,25 +2163,15 @@ function teleportEnemiesFromSea() {
   }
 }
 
-// ==================== КЛИКИ ====================
-canvas.addEventListener('click', (e) => {
-  if (!currentUser) return;
-  if (adminOpen) return;
-  const rect = canvas.getBoundingClientRect();
-  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
-  handleCanvasClick(mx, my);
-});
-
+// ==================== КЛИКИ (общая функция) ====================
 function handleCanvasClick(mx, my) {
   if (bagContextMenu) {
     for (const btn of bagContextMenu.buttons) {
       if (mx >= btn.x && mx <= btn.x + btn.w && my >= btn.y && my <= btn.y + btn.h) {
-        executeBagMenuAction(btn.action);
-        return;
+        executeBagMenuAction(btn.action); return;
       }
     }
-    bagContextMenu = null;
-    return;
+    bagContextMenu = null; return;
   }
   if (bagEatConfirm) { handleBagEatConfirmClick(mx, my); return; }
   if (eatConfirm) { handleEatConfirmClick(mx, my); return; }
@@ -2413,32 +2187,10 @@ function handleCanvasClick(mx, my) {
     }
     contextMenu = null; return;
   }
-  if (isClickOnInvButton(mx, my)) { bagOpen = !bagOpen; return; }
-  const si = getSlotAtPoint(mx, my);
-  if (si !== -1) {
-    const item = inventory[si];
-    if (!item) return;
-    if (item.type === 'power') {
-      if (heldSlot === si && abilityGuide && abilityGuide.slotIndex === si) { heldSlot = -1; abilityGuide = null; }
-      else { heldSlot = si; abilityGuide = { slotIndex: si, name: item.name, color: item.color, abilities: getAbilitiesFor(item.name) }; }
-      contextMenu = null;
-      const held = getHeldPower();
-      sendHeldChange(held ? held.power.name : null);
-      if (player.windmillActive && (!held || held.power.name !== 'Ветряная мельница')) {
-        player.windmillActive = false;
-        player.radius = player.windmillSavedRadius || 25;
-        sendWindmillExit();
-      }
-      if (DEVICE.isMobile) refreshMobileHud();
-      return;
-    }
-    heldSlot = (heldSlot === si) ? -1 : si;
-    if (heldSlot === -1 || (inventory[heldSlot] && inventory[heldSlot].type !== 'power')) abilityGuide = null;
-    contextMenu = null;
-    const held2 = getHeldPower();
-    sendHeldChange(held2 ? held2.power.name : null);
-    if (DEVICE.isMobile) refreshMobileHud();
-    return;
+  if (!isMobile()) {
+    if (isClickOnInvButton(mx, my)) { bagOpen = !bagOpen; return; }
+    const si = getSlotAtPoint(mx, my);
+    if (si !== -1) { handleSlotClick(si); return; }
   }
   if (heldSlot !== -1) {
     const held = inventory[heldSlot];
@@ -2447,9 +2199,40 @@ function handleCanvasClick(mx, my) {
     if (held && held.type === 'fruit') { openContextMenu(); return; }
   }
 }
+
+function handleSlotClick(si) {
+  const item = inventory[si];
+  if (!item) return;
+  if (item.type === 'power') {
+    if (heldSlot === si && abilityGuide && abilityGuide.slotIndex === si) { heldSlot = -1; abilityGuide = null; }
+    else { heldSlot = si; abilityGuide = { slotIndex: si, name: item.name, color: item.color, abilities: getAbilitiesFor(item.name) }; }
+    contextMenu = null;
+    const held = getHeldPower();
+    sendHeldChange(held ? held.power.name : null);
+    if (player.windmillActive && (!held || held.power.name !== 'Ветряная мельница')) {
+      player.windmillActive = false;
+      player.radius = player.windmillSavedRadius || 25;
+      sendWindmillExit();
+    }
+    if (isMobile()) refreshMobileHud();
+    return;
+  }
+  heldSlot = (heldSlot === si) ? -1 : si;
+  if (heldSlot === -1 || (inventory[heldSlot] && inventory[heldSlot].type !== 'power')) abilityGuide = null;
+  contextMenu = null;
+  const held2 = getHeldPower();
+  sendHeldChange(held2 ? held2.power.name : null);
+  if (isMobile()) refreshMobileHud();
+}
+
+canvas.addEventListener('click', (e) => {
+  if (!currentUser) return;
+  if (adminOpen) return;
+  const rect = canvas.getBoundingClientRect();
+  handleCanvasClick(e.clientX - rect.left, e.clientY - rect.top);
+});
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 
-// ПКМ в мешке
 canvas.addEventListener('mousedown', (e) => {
   if (!currentUser) return;
   if (adminOpen) return;
@@ -2460,12 +2243,10 @@ canvas.addEventListener('mousedown', (e) => {
   const g = getBagGridRect();
   for (let r = 0; r < bagRows; r++) {
     for (let col = 0; col < bagCols; col++) {
-      const x = g.x + col * (bagSlotSize + bagGap), y = g.y + r * (bagSlotSize + bagGap);
-      if (mx >= x && mx <= x + bagSlotSize && my >= y && my <= y + bagSlotSize) {
+      const x = g.x + col * (g.slotSize + g.gap), y = g.y + r * (g.slotSize + g.gap);
+      if (mx >= x && mx <= x + g.slotSize && my >= y && my <= y + g.slotSize) {
         const idx = r * bagCols + col;
-        if (idx < bag.length) {
-          openBagContextMenu(idx, mx, my);
-        }
+        if (idx < bag.length) openBagContextMenu(idx, mx, my);
         return;
       }
     }
@@ -2490,7 +2271,7 @@ function openEatConfirm(slotIndex) {
   if (!item || item.type !== 'fruit') return;
   eatConfirm = { slotIndex, item: { type: 'fruit', name: item.name, color: item.color } };
 }
-function closeEatConfirm() { eatConfirm = null; }
+function closeEatConfirm() { eatConfirm = null; updateNpcBtnMobile(); }
 function handleEatConfirmClick(mx, my) {
   const b = getEatConfirmButtons();
   if (mx >= b.yes.x && mx <= b.yes.x + b.yes.w && my >= b.yes.y && my <= b.yes.y + b.yes.h) {
@@ -2506,7 +2287,7 @@ function handleEatConfirmClick(mx, my) {
         const held = getHeldPower();
         sendHeldChange(held ? held.power.name : null);
         saveNow();
-        if (DEVICE.isMobile) refreshMobileHud();
+        if (isMobile()) refreshMobileHud();
       }
     }
     closeEatConfirm();
@@ -2519,13 +2300,12 @@ function handleEatConfirmClick(mx, my) {
 }
 
 function openBagEatConfirm(bagIndex) {
-  if (bagIndex === -1 || bagIndex === null || bagIndex === undefined) return;
   if (bagIndex < 0 || bagIndex >= bag.length) return;
   const item = bag[bagIndex];
   if (!item || item.type !== 'fruit') return;
   bagEatConfirm = { bagIndex, item: { type: 'fruit', name: item.name, color: item.color } };
 }
-function closeBagEatConfirm() { bagEatConfirm = null; }
+function closeBagEatConfirm() { bagEatConfirm = null; updateNpcBtnMobile(); }
 function handleBagEatConfirmClick(mx, my) {
   const b = getEatConfirmButtons();
   if (mx >= b.yes.x && mx <= b.yes.x + b.yes.w && my >= b.yes.y && my <= b.yes.y + b.yes.h) {
@@ -2539,7 +2319,7 @@ function handleBagEatConfirmClick(mx, my) {
           player.fruitCount = Math.max(0, player.fruitCount - 1);
           updateFruitUi();
           saveNow();
-          if (DEVICE.isMobile) refreshMobileHud();
+          if (isMobile()) refreshMobileHud();
         }
       }
     }
@@ -2554,8 +2334,8 @@ function handleBagEatConfirmClick(mx, my) {
 
 // ==================== NPC ДИАЛОГ 1 ====================
 let questDialogOpen = false;
-function openQuestDialog() { questDialogOpen = true; updateNpcBtn(); }
-function closeQuestDialog() { questDialogOpen = false; updateNpcBtn(); }
+function openQuestDialog() { questDialogOpen = true; updateNpcBtnMobile(); }
+function closeQuestDialog() { questDialogOpen = false; updateNpcBtnMobile(); }
 function getQuestDialogButtons() {
   const pw = Math.min(540, canvas.width - 20);
   const ph = 500;
@@ -2571,22 +2351,18 @@ function handleQuestDialogClick(mx, my) {
   const b = getQuestDialogButtons();
   if (mx >= b.close.x && mx <= b.close.x + b.close.w && my >= b.close.y && my <= b.close.y + b.close.h) { closeQuestDialog(); return; }
   if (mx >= b.takeQuest.x && mx <= b.takeQuest.x + b.takeQuest.w && my >= b.takeQuest.y && my <= b.takeQuest.y + b.takeQuest.h) {
-    if (quest.active) { return; }
-    if (questBoss.active || questDune.active) {
-      clearAllQuests();
-    }
+    if (quest.active) return;
+    if (questBoss.active || questDune.active) clearAllQuests();
     quest.active = { type: 'kill', target: 4, current: 0, rewardXp: 100 };
     closeQuestDialog();
     saveNow();
     return;
   }
   if (mx >= b.takeBoss.x && mx <= b.takeBoss.x + b.takeBoss.w && my >= b.takeBoss.y && my <= b.takeBoss.y + b.takeBoss.h) {
-    if (stats.level < 5) { return; }
-    if (bossDefeated) { return; }
-    if (questBoss.active) { return; }
-    if (quest.active || questDune.active) {
-      clearAllQuests();
-    }
+    if (stats.level < 5) return;
+    if (bossDefeated) return;
+    if (questBoss.active) return;
+    if (quest.active || questDune.active) clearAllQuests();
     questBoss.active = 'active';
     if (boss.dead) resetBoss();
     closeQuestDialog();
@@ -2597,8 +2373,8 @@ function handleQuestDialogClick(mx, my) {
 
 // ==================== NPC ДИАЛОГ 2 ====================
 let questDialog2Open = false;
-function openQuestDialog2() { questDialog2Open = true; updateNpcBtn(); }
-function closeQuestDialog2() { questDialog2Open = false; updateNpcBtn(); }
+function openQuestDialog2() { questDialog2Open = true; updateNpcBtnMobile(); }
+function closeQuestDialog2() { questDialog2Open = false; updateNpcBtnMobile(); }
 function getQuestDialog2Buttons() {
   const pw = Math.min(540, canvas.width - 20);
   const ph = 420;
@@ -2613,11 +2389,9 @@ function handleQuestDialog2Click(mx, my) {
   const b = getQuestDialog2Buttons();
   if (mx >= b.close.x && mx <= b.close.x + b.close.w && my >= b.close.y && my <= b.close.y + b.close.h) { closeQuestDialog2(); return; }
   if (mx >= b.takeDune.x && mx <= b.takeDune.x + b.takeDune.w && my >= b.takeDune.y && my <= b.takeDune.y + b.takeDune.h) {
-    if (stats.level < 10) { return; }
-    if (questDune.active) { return; }
-    if (quest.active || questBoss.active) {
-      clearAllQuests();
-    }
+    if (stats.level < 10) return;
+    if (questDune.active) return;
+    if (quest.active || questBoss.active) clearAllQuests();
     questDune.active = { type: 'kill_dune', target: 6, current: 0, rewardXp: DUNE_QUEST_LEVEL_XP };
     closeQuestDialog2();
     saveNow();
@@ -2627,8 +2401,8 @@ function handleQuestDialog2Click(mx, my) {
 
 // ==================== NPC ДИАЛОГ (NEXVERTIX) ====================
 let rollDialogOpen = false;
-function openRollDialog() { rollDialogOpen = true; updateNpcBtn(); }
-function closeRollDialog() { rollDialogOpen = false; updateNpcBtn(); }
+function openRollDialog() { rollDialogOpen = true; updateNpcBtnMobile(); }
+function closeRollDialog() { rollDialogOpen = false; updateNpcBtnMobile(); }
 function getRollDialogButtons() {
   const pw = Math.min(520, canvas.width - 20);
   const ph = 420;
@@ -2648,11 +2422,11 @@ function handleRollDialogClick(mx, my) {
 }
 
 function tryRollFruit() {
-  if (stats.level < ROLL_MIN_LEVEL) { return; }
+  if (stats.level < ROLL_MIN_LEVEL) return;
   const now = Date.now();
-  if (now < rollCooldownUntil) { return; }
+  if (now < rollCooldownUntil) return;
   const cost = getRollCost();
-  if (player.money < cost) { return; }
+  if (player.money < cost) return;
   player.money -= cost;
   updateMoneyUi();
   const roll = Math.random() * 100;
@@ -2666,16 +2440,14 @@ function tryRollFruit() {
     else fruitData = { name: 'Свет', color: '#fff6b0' };
   }
   else { rarity = 'mythic'; fruitData = { name: 'Контроль', color: '#7c5cff' }; }
-  if (fruitData) {
-    giveFruitToSlot5(fruitData.name, fruitData.color);
-  }
+  if (fruitData) giveFruitToSlot5(fruitData.name, fruitData.color);
   rollCooldownUntil = Date.now() + ROLL_COOLDOWN_MS;
   saveNow();
-  if (DEVICE.isMobile) refreshMobileHud();
+  if (isMobile()) refreshMobileHud();
 }
 
 // ==================== СТАТИСТИКА ====================
-function closeStats() { statsOpen = false; updateNpcBtn(); }
+function closeStats() { statsOpen = false; updateNpcBtnMobile(); }
 function getStatsButtons() {
   const pw = Math.min(560, canvas.width - 20);
   const ph = 460;
@@ -2714,7 +2486,7 @@ function getSlotRect(i) {
   return { x: sx + i * (SLOT_SIZE + SLOT_GAP), y: sy, w: SLOT_SIZE, h: SLOT_SIZE };
 }
 function getSlotAtPoint(mx, my) {
-  if (DEVICE.isMobile) {
+  if (isMobile()) {
     for (let i = 0; i < INVENTORY_SLOTS; i++) {
       const r = mobileSlotRects[i];
       if (r && mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h) return i;
@@ -2789,7 +2561,7 @@ function executeMenuAction(action) {
     saveNow();
   }
   contextMenu = null;
-  if (DEVICE.isMobile) refreshMobileHud();
+  if (isMobile()) refreshMobileHud();
 }
 
 // ==================== МЕШОК ====================
@@ -2800,21 +2572,19 @@ function handleBagClick(mx, my) {
   const g = getBagGridRect();
   for (let r = 0; r < bagRows; r++) {
     for (let col = 0; col < bagCols; col++) {
-      const x = g.x + col * (bagSlotSize + bagGap);
-      const y = g.y + r * (bagSlotSize + bagGap);
-      if (mx >= x && mx <= x + bagSlotSize && my >= y && my <= y + bagSlotSize) {
+      const x = g.x + col * (g.slotSize + g.gap);
+      const y = g.y + r * (g.slotSize + g.gap);
+      if (mx >= x && mx <= x + g.slotSize && my >= y && my <= y + g.slotSize) {
         const i = r * bagCols + col;
-        if (i < bag.length) {
-          openBagEatConfirm(i);
-        }
+        if (i < bag.length) openBagEatConfirm(i);
         return;
       }
     }
   }
 }
 function getBagPanelRect() {
-  const slotSize = DEVICE.isMobile ? 60 : bagSlotSize;
-  const gap = DEVICE.isMobile ? 8 : bagGap;
+  const slotSize = isMobile() ? 60 : bagSlotSize;
+  const gap = isMobile() ? 8 : bagGap;
   const w = bagCols * slotSize + (bagCols - 1) * gap + 40;
   const h = bagRows * slotSize + (bagRows - 1) * gap + 100;
   return { x: (canvas.width - w) / 2, y: (canvas.height - h) / 2, w, h, slotSize, gap };
@@ -2855,8 +2625,7 @@ function executeBagMenuAction(action) {
       if (s === POWER_SLOT_INDEX) continue;
       if (inventory[s] === null) { free = s; break; }
     }
-    if (free === -1) {
-    } else {
+    if (free !== -1) {
       inventory[free] = { type: 'fruit', name: item.name, color: item.color };
       bag.splice(idx, 1);
       player.fruitCount++;
@@ -2865,6 +2634,7 @@ function executeBagMenuAction(action) {
       const held = getHeldPower();
       sendHeldChange(held ? held.power.name : null);
       saveNow();
+      if (isMobile()) refreshMobileHud();
     }
   } else if (action === 'drop') {
     let lx = player.lookX, ly = player.lookY;
@@ -2886,9 +2656,9 @@ function executeBagMenuAction(action) {
     player.fruitCount = Math.max(0, player.fruitCount - 1);
     updateFruitUi();
     saveNow();
+    if (isMobile()) refreshMobileHud();
   }
   bagContextMenu = null;
-  if (DEVICE.isMobile) refreshMobileHud();
 }
 
 function getInvButtonRect() {
@@ -2897,11 +2667,11 @@ function getInvButtonRect() {
 }
 function isClickOnInvButton(mx, my) { const r = getInvButtonRect(); return mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h; }
 
-// ==================== КЛАВИАТУРА (только ПК) ====================
+// ==================== КЛАВИАТУРА ====================
 const keys = {};
 window.addEventListener('keydown', (e) => {
   if (!currentUser) return;
-  if (DEVICE.isMobile) return; // на мобилке клавиатура игнорируется
+  if (isMobile()) return; // на мобильных клавиатура не используется
 
   if (e.code === 'KeyN' || e.key.toLowerCase() === 'n' || e.key.toLowerCase() === 'т') {
     if (adminOpen) {
@@ -2926,40 +2696,16 @@ window.addEventListener('keydown', (e) => {
   }
   if (bagEatConfirm) {
     if (e.key === 'Escape') { closeBagEatConfirm(); e.preventDefault(); return; }
-    if (e.key === 'Enter') {
-      const b = getEatConfirmButtons();
-      handleBagEatConfirmClick(b.yes.x + 5, b.yes.y + 5);
-      e.preventDefault(); return;
-    }
-    if (e.key.toLowerCase() === 'y' || e.key.toLowerCase() === 'н') {
-      const b = getEatConfirmButtons();
-      handleBagEatConfirmClick(b.yes.x + 5, b.yes.y + 5);
-      e.preventDefault(); return;
-    }
-    if (e.key.toLowerCase() === 'n' || e.key.toLowerCase() === 'т') {
-      const b = getEatConfirmButtons();
-      handleBagEatConfirmClick(b.no.x + 5, b.no.y + 5);
-      e.preventDefault(); return;
-    }
+    if (e.key === 'Enter') { const b = getEatConfirmButtons(); handleBagEatConfirmClick(b.yes.x + 5, b.yes.y + 5); e.preventDefault(); return; }
+    if (e.key.toLowerCase() === 'y' || e.key.toLowerCase() === 'н') { const b = getEatConfirmButtons(); handleBagEatConfirmClick(b.yes.x + 5, b.yes.y + 5); e.preventDefault(); return; }
+    if (e.key.toLowerCase() === 'n' || e.key.toLowerCase() === 'т') { const b = getEatConfirmButtons(); handleBagEatConfirmClick(b.no.x + 5, b.no.y + 5); e.preventDefault(); return; }
     return;
   }
   if (eatConfirm) {
     if (e.key === 'Escape') { closeEatConfirm(); e.preventDefault(); return; }
-    if (e.key === 'Enter') {
-      const b = getEatConfirmButtons();
-      handleEatConfirmClick(b.yes.x + 5, b.yes.y + 5);
-      e.preventDefault(); return;
-    }
-    if (e.key.toLowerCase() === 'y' || e.key.toLowerCase() === 'н') {
-      const b = getEatConfirmButtons();
-      handleEatConfirmClick(b.yes.x + 5, b.yes.y + 5);
-      e.preventDefault(); return;
-    }
-    if (e.key.toLowerCase() === 'n' || e.key.toLowerCase() === 'т') {
-      const b = getEatConfirmButtons();
-      handleEatConfirmClick(b.no.x + 5, b.no.y + 5);
-      e.preventDefault(); return;
-    }
+    if (e.key === 'Enter') { const b = getEatConfirmButtons(); handleEatConfirmClick(b.yes.x + 5, b.yes.y + 5); e.preventDefault(); return; }
+    if (e.key.toLowerCase() === 'y' || e.key.toLowerCase() === 'н') { const b = getEatConfirmButtons(); handleEatConfirmClick(b.yes.x + 5, b.yes.y + 5); e.preventDefault(); return; }
+    if (e.key.toLowerCase() === 'n' || e.key.toLowerCase() === 'т') { const b = getEatConfirmButtons(); handleEatConfirmClick(b.no.x + 5, b.no.y + 5); e.preventDefault(); return; }
     return;
   }
   const k = e.key.toLowerCase(), code = e.code;
@@ -2972,10 +2718,7 @@ window.addEventListener('keydown', (e) => {
     if (player.hasShip && !isOnAnyLand(player.x, player.y)) { enterShip(); return; }
     return;
   }
-  if (code === 'KeyE' || k === 'e' || k === 'у') {
-    handleInteract();
-    return;
-  }
+  if (code === 'KeyE' || k === 'e' || k === 'у') { handleInteract(); return; }
   const held = getHeldPower();
   const tc = (letter) => {
     if (bagOpen || contextMenu || aimingAbility || statsOpen || questDialogOpen || questDialog2Open || rollDialogOpen) return;
@@ -3006,58 +2749,33 @@ window.addEventListener('keydown', (e) => {
   if (['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k)) e.preventDefault();
   if (k >= '1' && k <= '5') {
     if (bagOpen || statsOpen || questDialogOpen || questDialog2Open || rollDialogOpen) return;
-    selectSlot(parseInt(k) - 1);
+    handleSlotClick(parseInt(k) - 1);
   }
 });
 window.addEventListener('keyup', (e) => {
-  if (DEVICE.isMobile) return;
+  if (isMobile()) return;
   const k = e.key.toLowerCase(), code = e.code;
   keys[k] = false;
-  if (code === 'KeyF' || k === 'f' || k === 'а') {
-    player.flightKeyDown = false;
-  }
+  if (code === 'KeyF' || k === 'f' || k === 'а') player.flightKeyDown = false;
 });
 
-function selectSlot(si) {
-  const item = inventory[si];
-  if (!item) return;
-  if (item.type === 'power') {
-    if (heldSlot === si && abilityGuide && abilityGuide.slotIndex === si) { heldSlot = -1; abilityGuide = null; }
-    else { heldSlot = si; abilityGuide = { slotIndex: si, name: item.name, color: item.color, abilities: getAbilitiesFor(item.name) }; }
-  } else {
-    heldSlot = (heldSlot === si) ? -1 : si;
-    if (heldSlot === -1 || !inventory[heldSlot] || inventory[heldSlot].type !== 'power') abilityGuide = null;
-  }
-  contextMenu = null;
-  const heldNow = getHeldPower();
-  sendHeldChange(heldNow ? heldNow.power.name : null);
-  if (player.windmillActive && (!heldNow || heldNow.power.name !== 'Ветряная мельница')) {
-    player.windmillActive = false;
-    player.radius = player.windmillSavedRadius || 25;
-    sendWindmillExit();
-  }
-  if (DEVICE.isMobile) refreshMobileHud();
-}
-
-// ==================== ВЗАИМОДЕЙСТВИЕ С NPC (общий) ====================
 function handleInteract() {
   const adm = getNearAdmiral();
   if (adm) {
-    if (!player.hasShip && player.money >= SHIP_PRICE) {
-      buyShip();
-    }
+    if (!player.hasShip && player.money >= SHIP_PRICE) buyShip();
     return;
   }
   if (isNearRollNpc() && !rollDialogOpen && !questDialogOpen && !questDialog2Open && !statsOpen) { openRollDialog(); return; }
   if (isNearQuestNpc() && !questDialogOpen && !questDialog2Open && !rollDialogOpen && !statsOpen) { openQuestDialog(); return; }
   if (isNearQuestNpc2() && !questDialog2Open && !questDialogOpen && !rollDialogOpen && !statsOpen) { openQuestDialog2(); return; }
-}// ==================== МОБИЛЬНЫЙ HUD ====================
+}
+
+// ==================== МОБИЛЬНАЯ ЛОГИКА ====================
 const mobileSlotRects = [];
-let mobileJoy = { active: false, id: null, cx: 0, cy: 0, dx: 0, dy: 0, baseX: 0, baseY: 0, maxR: 55 };
+let mobileJoy = { active: false, id: null, cx: 0, cy: 0, dx: 0, dy: 0, baseX: 0, baseY: 0, maxR: 60 };
 let mobileButtonsBuilt = false;
 
-function buildMobileHud() {
-  if (!DEVICE.isMobile) return;
+function setupMobileHud() {
   const slotsEl = document.getElementById('mobileSlots');
   slotsEl.innerHTML = '';
   mobileSlotRects.length = 0;
@@ -3071,26 +2789,33 @@ function buildMobileHud() {
     d.appendChild(num);
     const cv = document.createElement('canvas');
     cv.width = 44; cv.height = 44;
-    cv.style.width = '44px'; cv.style.height = '44px';
+    cv.style.width = '40px'; cv.style.height = '40px';
     d.appendChild(cv);
     slotsEl.appendChild(d);
   }
   requestAnimationFrame(() => {
-    const rect = slotsEl.getBoundingClientRect();
     for (let i = 0; i < INVENTORY_SLOTS; i++) {
       const el = slotsEl.children[i];
+      if (!el) continue;
       const r = el.getBoundingClientRect();
       mobileSlotRects[i] = { x: r.left, y: r.top, w: r.width, h: r.height };
     }
   });
+  initJoystick();
+  initTouchSlots();
+  initAttackBtn();
+  initNpcBtn();
+  initBottomBtns();
+  initMenuBtns();
+  initCanvasTouch();
   mobileButtonsBuilt = true;
   refreshMobileHud();
 }
 
 function refreshMobileHud() {
-  if (!DEVICE.isMobile) return;
-  // Слоты
+  if (!isMobile()) return;
   const slotsEl = document.getElementById('mobileSlots');
+  if (!slotsEl) return;
   for (let i = 0; i < INVENTORY_SLOTS; i++) {
     const el = slotsEl.children[i];
     if (!el) continue;
@@ -3101,13 +2826,10 @@ function refreshMobileHud() {
     const cx = cv.getContext('2d');
     cx.clearRect(0, 0, 44, 44);
     const item = inventory[i];
-    if (item) {
-      drawSlotIcon(cx, 22, 22, 18, item);
-    }
+    if (item) drawSlotIcon(cx, 22, 22, 18, item);
   }
-  // Кнопки способностей
   buildAbilityButtons();
-  updateNpcBtn();
+  updateNpcBtnMobile();
   updateShipBtn();
   updateFlightBtn();
   updateSpaceBtn();
@@ -3145,7 +2867,6 @@ function drawSlotIcon(cx, x, y, r, item) {
     return;
   }
   if (item.type === 'power') {
-    // Круглая иконка по цвету фрукта
     const g = cx.createRadialGradient(x - r * 0.3, y - r * 0.3, 1, x, y, r);
     let c1 = '#fff', c2 = item.color || '#888';
     if (item.name === 'Огонь') { c1 = '#ffdd44'; c2 = '#ff4400'; }
@@ -3163,19 +2884,18 @@ function drawSlotIcon(cx, x, y, r, item) {
     cx.strokeStyle = 'rgba(0,0,0,0.5)';
     cx.lineWidth = 1.5;
     cx.stroke();
-    // Буква фрукта
     cx.fillStyle = 'rgba(0,0,0,0.8)';
     cx.font = 'bold 14px Arial';
     cx.textAlign = 'center';
     cx.textBaseline = 'middle';
     const letter = item.name === 'Ветряная мельница' ? 'М' : item.name.charAt(0);
     cx.fillText(letter, x, y + 1);
-    return;
   }
 }
 
 function buildAbilityButtons() {
   const abContainer = document.getElementById('abilityBtns');
+  if (!abContainer) return;
   abContainer.innerHTML = '';
   const held = getHeldPower();
   if (!held) return;
@@ -3185,24 +2905,224 @@ function buildAbilityButtons() {
     const btn = document.createElement('div');
     btn.className = 'abBtn';
     btn.dataset.abId = ab.id;
-    btn.dataset.key = ab.key;
     btn.textContent = ab.key;
-    // Проверка разблокировки
     const myLevel = held.power.masteryLevel || 0;
     if (myLevel < ab.requiredMasteryLevel) btn.classList.add('locked');
-    // Обработчик тапа
     btn.addEventListener('touchstart', (ev) => {
-      ev.preventDefault();
-      ev.stopPropagation();
+      ev.preventDefault(); ev.stopPropagation();
       startAbility(held.power.name, ab.id);
     }, { passive: false });
     btn.addEventListener('mousedown', (ev) => {
-      ev.preventDefault();
-      ev.stopPropagation();
+      ev.preventDefault(); ev.stopPropagation();
       startAbility(held.power.name, ab.id);
     });
     abContainer.appendChild(btn);
   }
+}
+
+function initJoystick() {
+  const base = document.getElementById('joystickBase');
+  const knob = document.getElementById('joystickKnob');
+  if (!base || !knob) return;
+
+  function setKnob(x, y) {
+    knob.style.left = (base.offsetLeft + base.offsetWidth / 2 + x) + 'px';
+    knob.style.top = (base.offsetTop + base.offsetHeight / 2 + y) + 'px';
+  }
+  function startTouch(t) {
+    mobileJoy.active = true;
+    mobileJoy.id = t.identifier;
+    const rect = base.getBoundingClientRect();
+    mobileJoy.baseX = rect.left + rect.width / 2;
+    mobileJoy.baseY = rect.top + rect.height / 2;
+    mobileJoy.maxR = rect.width / 2 - 12;
+    updateJoy(t.clientX, t.clientY);
+  }
+  function updateJoy(cx, cy) {
+    let dx = cx - mobileJoy.baseX;
+    let dy = cy - mobileJoy.baseY;
+    const d = Math.hypot(dx, dy);
+    if (d > mobileJoy.maxR) { dx = dx / d * mobileJoy.maxR; dy = dy / d * mobileJoy.maxR; }
+    mobileJoy.dx = dx / mobileJoy.maxR;
+    mobileJoy.dy = dy / mobileJoy.maxR;
+    setKnob(dx, dy);
+  }
+  function endTouch() {
+    mobileJoy.active = false;
+    mobileJoy.id = null;
+    mobileJoy.dx = 0; mobileJoy.dy = 0;
+    setKnob(0, 0);
+  }
+  base.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    const t = e.changedTouches[0];
+    startTouch(t);
+  }, { passive: false });
+  window.addEventListener('touchmove', (e) => {
+    if (!mobileJoy.active) return;
+    for (const t of e.changedTouches) {
+      if (t.identifier === mobileJoy.id) {
+        e.preventDefault();
+        updateJoy(t.clientX, t.clientY);
+      }
+    }
+  }, { passive: false });
+  window.addEventListener('touchend', (e) => {
+    if (!mobileJoy.active) return;
+    for (const t of e.changedTouches) {
+      if (t.identifier === mobileJoy.id) endTouch();
+    }
+  });
+  window.addEventListener('touchcancel', (e) => {
+    if (!mobileJoy.active) return;
+    for (const t of e.changedTouches) {
+      if (t.identifier === mobileJoy.id) endTouch();
+    }
+  });
+  setKnob(0, 0);
+  window.addEventListener('resize', () => setKnob(mobileJoy.dx * mobileJoy.maxR, mobileJoy.dy * mobileJoy.maxR));
+}
+
+function initTouchSlots() {
+  const slotsEl = document.getElementById('mobileSlots');
+  slotsEl.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    for (const t of e.changedTouches) {
+      const el = document.elementFromPoint(t.clientX, t.clientY);
+      if (!el) continue;
+      let node = el;
+      while (node && node !== slotsEl) {
+        if (node.classList && node.classList.contains('mSlot')) {
+          const si = parseInt(node.dataset.slot, 10);
+          if (!isNaN(si)) handleSlotClick(si);
+          break;
+        }
+        node = node.parentElement;
+      }
+    }
+  }, { passive: false });
+}
+
+function initAttackBtn() {
+  const btn = document.getElementById('attackBtn');
+  if (!btn) return;
+  btn.addEventListener('touchstart', (e) => {
+    e.preventDefault(); e.stopPropagation();
+    doAttack();
+  }, { passive: false });
+  btn.addEventListener('mousedown', (e) => {
+    e.preventDefault(); e.stopPropagation();
+    doAttack();
+  });
+}
+
+function doAttack() {
+  if (!currentUser) return;
+  if (adminOpen) return;
+  if (bagOpen || statsOpen || questDialogOpen || questDialog2Open || rollDialogOpen || eatConfirm || bagEatConfirm) return;
+  if (aimingAbility) {
+    // Прицельная — в сторону центра экрана
+    const cx = canvas.width / 2 + camera.x;
+    const cy = canvas.height / 2 + camera.y;
+    executeAbilityAt(cx, cy);
+    return;
+  }
+  if (heldSlot !== -1) {
+    const held = inventory[heldSlot];
+    if (held && held.type === 'fists') { punchFist(); return; }
+    if (held && held.type === 'power' && held.name === 'Контроль') { controlLmbAttack(); return; }
+    if (held && held.type === 'fruit') { openContextMenu(); return; }
+  }
+}
+
+function initNpcBtn() {
+  const btn = document.getElementById('npcBtn');
+  if (!btn) return;
+  btn.addEventListener('touchstart', (e) => {
+    e.preventDefault(); e.stopPropagation();
+    handleInteract();
+  }, { passive: false });
+  btn.addEventListener('click', (e) => {
+    e.preventDefault(); e.stopPropagation();
+    handleInteract();
+  });
+}
+
+function initBottomBtns() {
+  const shipBtn = document.getElementById('mShipBtn');
+  const flightBtn = document.getElementById('mFlightBtn');
+  const spaceBtn = document.getElementById('mSpaceBtn');
+  if (shipBtn) {
+    shipBtn.addEventListener('touchstart', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      if (player.onShip) leaveShip();
+      else if (player.hasShip && !isOnAnyLand(player.x, player.y)) enterShip();
+    }, { passive: false });
+  }
+  if (spaceBtn) {
+    spaceBtn.addEventListener('touchstart', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      if (player.onShip) leaveShip();
+      else if (player.hasShip && !isOnAnyLand(player.x, player.y)) enterShip();
+    }, { passive: false });
+  }
+  if (flightBtn) {
+    flightBtn.addEventListener('touchstart', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      player.flightKeyDown = true;
+    }, { passive: false });
+    const stop = () => { player.flightKeyDown = false; };
+    flightBtn.addEventListener('touchend', stop);
+    flightBtn.addEventListener('touchcancel', stop);
+  }
+}
+
+function initMenuBtns() {
+  const bagBtn = document.getElementById('mBagBtn');
+  const statsBtn = document.getElementById('mStatsBtn');
+  if (bagBtn) {
+    bagBtn.addEventListener('touchstart', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      bagOpen = !bagOpen; bagContextMenu = null;
+      updateNpcBtnMobile();
+    }, { passive: false });
+    bagBtn.addEventListener('click', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      bagOpen = !bagOpen; bagContextMenu = null;
+      updateNpcBtnMobile();
+    });
+  }
+  if (statsBtn) {
+    statsBtn.addEventListener('touchstart', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      statsOpen = !statsOpen;
+      updateNpcBtnMobile();
+    }, { passive: false });
+    statsBtn.addEventListener('click', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      statsOpen = !statsOpen;
+      updateNpcBtnMobile();
+    });
+  }
+}
+
+function initCanvasTouch() {
+  canvas.addEventListener('touchstart', (e) => {
+    if (!currentUser) return;
+    if (adminOpen) return;
+    for (const t of e.changedTouches) {
+      const rect = canvas.getBoundingClientRect();
+      const mx = t.clientX - rect.left;
+      const my = t.clientY - rect.top;
+      const el = document.elementFromPoint(t.clientX, t.clientY);
+      if (el && el !== canvas) continue;
+      if (bagContextMenu || bagEatConfirm || eatConfirm || questDialogOpen || questDialog2Open || rollDialogOpen || statsOpen || aimingAbility || bagOpen || contextMenu) {
+        handleCanvasClick(mx, my);
+      } else {
+        doAttack();
+      }
+    }
+  }, { passive: true });
 }
 
 function updateShipBtn() {
@@ -3230,7 +3150,6 @@ function updateFlightBtn() {
 function updateSpaceBtn() {
   const btn = document.getElementById('mSpaceBtn');
   if (!btn) return;
-  // Показать, если: уже на корабле ИЛИ есть корабль и в море
   if (player.onShip || (player.hasShip && !isOnAnyLand(player.x, player.y))) {
     btn.style.display = 'flex';
     btn.textContent = player.onShip ? '🚶' : '⚓';
@@ -3250,11 +3169,11 @@ function updateAttackBtn() {
   else btn.textContent = '👊';
 }
 
-function updateNpcBtn() {
+function updateNpcBtnMobile() {
+  if (!isMobile()) return;
   const btn = document.getElementById('npcBtn');
   if (!btn) return;
-  // Скрыть если открыт какой-то диалог
-  if (questDialogOpen || questDialog2Open || rollDialogOpen || statsOpen || bagOpen || aimingAbility) {
+  if (questDialogOpen || questDialog2Open || rollDialogOpen || statsOpen || bagOpen || aimingAbility || eatConfirm || bagEatConfirm) {
     btn.style.display = 'none';
     return;
   }
@@ -3268,291 +3187,37 @@ function updateNpcBtn() {
       btn.textContent = '🚢 Купить корабль (5 💰)';
       btn.style.display = 'block';
     } else if (!player.hasShip) {
-      btn.textContent = `💰 Нужно ${SHIP_PRICE} (у тебя ${player.money})`;
+      btn.textContent = `💰 Нужно 5 (у тебя ${player.money})`;
       btn.style.display = 'block';
     } else {
       btn.style.display = 'none';
     }
     return;
   }
-  if (isNearQuestNpc()) {
-    btn.textContent = '⚓ Поговорить с Барнсом';
-    btn.style.display = 'block';
-    return;
-  }
-  if (isNearQuestNpc2()) {
-    btn.textContent = '🏜️ Поговорить с Барнсом';
-    btn.style.display = 'block';
-    return;
-  }
-  if (isNearRollNpc()) {
-    btn.textContent = '🎰 Nexvertix';
-    btn.style.display = 'block';
-    return;
-  }
+  if (isNearQuestNpc()) { btn.textContent = '⚓ Поговорить с Барнсом'; btn.style.display = 'block'; return; }
+  if (isNearQuestNpc2()) { btn.textContent = '🏜️ Поговорить с Барнсом'; btn.style.display = 'block'; return; }
+  if (isNearRollNpc()) { btn.textContent = '🎰 Nexvertix'; btn.style.display = 'block'; return; }
   btn.style.display = 'none';
 }
 
-// ==================== ДЖОЙСТИК ====================
-function initJoystick() {
-  if (!DEVICE.isMobile) return;
-  const base = document.getElementById('joystickBase');
-  const knob = document.getElementById('joystickKnob');
-  if (!base || !knob) return;
-
-  function setKnob(x, y) {
-    knob.style.left = (base.offsetLeft + base.offsetWidth / 2 + x) + 'px';
-    knob.style.top = (base.offsetTop + base.offsetHeight / 2 + y) + 'px';
-  }
-
-  function startTouch(t) {
-    mobileJoy.active = true;
-    mobileJoy.id = t.identifier;
-    const rect = base.getBoundingClientRect();
-    mobileJoy.baseX = rect.left + rect.width / 2;
-    mobileJoy.baseY = rect.top + rect.height / 2;
-    mobileJoy.maxR = rect.width / 2 - 10;
-    mobileJoy.cx = t.clientX;
-    mobileJoy.cy = t.clientY;
-    updateJoy(t.clientX, t.clientY);
-  }
-  function updateJoy(cx, cy) {
-    let dx = cx - mobileJoy.baseX;
-    let dy = cy - mobileJoy.baseY;
-    const d = Math.hypot(dx, dy);
-    if (d > mobileJoy.maxR) {
-      dx = dx / d * mobileJoy.maxR;
-      dy = dy / d * mobileJoy.maxR;
-    }
-    mobileJoy.dx = dx / mobileJoy.maxR;
-    mobileJoy.dy = dy / mobileJoy.maxR;
-    const w = base.offsetWidth / 2;
-    setKnob(dx, dy);
-  }
-  function endTouch() {
-    mobileJoy.active = false;
-    mobileJoy.id = null;
-    mobileJoy.dx = 0;
-    mobileJoy.dy = 0;
-    const w = base.offsetWidth / 2;
-    setKnob(0, 0);
-  }
-
-  base.addEventListener('touchstart', (e) => {
-    e.preventDefault();
-    const t = e.changedTouches[0];
-    startTouch(t);
-  }, { passive: false });
-  window.addEventListener('touchmove', (e) => {
-    if (!mobileJoy.active) return;
-    for (const t of e.changedTouches) {
-      if (t.identifier === mobileJoy.id) {
-        e.preventDefault();
-        updateJoy(t.clientX, t.clientY);
-      }
-    }
-  }, { passive: false });
-  window.addEventListener('touchend', (e) => {
-    if (!mobileJoy.active) return;
-    for (const t of e.changedTouches) {
-      if (t.identifier === mobileJoy.id) endTouch();
-    }
-  });
-  window.addEventListener('touchcancel', (e) => {
-    if (!mobileJoy.active) return;
-    for (const t of e.changedTouches) {
-      if (t.identifier === mobileJoy.id) endTouch();
-    }
-  });
-
-  // Стартовая позиция
-  setKnob(0, 0);
-  window.addEventListener('resize', () => setKnob(mobileJoy.dx * mobileJoy.maxR, mobileJoy.dy * mobileJoy.maxR));
-}
-
-// ==================== ТАЧ-СЛОТЫ ====================
-function initTouchSlots() {
-  if (!DEVICE.isMobile) return;
-  const slotsEl = document.getElementById('mobileSlots');
-  slotsEl.addEventListener('touchstart', (e) => {
-    e.preventDefault();
-    for (const t of e.changedTouches) {
-      const el = document.elementFromPoint(t.clientX, t.clientY);
-      if (!el) continue;
-      let node = el;
-      while (node && node !== slotsEl) {
-        if (node.classList && node.classList.contains('mSlot')) {
-          const si = parseInt(node.dataset.slot, 10);
-          if (!isNaN(si)) selectSlot(si);
-          break;
-        }
-        node = node.parentElement;
-      }
-    }
-  }, { passive: false });
-}
-
-// ==================== КНОПКА АТАКИ ====================
-function initAttackBtn() {
-  if (!DEVICE.isMobile) return;
-  const btn = document.getElementById('attackBtn');
-  if (!btn) return;
-  btn.addEventListener('touchstart', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    doAttack();
-  }, { passive: false });
-  btn.addEventListener('mousedown', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    doAttack();
-  });
-}
-
-function doAttack() {
-  if (!currentUser) return;
-  if (adminOpen) return;
-  if (bagOpen || statsOpen || questDialogOpen || questDialog2Open || rollDialogOpen || eatConfirm || bagEatConfirm) return;
-  if (aimingAbility) {
-    // Атака на прицельную способность — центр экрана
-    const cx = canvas.width / 2 + camera.x;
-    const cy = canvas.height / 2 + camera.y;
-    executeAbilityAt(cx, cy);
-    return;
-  }
-  if (heldSlot !== -1) {
-    const held = inventory[heldSlot];
-    if (held && held.type === 'fists') { punchFist(); return; }
-    if (held && held.type === 'power' && held.name === 'Контроль') { controlLmbAttack(); return; }
-    if (held && held.type === 'fruit') { openContextMenu(); return; }
-  }
-}
-
-// ==================== КНОПКА NPC ====================
-function initNpcBtn() {
-  const btn = document.getElementById('npcBtn');
-  if (!btn) return;
-  btn.addEventListener('touchstart', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    handleInteract();
-  }, { passive: false });
-  btn.addEventListener('click', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    handleInteract();
-  });
-}
-
-// ==================== КНОПКИ КОРАБЛЯ / ПОЛЁТА / ПРОБЕЛ ====================
-function initBottomBtns() {
-  const shipBtn = document.getElementById('mShipBtn');
-  const flightBtn = document.getElementById('mFlightBtn');
-  const spaceBtn = document.getElementById('mSpaceBtn');
-  if (shipBtn) {
-    shipBtn.addEventListener('touchstart', (e) => {
-      e.preventDefault(); e.stopPropagation();
-      if (player.onShip) leaveShip();
-      else if (player.hasShip && !isOnAnyLand(player.x, player.y)) enterShip();
-    }, { passive: false });
-  }
-  if (spaceBtn) {
-    spaceBtn.addEventListener('touchstart', (e) => {
-      e.preventDefault(); e.stopPropagation();
-      if (player.onShip) leaveShip();
-      else if (player.hasShip && !isOnAnyLand(player.x, player.y)) enterShip();
-    }, { passive: false });
-  }
-  if (flightBtn) {
-    flightBtn.addEventListener('touchstart', (e) => {
-      e.preventDefault(); e.stopPropagation();
-      player.flightKeyDown = true;
-    }, { passive: false });
-    const stop = (e) => {
-      player.flightKeyDown = false;
-    };
-    flightBtn.addEventListener('touchend', stop);
-    flightBtn.addEventListener('touchcancel', stop);
-  }
-}
-
-// ==================== КНОПКИ МЕНЮ ====================
-function initMenuBtns() {
-  const bagBtn = document.getElementById('mBagBtn');
-  const statsBtn = document.getElementById('mStatsBtn');
-  if (bagBtn) {
-    bagBtn.addEventListener('touchstart', (e) => {
-      e.preventDefault(); e.stopPropagation();
-      bagOpen = !bagOpen;
-      bagContextMenu = null;
-      updateNpcBtn();
-    }, { passive: false });
-    bagBtn.addEventListener('click', (e) => {
-      e.preventDefault(); e.stopPropagation();
-      bagOpen = !bagOpen;
-      bagContextMenu = null;
-      updateNpcBtn();
-    });
-  }
-  if (statsBtn) {
-    statsBtn.addEventListener('touchstart', (e) => {
-      e.preventDefault(); e.stopPropagation();
-      statsOpen = !statsOpen;
-      updateNpcBtn();
-    }, { passive: false });
-    statsBtn.addEventListener('click', (e) => {
-      e.preventDefault(); e.stopPropagation();
-      statsOpen = !statsOpen;
-      updateNpcBtn();
-    });
-  }
-}
-
-// ==================== ТАЧ ПО ЭКРАНУ (клик) ====================
-function initCanvasTouch() {
-  canvas.addEventListener('touchstart', (e) => {
-    if (!currentUser) return;
-    if (adminOpen) return;
-    for (const t of e.changedTouches) {
-      const rect = canvas.getBoundingClientRect();
-      const mx = t.clientX - rect.left;
-      const my = t.clientY - rect.top;
-      // Пропускаем, если попал в UI-элемент
-      const el = document.elementFromPoint(t.clientX, t.clientY);
-      if (el && el !== canvas) continue;
-      // Открытые диалоги/меню — обрабатываем клик
-      if (bagContextMenu || bagEatConfirm || eatConfirm || questDialogOpen || questDialog2Open || rollDialogOpen || statsOpen || aimingAbility || bagOpen || contextMenu) {
-        handleCanvasClick(mx, my);
-      } else {
-        // Клик по пустому — атака
-        doAttack();
-      }
-    }
-  }, { passive: true });
-}
-
-// ==================== ОБНОВЛЕНИЕ HUD (каждый кадр) ====================
 let _lastMobileHudUpdate = 0;
 function tickMobileHud(now) {
-  if (!DEVICE.isMobile) return;
+  if (!isMobile()) return;
   if (now - _lastMobileHudUpdate < 100) return;
   _lastMobileHudUpdate = now;
 
-  // HP
   const mhp = getMaxHp();
   const hpFill = document.getElementById('mHpFill');
   const hpTxt = document.getElementById('mHpTxt');
   if (hpFill) hpFill.style.width = Math.max(0, Math.min(100, player.hp / mhp * 100)) + '%';
   if (hpTxt) hpTxt.textContent = `❤️ ${Math.ceil(player.hp)}/${mhp}`;
 
-  // Энергия
   const mst = getMaxStamina();
   const stFill = document.getElementById('mStFill');
   const stTxt = document.getElementById('mStTxt');
   if (stFill) stFill.style.width = Math.max(0, Math.min(100, player.stamina / mst * 100)) + '%';
   if (stTxt) stTxt.textContent = `⚡ ${Math.ceil(player.stamina)}/${mst}`;
 
-  // Mastery
   const mBar = document.getElementById('mMasteryBar');
   const mFill = document.getElementById('mMasteryFill');
   const mTxt = document.getElementById('mMasteryTxt');
@@ -3564,11 +3229,8 @@ function tickMobileHud(now) {
     const need = masteryThreshold(lvl);
     mFill.style.width = Math.max(0, Math.min(100, xp / need * 100)) + '%';
     mTxt.textContent = `🌟 Lv.${lvl} · ${xp}/${need}`;
-  } else if (mBar) {
-    mBar.style.display = 'none';
-  }
+  } else if (mBar) mBar.style.display = 'none';
 
-  // Вода
   const wBar = document.getElementById('mWaterBar');
   const wFill = document.getElementById('mWaterFill');
   const wTxt = document.getElementById('mWaterTxt');
@@ -3576,31 +3238,25 @@ function tickMobileHud(now) {
     wBar.style.display = 'flex';
     wFill.style.width = Math.max(0, Math.min(100, waterMeter / WATER_METER_MAX * 100)) + '%';
     wTxt.textContent = `💧 ${Math.floor(waterMeter)}/${WATER_METER_MAX}`;
-  } else if (wBar) {
-    wBar.style.display = 'none';
-  }
+  } else if (wBar) wBar.style.display = 'none';
 
-  // Монеты
   const moneyTxt = document.getElementById('mMoneyTxt');
   if (moneyTxt) moneyTxt.textContent = player.money;
 
-  // Кнопки
   updateShipBtn();
   updateFlightBtn();
   updateSpaceBtn();
   updateAttackBtn();
+  updateNpcBtnMobile();
 
-  // Кнопка NPC — часто, чтобы вовремя появлялась
-  updateNpcBtn();
-
-  // Обновляем cooldown-оверлеи на кнопках способностей
   const abBtns = document.querySelectorAll('#abilityBtns .abBtn');
   for (const btn of abBtns) {
     const id = btn.dataset.abId;
     const cd = player.cooldowns[id] || 0;
     const existing = btn.querySelector('.cdOverlay');
     if (cd > 0) {
-      const ab = getHeldPower()?.abilities.find(a => a.id === id);
+      const held = getHeldPower();
+      const ab = held ? held.abilities.find(a => a.id === id) : null;
       const cdMax = ab ? ab.cooldown : 1;
       const txt = cd.toFixed(1);
       if (existing) existing.textContent = txt;
@@ -3610,37 +3266,9 @@ function tickMobileHud(now) {
         ov.textContent = txt;
         btn.appendChild(ov);
       }
-    } else if (existing) {
-      existing.remove();
-    }
+    } else if (existing) existing.remove();
   }
-}
-
-// ==================== ИНИЦИАЛИЗАЦИЯ МОБИЛЬНОГО HUD ====================
-if (DEVICE.isMobile) {
-  buildMobileHud();
-  initJoystick();
-  initTouchSlots();
-  initAttackBtn();
-  initNpcBtn();
-  initBottomBtns();
-  initMenuBtns();
-  initCanvasTouch();
-  window.addEventListener('resize', () => {
-    mobileSlotRects.length = 0;
-    const slotsEl = document.getElementById('mobileSlots');
-    if (slotsEl) {
-      for (let i = 0; i < INVENTORY_SLOTS; i++) {
-        const el = slotsEl.children[i];
-        if (!el) continue;
-        const r = el.getBoundingClientRect();
-        mobileSlotRects[i] = { x: r.left, y: r.top, w: r.width, h: r.height };
-      }
-    }
-  });
-}
-
-// ==================== ОБНОВЛЕНИЕ ====================
+}// ==================== ОБНОВЛЕНИЕ ====================
 function update() {
   if (!currentUser) return;
   if (particles.length > 1500) particles.splice(0, particles.length - 1500);
@@ -3709,8 +3337,7 @@ function update() {
   // ============ КОРАБЛЬ ============
   if (player.onShip && !blocked && !aimingAbility) {
     let dx = 0, dy = 0;
-    // Мобильный джойстик
-    if (DEVICE.isMobile && (Math.abs(mobileJoy.dx) > 0.15 || Math.abs(mobileJoy.dy) > 0.15)) {
+    if (isMobile() && (Math.abs(mobileJoy.dx) > 0.15 || Math.abs(mobileJoy.dy) > 0.15)) {
       dx = mobileJoy.dx;
       dy = mobileJoy.dy;
     } else {
@@ -3765,7 +3392,7 @@ function update() {
         player.flying = false;
       } else {
         let dx = 0, dy = 0;
-        if (DEVICE.isMobile && (Math.abs(mobileJoy.dx) > 0.15 || Math.abs(mobileJoy.dy) > 0.15)) {
+        if (isMobile() && (Math.abs(mobileJoy.dx) > 0.15 || Math.abs(mobileJoy.dy) > 0.15)) {
           dx = mobileJoy.dx;
           dy = mobileJoy.dy;
         } else {
@@ -3836,7 +3463,7 @@ function update() {
   // ============ ОБЫЧНОЕ ДВИЖЕНИЕ ============
   if (!player.windmillActive && !player.onShip && !blocked && !aimingAbility && !player.flying) {
     let dx = 0, dy = 0;
-    if (DEVICE.isMobile && (Math.abs(mobileJoy.dx) > 0.15 || Math.abs(mobileJoy.dy) > 0.15)) {
+    if (isMobile() && (Math.abs(mobileJoy.dx) > 0.15 || Math.abs(mobileJoy.dy) > 0.15)) {
       dx = mobileJoy.dx;
       dy = mobileJoy.dy;
     } else {
@@ -3876,7 +3503,7 @@ function update() {
           sharedDroppedFruits.delete(id);
           sendFruitPicked(id);
           saveNow();
-          if (DEVICE.isMobile) refreshMobileHud();
+          if (isMobile()) refreshMobileHud();
         }
       }
     }
@@ -4306,9 +3933,7 @@ function update() {
       m.impactDone = true;
       for (const pir of pirates) {
         if (pir.dead) continue;
-        if (Math.hypot(pir.x - m.targetX, pir.y - m.targetY) < m.radius) {
-          damagePirate(pir, m.damage);
-        }
+        if (Math.hypot(pir.x - m.targetX, pir.y - m.targetY) < m.radius) damagePirate(pir, m.damage);
       }
       for (const dw of duneWarriors) {
         if (dw.dead) continue;
@@ -4872,13 +4497,6 @@ function drawControlBeams() {
       ctx.stroke();
       ctx.fillStyle = `rgba(${c2}, ${0.15 + charge * 0.15})`;
       ctx.fill();
-      const secLeft = Math.max(0, (B.activateAt - now) / 1000).toFixed(1);
-      ctx.font = 'bold 24px Arial';
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
-      ctx.strokeText(secLeft + 'с', x, y);
-      ctx.fillStyle = isLight ? '#fff6b0' : '#aaddff';
-      ctx.fillText(secLeft + 'с', x, y);
     } else if (now < B.until) {
       const alpha = Math.max(0, (B.until - now) / (B.until - B.activateAt));
       const g = ctx.createRadialGradient(x, y - 200, 0, x, y, B.radius);
@@ -5125,7 +4743,7 @@ function drawQuestNpc() {
   ctx.fillStyle = '#ffdd44'; ctx.font = 'bold 28px Arial';
   ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
   ctx.strokeText('!', x, y - questNpc.radius - 50 + bob); ctx.fillText('!', x, y - questNpc.radius - 50 + bob);
-  if (isNearQuestNpc() && !DEVICE.isMobile) {
+  if (isNearQuestNpc() && !isMobile()) {
     ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
     const ht = 'E — поговорить';
     ctx.font = 'bold 14px Arial';
@@ -5159,7 +4777,7 @@ function drawQuestNpc2() {
   ctx.fillStyle = '#ffaa44'; ctx.font = 'bold 28px Arial';
   ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
   ctx.strokeText('!', x, y - questNpc2.radius - 50 + bob); ctx.fillText('!', x, y - questNpc2.radius - 50 + bob);
-  if (isNearQuestNpc2() && !DEVICE.isMobile) {
+  if (isNearQuestNpc2() && !isMobile()) {
     ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
     const ht = 'E — поговорить';
     ctx.font = 'bold 14px Arial';
@@ -5199,7 +4817,7 @@ function drawRollNpc() {
   ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
   ctx.strokeText('💰', x, y - rollNpc.radius - 50 + bob);
   ctx.fillText('💰', x, y - rollNpc.radius - 50 + bob);
-  if (isNearRollNpc() && !DEVICE.isMobile) {
+  if (isNearRollNpc() && !isMobile()) {
     ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
     const ht = 'E — купить фрукт';
     ctx.font = 'bold 14px Arial';
@@ -5249,7 +4867,7 @@ function drawAdmirals() {
       ctx.strokeText('🚢', x, y - a.radius - 50 + bob);
       ctx.fillText('🚢', x, y - a.radius - 50 + bob);
     }
-    if (getNearAdmiral() === a && !DEVICE.isMobile) {
+    if (getNearAdmiral() === a && !isMobile()) {
       ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
       let ht;
       if (player.hasShip) ht = 'Корабль уже куплен';
@@ -6276,7 +5894,7 @@ function getRarityBorderColor(name) {
 }
 
 function drawInventory() {
-  if (DEVICE.isMobile) return; // на мобилке хотбар HTML-ный
+  if (isMobile()) return;
   const sw = INVENTORY_SLOTS * SLOT_SIZE + (INVENTORY_SLOTS - 1) * SLOT_GAP;
   const sx = (canvas.width - sw) / 2 - 40, sy = canvas.height - SLOT_SIZE - HOTBAR_BOTTOM_MARGIN;
   const pad = 10;
@@ -6322,7 +5940,7 @@ function drawInventory() {
 
 function drawAbilityGuide() {
   if (!abilityGuide) return;
-  if (DEVICE.isMobile) return; // на мобилке не показываем
+  if (isMobile()) return;
   const abilities = abilityGuide.abilities;
   const pw = 300, hh = 110, rh = 78;
   const ph = hh + abilities.length * rh + 14;
@@ -6412,7 +6030,7 @@ function drawAbilityGuide() {
 }
 
 function drawLevelUi() {
-  if (DEVICE.isMobile) return;
+  if (isMobile()) return;
   const x = 20, y = canvas.height - 100, w = 240, h = 80;
   ctx.fillStyle = 'rgba(0,0,0,0.65)'; ctx.strokeStyle = 'rgba(255,215,0,0.8)'; ctx.lineWidth = 2;
   roundRect(x, y, w, h, 12); ctx.fill(); ctx.stroke();
@@ -6436,7 +6054,7 @@ function drawLevelUi() {
 }
 
 function drawPlayerStats() {
-  if (DEVICE.isMobile) return;
+  if (isMobile()) return;
   const bw = 260, bh = 20;
   const x = canvas.width - bw - 20, y = 20;
   ctx.fillStyle = 'rgba(0,0,0,0.6)'; roundRect(x - 4, y - 4, bw + 8, bh + 8, 6); ctx.fill();
@@ -6524,7 +6142,7 @@ function drawPlayerStats() {
 }
 
 function drawActiveQuest() {
-  if (DEVICE.isMobile) return;
+  if (isMobile()) return;
   let yy = 200;
   if (quest.active) {
     const x = canvas.width - 300, y = yy, w = 280, h = 110;
@@ -6783,7 +6401,7 @@ function drawBag() {
   roundRect(p.x, p.y, p.w, p.h, 14); ctx.fill(); ctx.stroke();
   ctx.fillStyle = 'white'; ctx.font = 'bold 18px Arial'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
   ctx.fillText('🎒 Мешок', p.x + 20, p.y + 30);
-  if (!DEVICE.isMobile) {
+  if (!isMobile()) {
     ctx.font = '12px Arial';
     ctx.fillStyle = 'rgba(255,255,255,0.6)';
     ctx.fillText('клик — съесть · ПКМ — меню', p.x + 20, p.y + 55);
@@ -6902,6 +6520,7 @@ canvas.addEventListener('mousemove', (e) => {
 
 function drawAimCursor() {
   if (!aimingAbility) return;
+  if (isMobile()) return;
   const x = mousePos.x, y = mousePos.y;
   const t = performance.now() * 0.005;
   const isCtrl = aimingAbility.powerName === 'Контроль';
@@ -6932,9 +6551,9 @@ function drawAimCursor() {
 }
 
 function drawCompass() {
-  const cx = DEVICE.isMobile ? 70 : 90;
-  const cy = DEVICE.isMobile ? 240 : 130;
-  const R = DEVICE.isMobile ? 42 : 55;
+  const cx = isMobile() ? 55 : 90;
+  const cy = isMobile() ? 250 : 130;
+  const R = isMobile() ? 42 : 55;
   ctx.beginPath(); ctx.arc(cx, cy, R + 6, 0, Math.PI * 2);
   ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
   ctx.fill();
@@ -7008,7 +6627,7 @@ function drawCompass() {
   ctx.lineWidth = 1.5;
   ctx.stroke();
   ctx.restore();
-  if (!DEVICE.isMobile) {
+  if (!isMobile()) {
     ctx.font = 'bold 11px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -7158,15 +6777,15 @@ function gameLoop(now) {
     ticks++;
   }
   render();
-  if (DEVICE.isMobile) tickMobileHud(now);
+  if (isMobile()) tickMobileHud(now);
   requestAnimationFrame(gameLoop);
 }
 
 requestAnimationFrame(gameLoop);
 
-// При ресайзе — пересобрать позиции мобильных слотов
+// Ресайз — пересобираем позиции мобильных слотов
 window.addEventListener('resize', () => {
-  if (DEVICE.isMobile && mobileButtonsBuilt) {
+  if (isMobile() && mobileButtonsBuilt) {
     mobileSlotRects.length = 0;
     const slotsEl = document.getElementById('mobileSlots');
     if (slotsEl) {
