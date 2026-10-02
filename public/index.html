@@ -2,25 +2,31 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1e3a5f">
 <title>Magic Fruits</title>
 <style>
-  * { box-sizing: border-box; }
-  body { margin: 0; overflow: hidden; background: #1e3a5f; font-family: Arial, sans-serif; user-select: none; }
-  canvas { display: block; background: #87CEEB; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; overflow: hidden; width: 100%; height: 100%; background: #1e3a5f; font-family: Arial, sans-serif; user-select: none; -webkit-user-select: none; touch-action: none; }
+  canvas { display: block; background: #87CEEB; touch-action: none; }
   canvas.crosshair { cursor: crosshair; }
-  #ui { position: absolute; top: 10px; left: 10px; color: white; font-size: 18px; text-shadow: 2px 2px 4px black; pointer-events: none; display: none; }
-  #hint { position: absolute; top: 40px; left: 10px; color: white; font-size: 13px; text-shadow: 2px 2px 4px black; pointer-events: none; opacity: 0.8; line-height: 1.4; display: none; }
-  #fsBtn { position: absolute; top: 10px; right: 300px; width: 44px; height: 44px; background: rgba(0,0,0,0.5); border: 2px solid rgba(255,255,255,0.6); border-radius: 8px; color: white; font-size: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 10; }
+
+  /* ==================== ОБЩИЕ ==================== */
+  #fsBtn { position: absolute; top: 10px; right: 10px; width: 44px; height: 44px; background: rgba(0,0,0,0.5); border: 2px solid rgba(255,255,255,0.6); border-radius: 8px; color: white; font-size: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 100; }
   #fsBtn:hover { background: rgba(255,255,255,0.2); border-color: #ffd700; }
-  #authOverlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: linear-gradient(135deg, #1a2a4a, #0a1a3a); display: flex; align-items: center; justify-content: center; z-index: 1000; font-family: Arial, sans-serif; }
+
+  /* Авторизация */
+  #authOverlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: linear-gradient(135deg, #1a2a4a, #0a1a3a); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
   #authOverlay.hidden { display: none; }
-  #authPanel { width: 420px; background: rgba(20,25,40,0.95); border: 3px solid rgba(255,215,0,0.6); border-radius: 16px; padding: 30px 40px; box-shadow: 0 20px 60px rgba(0,0,0,0.6); }
-  #authPanel h1 { color: #ffd700; margin: 0 0 8px; font-size: 34px; text-align: center; }
-  #authPanel .subtitle { color: rgba(255,255,255,0.6); text-align: center; font-size: 14px; margin-bottom: 25px; }
-  #authTabs { display: flex; margin-bottom: 20px; border-bottom: 2px solid rgba(255,255,255,0.15); }
-  .authTab { flex: 1; padding: 12px; text-align: center; color: rgba(255,255,255,0.5); cursor: pointer; font-weight: bold; font-size: 16px; border-bottom: 3px solid transparent; margin-bottom: -2px; }
+  #authPanel { width: 100%; max-width: 420px; background: rgba(20,25,40,0.95); border: 3px solid rgba(255,215,0,0.6); border-radius: 16px; padding: 25px 30px; box-shadow: 0 20px 60px rgba(0,0,0,0.6); }
+  #authPanel h1 { color: #ffd700; margin: 0 0 8px; font-size: 30px; text-align: center; }
+  #authPanel .subtitle { color: rgba(255,255,255,0.6); text-align: center; font-size: 13px; margin-bottom: 20px; }
+  #authTabs { display: flex; margin-bottom: 18px; border-bottom: 2px solid rgba(255,255,255,0.15); }
+  .authTab { flex: 1; padding: 12px; text-align: center; color: rgba(255,255,255,0.5); cursor: pointer; font-weight: bold; font-size: 15px; border-bottom: 3px solid transparent; margin-bottom: -2px; }
   .authTab.active { color: #ffd700; border-bottom-color: #ffd700; }
-  .authField { margin-bottom: 15px; }
+  .authField { margin-bottom: 14px; }
   .authField label { display: block; color: rgba(255,255,255,0.75); font-size: 13px; margin-bottom: 6px; font-weight: bold; }
   .authField input { width: 100%; padding: 12px 14px; background: rgba(0,0,0,0.35); border: 2px solid rgba(255,255,255,0.2); border-radius: 8px; color: white; font-size: 15px; }
   .authField input:focus { outline: none; border-color: #ffd700; }
@@ -29,18 +35,122 @@
   #authBtn:disabled { opacity: 0.6; cursor: wait; }
   #authError { color: #ff5555; text-align: center; font-size: 13px; min-height: 18px; margin-top: 10px; font-weight: bold; }
   #authHint { color: rgba(255,255,255,0.4); text-align: center; font-size: 11px; margin-top: 18px; }
-  #logoutBtn { position: absolute; bottom: 10px; left: 10px; padding: 6px 12px; background: rgba(255,60,60,0.7); border: 2px solid rgba(255,255,255,0.4); border-radius: 6px; color: white; font-size: 12px; cursor: pointer; z-index: 10; display: none; }
+  #logoutBtn { position: absolute; bottom: 10px; left: 10px; padding: 6px 12px; background: rgba(255,60,60,0.7); border: 2px solid rgba(255,255,255,0.4); border-radius: 6px; color: white; font-size: 12px; cursor: pointer; z-index: 50; display: none; }
   #logoutBtn:hover { background: rgba(255,60,60,0.95); }
-  #playerName { position: absolute; bottom: 55px; left: 10px; padding: 8px 16px; background: rgba(0,0,0,0.55); border: 2px solid rgba(255,215,0,0.6); border-radius: 8px; color: #ffd700; font-size: 16px; font-weight: bold; z-index: 10; display: none; }
+  #playerName { position: absolute; bottom: 55px; left: 10px; padding: 8px 16px; background: rgba(0,0,0,0.55); border: 2px solid rgba(255,215,0,0.6); border-radius: 8px; color: #ffd700; font-size: 16px; font-weight: bold; z-index: 50; display: none; }
+
+  /* ==================== ПК-управление ==================== */
+  #pcUi { position: absolute; top: 10px; left: 10px; color: white; font-size: 18px; text-shadow: 2px 2px 4px black; pointer-events: none; }
+  #pchint { position: absolute; top: 40px; left: 10px; color: white; font-size: 13px; text-shadow: 2px 2px 4px black; pointer-events: none; opacity: 0.8; line-height: 1.4; }
+
+  /* ==================== МОБИЛЬНЫЙ HUD ==================== */
+  #mobileUi { display: none; }
+  body.mobile #mobileUi { display: block; }
+
+  /* Джойстик */
+  #joystickBase { position: fixed; left: 20px; bottom: 20px; width: 140px; height: 140px; border-radius: 50%; background: rgba(0,0,0,0.35); border: 3px solid rgba(255,255,255,0.35); z-index: 200; touch-action: none; }
+  #joystickKnob { position: fixed; width: 60px; height: 60px; border-radius: 50%; background: rgba(255,215,0,0.75); border: 3px solid rgba(255,255,255,0.7); z-index: 201; pointer-events: none; transform: translate(-50%, -50%); }
+
+  /* Правый блок способностей */
+  #abilityBtns { position: fixed; right: 15px; bottom: 180px; display: flex; flex-direction: column; gap: 10px; z-index: 200; align-items: flex-end; }
+  .abBtn { width: 60px; height: 60px; border-radius: 50%; background: rgba(0,0,0,0.55); border: 3px solid rgba(255,255,255,0.6); color: white; font-size: 22px; font-weight: bold; display: flex; align-items: center; justify-content: center; z-index: 200; touch-action: none; }
+  .abBtn:active { background: rgba(255,215,0,0.6); border-color: #ffd700; }
+  .abBtn.locked { opacity: 0.35; }
+  .abBtn .cdOverlay { position: absolute; inset: 0; border-radius: 50%; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; font-size: 16px; color: #ffcc66; }
+
+  /* Нижний ряд кнопок */
+  #bottomBtns { position: fixed; right: 15px; bottom: 20px; display: flex; gap: 10px; z-index: 200; align-items: center; }
+  #bottomBtns .abBtn { width: 56px; height: 56px; font-size: 20px; }
+
+  /* Кнопка атаки (клик по экрану) */
+  #attackBtn { position: fixed; right: 15px; bottom: 90px; width: 80px; height: 80px; border-radius: 50%; background: rgba(200,40,40,0.6); border: 4px solid rgba(255,255,255,0.7); color: white; font-size: 32px; display: flex; align-items: center; justify-content: center; z-index: 200; touch-action: none; }
+  #attackBtn:active { background: rgba(255,80,80,0.9); }
+
+  /* Хотбар слотов */
+  #mobileSlots { position: fixed; left: 50%; transform: translateX(-50%); bottom: 20px; display: flex; gap: 8px; z-index: 200; }
+  .mSlot { width: 54px; height: 54px; border-radius: 10px; background: rgba(0,0,0,0.5); border: 3px solid rgba(255,255,255,0.5); display: flex; align-items: center; justify-content: center; position: relative; touch-action: none; }
+  .mSlot.active { border-color: #ffd700; background: rgba(255,215,0,0.3); }
+  .mSlot .num { position: absolute; top: 2px; left: 4px; font-size: 11px; color: rgba(255,255,255,0.8); font-weight: bold; }
+  .mSlot canvas { border-radius: 6px; }
+
+  /* Верхняя панель: HP / Энергия / Монеты */
+  #mobileTop { position: fixed; top: 10px; left: 10px; right: 60px; z-index: 200; display: flex; flex-direction: column; gap: 6px; }
+  .mBar { height: 20px; border-radius: 10px; background: rgba(0,0,0,0.6); overflow: hidden; position: relative; font-size: 12px; font-weight: bold; color: white; text-shadow: 1px 1px 2px black; display: flex; align-items: center; justify-content: center; border: 2px solid rgba(255,255,255,0.25); }
+  .mBar .fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0%; border-radius: 10px; }
+  .mBar .txt { position: relative; z-index: 2; }
+  .mBarHp .fill { background: linear-gradient(180deg, #ff6666, #aa0000); }
+  .mBarSt .fill { background: linear-gradient(180deg, #66ddff, #0099cc); }
+  .mBarMoney { background: linear-gradient(180deg, #ffe680, #cc9900); color: #3a2a00; text-shadow: none; justify-content: flex-end; padding-right: 10px; }
+  .mBarMastery .fill { background: linear-gradient(180deg, #c8b0ff, #7c5cff); }
+  .mBarWater .fill { background: linear-gradient(180deg, #aaffff, #0a5c9c); }
+
+  /* Кнопка NPC — появляется только рядом */
+  #npcBtn { position: fixed; left: 50%; transform: translateX(-50%); bottom: 200px; padding: 16px 28px; background: linear-gradient(180deg, #ffd700, #cc9900); border: 3px solid rgba(255,255,255,0.8); border-radius: 14px; color: #3a2a00; font-size: 18px; font-weight: bold; z-index: 250; display: none; box-shadow: 0 6px 20px rgba(0,0,0,0.5); touch-action: none; }
+  #npcBtn:active { background: linear-gradient(180deg, #ffe680, #ffbb00); }
+
+  /* Кнопка "Съесть" / действие в инвентаре */
+  #invActionBtn { position: fixed; left: 50%; transform: translateX(-50%); bottom: 130px; padding: 14px 24px; background: linear-gradient(180deg, #4caf50, #2e7d32); border: 3px solid rgba(255,255,255,0.8); border-radius: 14px; color: white; font-size: 16px; font-weight: bold; z-index: 250; display: none; box-shadow: 0 6px 20px rgba(0,0,0,0.5); touch-action: none; }
+
+  /* Кнопки Меню/Мешок/Стата — слева вверху вертикально */
+  #menuBtns { position: fixed; top: 10px; right: 60px; display: flex; flex-direction: column; gap: 8px; z-index: 200; }
+  .menuBtn { width: 44px; height: 44px; border-radius: 10px; background: rgba(0,0,0,0.55); border: 2px solid rgba(255,255,255,0.6); color: white; font-size: 20px; display: flex; align-items: center; justify-content: center; touch-action: none; }
+  .menuBtn:active { background: rgba(255,215,0,0.5); }
+
+  /* Скрыть ПК-элементы на мобилке */
+  body.mobile #pcUi, body.mobile #pchint, body.mobile #logoutBtn, body.mobile #playerName { display: none !important; }
+  body.mobile #fsBtn { top: 10px; right: 10px; }
+
+  /* Тач-зоны для ПК не мешают */
+  body:not(.mobile) #mobileUi { display: none !important; }
+
+  /* Ориентация: горизонтальная — оптимально */
+  @media (orientation: portrait) and (max-width: 500px) {
+    #abilityBtns { bottom: 220px; }
+  }
 </style>
 </head>
 <body>
 <canvas id="game"></canvas>
-<button id="fsBtn" title="Полный экран">⛶</button>
-<div id="ui">🍎 Фрукты: <span id="fruitCount">0</span> | 💰 Монеты: <span id="moneyCount">0</span></div>
-<div id="hint">WASD — движение | 1-5 — слоты | I — мешок | E — NPC | Tab — статистика | N N — админ<br><b>ЛКМ</b> — кулак / разрез | <b>Z / X / C / R / V</b> — способности | <b>F (зажать)</b> — полёт Света | ⚠️ В море -30 HP/сек!</div>
+
+<!-- ПК-интерфейс -->
+<div id="pcUi">🍎 Фрукты: <span id="fruitCount">0</span> | 💰 Монеты: <span id="moneyCount">0</span></div>
+<div id="pchint">WASD — движение | 1-5 — слоты | I — мешок | E — NPC | Tab — статистика | N N — админ<br><b>ЛКМ</b> — кулак / разрез | <b>Z / X / C / R / V</b> — способности | <b>F (зажать)</b> — полёт Света | <b>Пробел</b> — корабль</div>
 <div id="playerName"></div>
 <button id="logoutBtn">🚪 Выйти</button>
+
+<!-- Мобильный HUD -->
+<div id="mobileUi">
+  <div id="mobileTop">
+    <div class="mBar mBarHp"><div class="fill" id="mHpFill"></div><span class="txt" id="mHpTxt">❤️ 100/100</span></div>
+    <div class="mBar mBarSt"><div class="fill" id="mStFill"></div><span class="txt" id="mStTxt">⚡ 100/100</span></div>
+    <div class="mBar mBarMastery" id="mMasteryBar" style="display:none;"><div class="fill" id="mMasteryFill"></div><span class="txt" id="mMasteryTxt">🌟 Lv.0</span></div>
+    <div class="mBar mBarWater" id="mWaterBar" style="display:none;"><div class="fill" id="mWaterFill"></div><span class="txt" id="mWaterTxt">💧 0/100</span></div>
+    <div class="mBar mBarMoney" id="mMoneyBar">💰 <span id="mMoneyTxt">0</span></div>
+  </div>
+
+  <div id="menuBtns">
+    <div class="menuBtn" id="mBagBtn">🎒</div>
+    <div class="menuBtn" id="mStatsBtn">📊</div>
+  </div>
+
+  <div id="joystickBase"><div id="joystickKnob"></div></div>
+
+  <div id="abilityBtns"></div>
+  <div id="attackBtn">👊</div>
+
+  <div id="bottomBtns">
+    <div class="abBtn" id="mShipBtn" style="display:none;">🚢</div>
+    <div class="abBtn" id="mFlightBtn" style="display:none;">✨</div>
+    <div class="abBtn" id="mSpaceBtn" style="display:none;">⚓</div>
+  </div>
+
+  <div id="mobileSlots"></div>
+
+  <div id="npcBtn"></div>
+  <div id="invActionBtn"></div>
+</div>
+
+<button id="fsBtn" title="Полный экран">⛶</button>
 
 <div id="authOverlay">
   <div id="authPanel">
@@ -59,19 +169,39 @@
 </div>
 
 <script>
+// ==================== ОПРЕДЕЛЕНИЕ УСТРОЙСТВА ====================
+const DEVICE = (function() {
+  const ua = navigator.userAgent || '';
+  const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+  const isIPad = /iPad/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isTablet = isIPad || (/Android/.test(ua) && !/Mobile/.test(ua)) || (/Tablet|PlayBook|Silk/.test(ua));
+  const isPhone = !isTablet && /Android|iPhone|iPod|Windows Phone|webOS|BlackBerry|Opera Mini|IEMobile|Mobile/i.test(ua);
+  const screenW = Math.max(window.innerWidth, window.innerHeight);
+  const screenH = Math.min(window.innerWidth, window.innerHeight);
+  let type = 'pc';
+  if (isPhone) type = 'phone';
+  else if (isTablet) type = 'tablet';
+  else if (isTouch && screenW < 1100) type = 'phone';
+  const isMobile = (type === 'phone' || type === 'tablet');
+  return { type, isMobile, isTouch, isTablet, isPhone, screenW, screenH };
+})();
+if (DEVICE.isMobile) document.body.classList.add('mobile');
+console.log('[device]', DEVICE.type, DEVICE);
+
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 
 function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
 resize();
 window.addEventListener('resize', resize);
+window.addEventListener('orientationchange', () => setTimeout(resize, 200));
 
 document.getElementById('fsBtn').addEventListener('click', () => {
   if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
   else document.exitFullscreen();
 });
 
-// ==================== УМНОЕ СРАВНЕНИЕ ПАРОЛЯ (учёт раскладки) ====================
+// ==================== УМНОЕ СРАВНЕНИЕ ПАРОЛЯ ====================
 function normalizeLayout(str) {
   const map = {
     'й':'q','ц':'w','у':'e','к':'r','е':'t','н':'y','г':'u','ш':'i','щ':'o','з':'p','х':'[','ъ':']',
@@ -112,8 +242,16 @@ const remoteWindmills = new Map();
 const remoteShips = new Map();
 const sharedDroppedFruits = new Map();
 
-function updateMoneyUi() { document.getElementById('moneyCount').textContent = player.money; }
-function updateFruitUi() { document.getElementById('fruitCount').textContent = player.fruitCount; }
+function updateMoneyUi() {
+  const el = document.getElementById('moneyCount');
+  if (el) el.textContent = player.money;
+  const mEl = document.getElementById('mMoneyTxt');
+  if (mEl) mEl.textContent = player.money;
+}
+function updateFruitUi() {
+  const el = document.getElementById('fruitCount');
+  if (el) el.textContent = player.fruitCount;
+}
 
 function showAuth() {
   document.getElementById('authOverlay').classList.remove('hidden');
@@ -317,6 +455,7 @@ function applySave(d) {
   player.onShip = false;
   camera.x = player.x - canvas.width / 2;
   camera.y = player.y - canvas.height / 2;
+  if (DEVICE.isMobile) refreshMobileHud();
 }
 
 let saving = false;
@@ -803,7 +942,6 @@ function sendFruitPicked(fruitId) {
   } catch (e) {}
 }
 
-// ==================== МЕЛЬНИЦА (сеть) ====================
 function sendWindmillEnter(x, y, color) {
   if (!ws || ws.readyState !== 1) return;
   try {
@@ -815,7 +953,6 @@ function sendWindmillExit() {
   try { ws.send(JSON.stringify({ type: 'windmill_exit' })); } catch (e) {}
 }
 
-// ==================== КОРАБЛЬ (сеть) ====================
 function sendShipEnter(x, y, angle, color) {
   if (!ws || ws.readyState !== 1) return;
   try {
@@ -829,10 +966,8 @@ function sendShipExit() {
 
 // ==================== МИР ====================
 const camera = { x: 0, y: 0 };
-// Пиратский остров
 const ISLAND = { x: -1200, y: -900, width: 2400, height: 1800 };
 const BEACH_WIDTH = 120;
-// Пустынный остров
 const DESERT = { x: 7200, y: -5600, width: 1800, height: 1400 };
 const DESERT_BEACH = 100;
 
@@ -845,7 +980,6 @@ function addPyramid(x, y, w) { obstacles.push({ type: 'pyramid', x, y, w, baseW:
 function addDuneHouse(x, y, w, h) { obstacles.push({ type: 'dune_house', x, y, w, h, wallColor: '#d4a76a', roofColor: '#b8860b' }); }
 function addCactus(x, y) { obstacles.push({ type: 'cactus', x, y, r: 16 }); }
 
-// --- ПИРАТСКИЙ ОСТРОВ ---
 addHouse(-900, -600, 160, 120, '#c9a877', '#8b3a2a');
 addHouse(-600, -750, 180, 140, '#b89b6a', '#5a3a2a');
 addHouse(-300, -550, 150, 130, '#c9a877', '#7a4a3a');
@@ -860,7 +994,6 @@ addBarrel(-800, -500); addBarrel(-770, -490); addBarrel(-450, -650);
 addBarrel(-420, -630); addBarrel(-100, -450); addBarrel(250, -600);
 addFence(-950, -550, 200, 10); addFence(-550, -680, 10, 200); addFence(150, -650, 10, 250);
 
-// --- ПУСТЫННЫЙ ОСТРОВ ---
 addPyramid(DESERT.x + DESERT.width / 2, DESERT.y + 300, 320);
 addDuneHouse(DESERT.x + 200, DESERT.y + 200, 180, 140);
 addDuneHouse(DESERT.x + DESERT.width - 400, DESERT.y + 250, 200, 150);
@@ -872,13 +1005,11 @@ addCactus(DESERT.x + 500, DESERT.y + DESERT.height - 200);
 addCactus(DESERT.x + DESERT.width - 300, DESERT.y + 400);
 addCactus(DESERT.x + 800, DESERT.y + 900);
 
-// ==================== NPC-АДМИРАЛЫ (покупка корабля) ====================
+// ==================== NPC-АДМИРАЛЫ ====================
 const SHIP_PRICE = 5;
 const admirals = [
-  // Пиратский остров — на восточном берегу
-  { x: ISLAND.x + ISLAND.width - 60, y: 0, radius: 30, name: 'Морской Адмирал', color: '#2a4f8c', hatColor: '#0a1a3a', nearMsg: 'E — купить корабль (5 💰)' },
-  // Пустынный остров — на западном берегу
-  { x: DESERT.x + 60, y: DESERT.y + DESERT.height / 2, radius: 30, name: 'Морской Адмирал', color: '#2a4f8c', hatColor: '#0a1a3a', nearMsg: 'E — купить корабль (5 💰)' }
+  { x: ISLAND.x + ISLAND.width - 60, y: 0, radius: 30, name: 'Морской Адмирал', color: '#2a4f8c', hatColor: '#0a1a3a' },
+  { x: DESERT.x + 60, y: DESERT.y + DESERT.height / 2, radius: 30, name: 'Морской Адмирал', color: '#2a4f8c', hatColor: '#0a1a3a' }
 ];
 
 function getNearAdmiral() {
@@ -1084,7 +1215,6 @@ const LIGHT_FLIGHT_SPEED_MULT = 3.5;
 const LIGHT_FLIGHT_STAMINA_DRAIN = 6;
 const LIGHT_FLIGHT_TRAIL_LIFE = 40;
 
-// ==================== ВЕТРЯНАЯ МЕЛЬНИЦА (константы) ====================
 const WINDMILL_RADIUS = 60;
 const WINDMILL_BLADE_COUNT = 4;
 const WINDMILL_BLADE_LENGTH = 90;
@@ -1092,7 +1222,6 @@ const WINDMILL_BLADE_WIDTH = 14;
 const WINDMILL_ROTATION_SPEED = 0.02;
 const WINDMILL_TOWER_HEIGHT = 70;
 
-// ==================== КОРАБЛЬ (константы) ====================
 const SHIP_RADIUS = 45;
 const SHIP_SPEED_MULT = 2.3;
 const SHIP_SAIL_LENGTH = 55;
@@ -1669,7 +1798,7 @@ function activateWaterTransform() {
   particles.push({ isShockwave: true, x: player.x, y: player.y, radius: 10, maxRadius: 200, life: 40, maxLife: 40, color: '#4fd4ff' });
 }
 
-// ==================== ПОЛЁТ СВЕТА (F зажать) ====================
+// ==================== ПОЛЁТ СВЕТА ====================
 function startLightFlight() {
   if (player.flying) return;
   const held = getHeldPower();
@@ -1686,7 +1815,7 @@ function stopLightFlight() {
   player.flying = false;
 }
 
-// ==================== ТРАНСФОРМАЦИЯ МЕЛЬНИЦЫ (Z) ====================
+// ==================== ТРАНСФОРМАЦИЯ МЕЛЬНИЦЫ ====================
 function toggleWindmill() {
   const held = getHeldPower();
   if (!held || held.power.name !== 'Ветряная мельница') return;
@@ -1824,7 +1953,6 @@ function activateControlZone() {
   sendAttackUse('control_zone', player.x, player.y, 0, 0);
 }
 
-// ==================== КОНТРОЛЬ: ЛАЗЕРЫ ====================
 function activateControlLasers() {
   if (player.cooldowns['control_lasers'] > 0) return;
   if (player.stamina < 40) return;
@@ -1847,7 +1975,6 @@ function activateControlLasers() {
   sendAttackUse('control_lasers', player.x, player.y, 0, 0);
 }
 
-// ==================== КОНТРОЛЬ: МЕТЕОР ====================
 function activateControlMeteorAt(tx, ty) {
   if (player.cooldowns['control_meteor'] > 0) return;
   if (player.stamina < 50) return;
@@ -1870,7 +1997,6 @@ function activateControlMeteorAt(tx, ty) {
   sendAttackUse('control_meteor', player.x, player.y, dx, dy);
 }
 
-// ==================== КОНТРОЛЬ: ЛУЧ ====================
 function activateControlBeamAt(tx, ty) {
   if (player.cooldowns['control_beam'] > 0) return;
   if (player.stamina < 70) return;
@@ -1893,7 +2019,6 @@ function activateControlBeamAt(tx, ty) {
   sendAttackUse('control_beam', player.x, player.y, dx, dy);
 }
 
-// ==================== СВЕТ: ЛУЧ (Z) ====================
 function activateLightBeam() {
   if (player.cooldowns['light_beam'] > 0) return;
   if (player.stamina < 25) return;
@@ -1923,7 +2048,6 @@ function activateLightBeam() {
   sendAttackUse('light_beam', player.x, player.y, dx, dy);
 }
 
-// ==================== ВЫПОЛНЕНИЕ ПРИЦЕЛЬНОЙ ====================
 function executeAbilityAt(tx, ty) {
   if (!aimingAbility) return;
   const { powerName, abilityId, ability } = aimingAbility;
@@ -2000,7 +2124,6 @@ function executeAbilityAt(tx, ty) {
   aimingAbility = null;
 }
 
-// ==================== СВЕТ: КОПЬЁ (X) ====================
 function activateLightSpearAt(tx, ty) {
   if (player.cooldowns['light_spear'] > 0) return;
   if (player.stamina < 45) return;
@@ -2026,7 +2149,6 @@ function activateLightSpearAt(tx, ty) {
   sendAttackUse('light_spear', player.x, player.y, nx, ny);
 }
 
-// ==================== СВЕТ: ЛУЧ С НЕБЕС (C) ====================
 function activateLightSkyAt(tx, ty) {
   if (player.cooldowns['light_sky'] > 0) return;
   if (player.stamina < 65) return;
@@ -2263,7 +2385,10 @@ canvas.addEventListener('click', (e) => {
   if (adminOpen) return;
   const rect = canvas.getBoundingClientRect();
   const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  handleCanvasClick(mx, my);
+});
 
+function handleCanvasClick(mx, my) {
   if (bagContextMenu) {
     for (const btn of bagContextMenu.buttons) {
       if (mx >= btn.x && mx <= btn.x + btn.w && my >= btn.y && my <= btn.y + btn.h) {
@@ -2304,6 +2429,7 @@ canvas.addEventListener('click', (e) => {
         player.radius = player.windmillSavedRadius || 25;
         sendWindmillExit();
       }
+      if (DEVICE.isMobile) refreshMobileHud();
       return;
     }
     heldSlot = (heldSlot === si) ? -1 : si;
@@ -2311,6 +2437,7 @@ canvas.addEventListener('click', (e) => {
     contextMenu = null;
     const held2 = getHeldPower();
     sendHeldChange(held2 ? held2.power.name : null);
+    if (DEVICE.isMobile) refreshMobileHud();
     return;
   }
   if (heldSlot !== -1) {
@@ -2319,10 +2446,10 @@ canvas.addEventListener('click', (e) => {
     if (held && held.type === 'power' && held.name === 'Контроль') { controlLmbAttack(); return; }
     if (held && held.type === 'fruit') { openContextMenu(); return; }
   }
-});
+}
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 
-// ПКМ в мешке — открыть контекстное меню
+// ПКМ в мешке
 canvas.addEventListener('mousedown', (e) => {
   if (!currentUser) return;
   if (adminOpen) return;
@@ -2347,7 +2474,8 @@ canvas.addEventListener('mousedown', (e) => {
 
 // ==================== ПОДТВЕРЖДЕНИЕ ЕДЫ ====================
 function getEatConfirmButtons() {
-  const pw = 460, ph = 240;
+  const pw = Math.min(460, canvas.width - 40);
+  const ph = 240;
   const px = (canvas.width - pw) / 2;
   const py = (canvas.height - ph) / 2;
   return {
@@ -2378,6 +2506,7 @@ function handleEatConfirmClick(mx, my) {
         const held = getHeldPower();
         sendHeldChange(held ? held.power.name : null);
         saveNow();
+        if (DEVICE.isMobile) refreshMobileHud();
       }
     }
     closeEatConfirm();
@@ -2389,7 +2518,6 @@ function handleEatConfirmClick(mx, my) {
   }
 }
 
-// ==================== ПОДТВЕРЖДЕНИЕ ЕДЫ ИЗ МЕШКА ====================
 function openBagEatConfirm(bagIndex) {
   if (bagIndex === -1 || bagIndex === null || bagIndex === undefined) return;
   if (bagIndex < 0 || bagIndex >= bag.length) return;
@@ -2411,6 +2539,7 @@ function handleBagEatConfirmClick(mx, my) {
           player.fruitCount = Math.max(0, player.fruitCount - 1);
           updateFruitUi();
           saveNow();
+          if (DEVICE.isMobile) refreshMobileHud();
         }
       }
     }
@@ -2423,12 +2552,13 @@ function handleBagEatConfirmClick(mx, my) {
   }
 }
 
-// ==================== NPC ДИАЛОГ 1 (ПИРАТСКИЙ БАРНС) ====================
+// ==================== NPC ДИАЛОГ 1 ====================
 let questDialogOpen = false;
-function openQuestDialog() { questDialogOpen = true; }
-function closeQuestDialog() { questDialogOpen = false; }
+function openQuestDialog() { questDialogOpen = true; updateNpcBtn(); }
+function closeQuestDialog() { questDialogOpen = false; updateNpcBtn(); }
 function getQuestDialogButtons() {
-  const pw = 540, ph = 500;
+  const pw = Math.min(540, canvas.width - 20);
+  const ph = 500;
   const px = (canvas.width - pw) / 2, py = (canvas.height - ph) / 2;
   return {
     panel: { x: px, y: py, w: pw, h: ph },
@@ -2465,12 +2595,13 @@ function handleQuestDialogClick(mx, my) {
   }
 }
 
-// ==================== NPC ДИАЛОГ 2 (ПУСТЫННЫЙ БАРНС) ====================
+// ==================== NPC ДИАЛОГ 2 ====================
 let questDialog2Open = false;
-function openQuestDialog2() { questDialog2Open = true; }
-function closeQuestDialog2() { questDialog2Open = false; }
+function openQuestDialog2() { questDialog2Open = true; updateNpcBtn(); }
+function closeQuestDialog2() { questDialog2Open = false; updateNpcBtn(); }
 function getQuestDialog2Buttons() {
-  const pw = 540, ph = 420;
+  const pw = Math.min(540, canvas.width - 20);
+  const ph = 420;
   const px = (canvas.width - pw) / 2, py = (canvas.height - ph) / 2;
   return {
     panel: { x: px, y: py, w: pw, h: ph },
@@ -2496,10 +2627,11 @@ function handleQuestDialog2Click(mx, my) {
 
 // ==================== NPC ДИАЛОГ (NEXVERTIX) ====================
 let rollDialogOpen = false;
-function openRollDialog() { rollDialogOpen = true; }
-function closeRollDialog() { rollDialogOpen = false; }
+function openRollDialog() { rollDialogOpen = true; updateNpcBtn(); }
+function closeRollDialog() { rollDialogOpen = false; updateNpcBtn(); }
 function getRollDialogButtons() {
-  const pw = 520, ph = 420;
+  const pw = Math.min(520, canvas.width - 20);
+  const ph = 420;
   const px = (canvas.width - pw) / 2, py = (canvas.height - ph) / 2;
   return {
     panel: { x: px, y: py, w: pw, h: ph },
@@ -2516,17 +2648,11 @@ function handleRollDialogClick(mx, my) {
 }
 
 function tryRollFruit() {
-  if (stats.level < ROLL_MIN_LEVEL) {
-    return;
-  }
+  if (stats.level < ROLL_MIN_LEVEL) { return; }
   const now = Date.now();
-  if (now < rollCooldownUntil) {
-    return;
-  }
+  if (now < rollCooldownUntil) { return; }
   const cost = getRollCost();
-  if (player.money < cost) {
-    return;
-  }
+  if (player.money < cost) { return; }
   player.money -= cost;
   updateMoneyUi();
   const roll = Math.random() * 100;
@@ -2545,12 +2671,14 @@ function tryRollFruit() {
   }
   rollCooldownUntil = Date.now() + ROLL_COOLDOWN_MS;
   saveNow();
+  if (DEVICE.isMobile) refreshMobileHud();
 }
 
 // ==================== СТАТИСТИКА ====================
-function closeStats() { statsOpen = false; }
+function closeStats() { statsOpen = false; updateNpcBtn(); }
 function getStatsButtons() {
-  const pw = 560, ph = 460;
+  const pw = Math.min(560, canvas.width - 20);
+  const ph = 460;
   const px = (canvas.width - pw) / 2, py = (canvas.height - ph) / 2;
   const rowH = 100, rowW = pw - 60;
   return {
@@ -2586,6 +2714,13 @@ function getSlotRect(i) {
   return { x: sx + i * (SLOT_SIZE + SLOT_GAP), y: sy, w: SLOT_SIZE, h: SLOT_SIZE };
 }
 function getSlotAtPoint(mx, my) {
+  if (DEVICE.isMobile) {
+    for (let i = 0; i < INVENTORY_SLOTS; i++) {
+      const r = mobileSlotRects[i];
+      if (r && mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h) return i;
+    }
+    return -1;
+  }
   for (let i = 0; i < INVENTORY_SLOTS; i++) {
     const r = getSlotRect(i);
     if (mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h) return i;
@@ -2654,6 +2789,7 @@ function executeMenuAction(action) {
     saveNow();
   }
   contextMenu = null;
+  if (DEVICE.isMobile) refreshMobileHud();
 }
 
 // ==================== МЕШОК ====================
@@ -2677,11 +2813,16 @@ function handleBagClick(mx, my) {
   }
 }
 function getBagPanelRect() {
-  const w = bagCols * bagSlotSize + (bagCols - 1) * bagGap + 60;
-  const h = bagRows * bagSlotSize + (bagRows - 1) * bagGap + 120;
-  return { x: (canvas.width - w) / 2, y: (canvas.height - h) / 2, w, h };
+  const slotSize = DEVICE.isMobile ? 60 : bagSlotSize;
+  const gap = DEVICE.isMobile ? 8 : bagGap;
+  const w = bagCols * slotSize + (bagCols - 1) * gap + 40;
+  const h = bagRows * slotSize + (bagRows - 1) * gap + 100;
+  return { x: (canvas.width - w) / 2, y: (canvas.height - h) / 2, w, h, slotSize, gap };
 }
-function getBagGridRect() { const p = getBagPanelRect(); return { x: p.x + 30, y: p.y + 90 }; }
+function getBagGridRect() {
+  const p = getBagPanelRect();
+  return { x: p.x + 20, y: p.y + 80, slotSize: p.slotSize, gap: p.gap };
+}
 function getBagCloseRect() { const p = getBagPanelRect(); return { x: p.x + p.w - 44, y: p.y + 15, w: 30, h: 30 }; }
 
 function openBagContextMenu(bagIdx, mx, my) {
@@ -2747,6 +2888,7 @@ function executeBagMenuAction(action) {
     saveNow();
   }
   bagContextMenu = null;
+  if (DEVICE.isMobile) refreshMobileHud();
 }
 
 function getInvButtonRect() {
@@ -2755,10 +2897,12 @@ function getInvButtonRect() {
 }
 function isClickOnInvButton(mx, my) { const r = getInvButtonRect(); return mx >= r.x && mx <= r.x + r.w && my >= r.y && my <= r.y + r.h; }
 
-// ==================== КЛАВИАТУРА ====================
+// ==================== КЛАВИАТУРА (только ПК) ====================
 const keys = {};
 window.addEventListener('keydown', (e) => {
   if (!currentUser) return;
+  if (DEVICE.isMobile) return; // на мобилке клавиатура игнорируется
+
   if (e.code === 'KeyN' || e.key.toLowerCase() === 'n' || e.key.toLowerCase() === 'т') {
     if (adminOpen) {
       if (e.key.length === 1) { adminInput += e.key; e.preventDefault(); }
@@ -2821,7 +2965,6 @@ window.addEventListener('keydown', (e) => {
   const k = e.key.toLowerCase(), code = e.code;
   if (k === 'i' || k === 'ш' || code === 'KeyI') { bagOpen = !bagOpen; contextMenu = null; bagContextMenu = null; return; }
   if (code === 'Tab' || e.key === 'Tab') { e.preventDefault(); statsOpen = !statsOpen; questDialogOpen = false; questDialog2Open = false; rollDialogOpen = false; return; }
-  // ПРОБЕЛ — сесть/встать с корабля
   if (code === 'Space' || k === ' ') {
     e.preventDefault();
     if (bagOpen || statsOpen || questDialogOpen || questDialog2Open || rollDialogOpen || adminOpen || aimingAbility) return;
@@ -2830,16 +2973,7 @@ window.addEventListener('keydown', (e) => {
     return;
   }
   if (code === 'KeyE' || k === 'e' || k === 'у') {
-    const adm = getNearAdmiral();
-    if (adm) {
-      if (!player.hasShip && player.money >= SHIP_PRICE) {
-        buyShip();
-      }
-      return;
-    }
-    if (isNearRollNpc() && !rollDialogOpen && !questDialogOpen && !questDialog2Open && !statsOpen) { openRollDialog(); return; }
-    if (isNearQuestNpc() && !questDialogOpen && !questDialog2Open && !rollDialogOpen && !statsOpen) { openQuestDialog(); return; }
-    if (isNearQuestNpc2() && !questDialog2Open && !questDialogOpen && !rollDialogOpen && !statsOpen) { openQuestDialog2(); return; }
+    handleInteract();
     return;
   }
   const held = getHeldPower();
@@ -2872,33 +3006,641 @@ window.addEventListener('keydown', (e) => {
   if (['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k)) e.preventDefault();
   if (k >= '1' && k <= '5') {
     if (bagOpen || statsOpen || questDialogOpen || questDialog2Open || rollDialogOpen) return;
-    const si = parseInt(k) - 1;
-    const item = inventory[si];
-    if (!item) return;
-    if (item.type === 'power') {
-      if (heldSlot === si && abilityGuide && abilityGuide.slotIndex === si) { heldSlot = -1; abilityGuide = null; }
-      else { heldSlot = si; abilityGuide = { slotIndex: si, name: item.name, color: item.color, abilities: getAbilitiesFor(item.name) }; }
-    } else {
-      heldSlot = (heldSlot === si) ? -1 : si;
-      if (heldSlot === -1 || !inventory[heldSlot] || inventory[heldSlot].type !== 'power') abilityGuide = null;
-    }
-    contextMenu = null;
-    const heldNow = getHeldPower();
-    sendHeldChange(heldNow ? heldNow.power.name : null);
-    if (player.windmillActive && (!heldNow || heldNow.power.name !== 'Ветряная мельница')) {
-      player.windmillActive = false;
-      player.radius = player.windmillSavedRadius || 25;
-      sendWindmillExit();
-    }
+    selectSlot(parseInt(k) - 1);
   }
 });
 window.addEventListener('keyup', (e) => {
+  if (DEVICE.isMobile) return;
   const k = e.key.toLowerCase(), code = e.code;
   keys[k] = false;
   if (code === 'KeyF' || k === 'f' || k === 'а') {
     player.flightKeyDown = false;
   }
-});// ==================== ОБНОВЛЕНИЕ ====================
+});
+
+function selectSlot(si) {
+  const item = inventory[si];
+  if (!item) return;
+  if (item.type === 'power') {
+    if (heldSlot === si && abilityGuide && abilityGuide.slotIndex === si) { heldSlot = -1; abilityGuide = null; }
+    else { heldSlot = si; abilityGuide = { slotIndex: si, name: item.name, color: item.color, abilities: getAbilitiesFor(item.name) }; }
+  } else {
+    heldSlot = (heldSlot === si) ? -1 : si;
+    if (heldSlot === -1 || !inventory[heldSlot] || inventory[heldSlot].type !== 'power') abilityGuide = null;
+  }
+  contextMenu = null;
+  const heldNow = getHeldPower();
+  sendHeldChange(heldNow ? heldNow.power.name : null);
+  if (player.windmillActive && (!heldNow || heldNow.power.name !== 'Ветряная мельница')) {
+    player.windmillActive = false;
+    player.radius = player.windmillSavedRadius || 25;
+    sendWindmillExit();
+  }
+  if (DEVICE.isMobile) refreshMobileHud();
+}
+
+// ==================== ВЗАИМОДЕЙСТВИЕ С NPC (общий) ====================
+function handleInteract() {
+  const adm = getNearAdmiral();
+  if (adm) {
+    if (!player.hasShip && player.money >= SHIP_PRICE) {
+      buyShip();
+    }
+    return;
+  }
+  if (isNearRollNpc() && !rollDialogOpen && !questDialogOpen && !questDialog2Open && !statsOpen) { openRollDialog(); return; }
+  if (isNearQuestNpc() && !questDialogOpen && !questDialog2Open && !rollDialogOpen && !statsOpen) { openQuestDialog(); return; }
+  if (isNearQuestNpc2() && !questDialog2Open && !questDialogOpen && !rollDialogOpen && !statsOpen) { openQuestDialog2(); return; }
+}// ==================== МОБИЛЬНЫЙ HUD ====================
+const mobileSlotRects = [];
+let mobileJoy = { active: false, id: null, cx: 0, cy: 0, dx: 0, dy: 0, baseX: 0, baseY: 0, maxR: 55 };
+let mobileButtonsBuilt = false;
+
+function buildMobileHud() {
+  if (!DEVICE.isMobile) return;
+  const slotsEl = document.getElementById('mobileSlots');
+  slotsEl.innerHTML = '';
+  mobileSlotRects.length = 0;
+  for (let i = 0; i < INVENTORY_SLOTS; i++) {
+    const d = document.createElement('div');
+    d.className = 'mSlot';
+    d.dataset.slot = String(i);
+    const num = document.createElement('span');
+    num.className = 'num';
+    num.textContent = String(i + 1);
+    d.appendChild(num);
+    const cv = document.createElement('canvas');
+    cv.width = 44; cv.height = 44;
+    cv.style.width = '44px'; cv.style.height = '44px';
+    d.appendChild(cv);
+    slotsEl.appendChild(d);
+  }
+  requestAnimationFrame(() => {
+    const rect = slotsEl.getBoundingClientRect();
+    for (let i = 0; i < INVENTORY_SLOTS; i++) {
+      const el = slotsEl.children[i];
+      const r = el.getBoundingClientRect();
+      mobileSlotRects[i] = { x: r.left, y: r.top, w: r.width, h: r.height };
+    }
+  });
+  mobileButtonsBuilt = true;
+  refreshMobileHud();
+}
+
+function refreshMobileHud() {
+  if (!DEVICE.isMobile) return;
+  // Слоты
+  const slotsEl = document.getElementById('mobileSlots');
+  for (let i = 0; i < INVENTORY_SLOTS; i++) {
+    const el = slotsEl.children[i];
+    if (!el) continue;
+    if (heldSlot === i) el.classList.add('active');
+    else el.classList.remove('active');
+    const cv = el.querySelector('canvas');
+    if (!cv) continue;
+    const cx = cv.getContext('2d');
+    cx.clearRect(0, 0, 44, 44);
+    const item = inventory[i];
+    if (item) {
+      drawSlotIcon(cx, 22, 22, 18, item);
+    }
+  }
+  // Кнопки способностей
+  buildAbilityButtons();
+  updateNpcBtn();
+  updateShipBtn();
+  updateFlightBtn();
+  updateSpaceBtn();
+  updateAttackBtn();
+}
+
+function drawSlotIcon(cx, x, y, r, item) {
+  if (item.type === 'fists') {
+    cx.beginPath();
+    cx.arc(x, y, r * 0.9, 0, Math.PI * 2);
+    cx.fillStyle = '#2a2a2a';
+    cx.fill();
+    cx.strokeStyle = '#aaa';
+    cx.lineWidth = 2;
+    cx.stroke();
+    cx.beginPath();
+    cx.rect(x - r * 0.45, y - r * 0.3, r * 0.9, r * 0.7);
+    const g = cx.createRadialGradient(x - r * 0.15, y - r * 0.1, 1, x, y, r * 0.7);
+    g.addColorStop(0, '#ffddaa'); g.addColorStop(1, '#d4a373');
+    cx.fillStyle = g;
+    cx.fill();
+    return;
+  }
+  if (item.type === 'fruit') {
+    const g = cx.createRadialGradient(x - r * 0.3, y - r * 0.3, 1, x, y, r);
+    g.addColorStop(0, lightenColor(item.color, 0.5));
+    g.addColorStop(1, item.color);
+    cx.beginPath();
+    cx.arc(x, y, r * 0.85, 0, Math.PI * 2);
+    cx.fillStyle = g;
+    cx.fill();
+    cx.strokeStyle = darkenColor(item.color, 0.4);
+    cx.lineWidth = 1.5;
+    cx.stroke();
+    return;
+  }
+  if (item.type === 'power') {
+    // Круглая иконка по цвету фрукта
+    const g = cx.createRadialGradient(x - r * 0.3, y - r * 0.3, 1, x, y, r);
+    let c1 = '#fff', c2 = item.color || '#888';
+    if (item.name === 'Огонь') { c1 = '#ffdd44'; c2 = '#ff4400'; }
+    else if (item.name === 'Лёд') { c1 = '#e0f8ff'; c2 = '#0099dd'; }
+    else if (item.name === 'Акула') { c1 = '#aaddff'; c2 = '#1a4f8c'; }
+    else if (item.name === 'Контроль') { c1 = '#e0c8ff'; c2 = '#7c5cff'; }
+    else if (item.name === 'Свет') { c1 = '#ffffff'; c2 = '#ffd700'; }
+    else if (item.name === 'Ветряная мельница') { c1 = '#f5e6c8'; c2 = '#8a6a4a'; }
+    g.addColorStop(0, c1);
+    g.addColorStop(1, c2);
+    cx.beginPath();
+    cx.arc(x, y, r * 0.85, 0, Math.PI * 2);
+    cx.fillStyle = g;
+    cx.fill();
+    cx.strokeStyle = 'rgba(0,0,0,0.5)';
+    cx.lineWidth = 1.5;
+    cx.stroke();
+    // Буква фрукта
+    cx.fillStyle = 'rgba(0,0,0,0.8)';
+    cx.font = 'bold 14px Arial';
+    cx.textAlign = 'center';
+    cx.textBaseline = 'middle';
+    const letter = item.name === 'Ветряная мельница' ? 'М' : item.name.charAt(0);
+    cx.fillText(letter, x, y + 1);
+    return;
+  }
+}
+
+function buildAbilityButtons() {
+  const abContainer = document.getElementById('abilityBtns');
+  abContainer.innerHTML = '';
+  const held = getHeldPower();
+  if (!held) return;
+  const abilities = held.abilities;
+  for (const ab of abilities) {
+    if (ab.holdKey) continue; // F-полёт отдельно
+    const btn = document.createElement('div');
+    btn.className = 'abBtn';
+    btn.dataset.abId = ab.id;
+    btn.dataset.key = ab.key;
+    btn.textContent = ab.key;
+    // Проверка разблокировки
+    const myLevel = held.power.masteryLevel || 0;
+    if (myLevel < ab.requiredMasteryLevel) btn.classList.add('locked');
+    // Обработчик тапа
+    btn.addEventListener('touchstart', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      startAbility(held.power.name, ab.id);
+    }, { passive: false });
+    btn.addEventListener('mousedown', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      startAbility(held.power.name, ab.id);
+    });
+    abContainer.appendChild(btn);
+  }
+}
+
+function updateShipBtn() {
+  const btn = document.getElementById('mShipBtn');
+  if (!btn) return;
+  if (player.hasShip) {
+    btn.style.display = 'flex';
+    btn.textContent = player.onShip ? '⚓' : '🚢';
+  } else {
+    btn.style.display = 'none';
+  }
+}
+
+function updateFlightBtn() {
+  const btn = document.getElementById('mFlightBtn');
+  if (!btn) return;
+  const held = getHeldPower();
+  if (held && held.power.name === 'Свет' && (held.power.masteryLevel || 0) >= 3 && !player.onShip) {
+    btn.style.display = 'flex';
+  } else {
+    btn.style.display = 'none';
+  }
+}
+
+function updateSpaceBtn() {
+  const btn = document.getElementById('mSpaceBtn');
+  if (!btn) return;
+  // Показать, если: уже на корабле ИЛИ есть корабль и в море
+  if (player.onShip || (player.hasShip && !isOnAnyLand(player.x, player.y))) {
+    btn.style.display = 'flex';
+    btn.textContent = player.onShip ? '🚶' : '⚓';
+  } else {
+    btn.style.display = 'none';
+  }
+}
+
+function updateAttackBtn() {
+  const btn = document.getElementById('attackBtn');
+  if (!btn) return;
+  const held = heldSlot !== -1 ? inventory[heldSlot] : null;
+  if (!held) { btn.textContent = '👊'; return; }
+  if (held.type === 'fists') btn.textContent = '👊';
+  else if (held.type === 'power' && held.name === 'Контроль') btn.textContent = '⚔️';
+  else if (held.type === 'fruit') btn.textContent = '🍎';
+  else btn.textContent = '👊';
+}
+
+function updateNpcBtn() {
+  const btn = document.getElementById('npcBtn');
+  if (!btn) return;
+  // Скрыть если открыт какой-то диалог
+  if (questDialogOpen || questDialog2Open || rollDialogOpen || statsOpen || bagOpen || aimingAbility) {
+    btn.style.display = 'none';
+    return;
+  }
+  if (player.onShip || player.windmillActive) {
+    btn.style.display = 'none';
+    return;
+  }
+  const adm = getNearAdmiral();
+  if (adm) {
+    if (!player.hasShip && player.money >= SHIP_PRICE) {
+      btn.textContent = '🚢 Купить корабль (5 💰)';
+      btn.style.display = 'block';
+    } else if (!player.hasShip) {
+      btn.textContent = `💰 Нужно ${SHIP_PRICE} (у тебя ${player.money})`;
+      btn.style.display = 'block';
+    } else {
+      btn.style.display = 'none';
+    }
+    return;
+  }
+  if (isNearQuestNpc()) {
+    btn.textContent = '⚓ Поговорить с Барнсом';
+    btn.style.display = 'block';
+    return;
+  }
+  if (isNearQuestNpc2()) {
+    btn.textContent = '🏜️ Поговорить с Барнсом';
+    btn.style.display = 'block';
+    return;
+  }
+  if (isNearRollNpc()) {
+    btn.textContent = '🎰 Nexvertix';
+    btn.style.display = 'block';
+    return;
+  }
+  btn.style.display = 'none';
+}
+
+// ==================== ДЖОЙСТИК ====================
+function initJoystick() {
+  if (!DEVICE.isMobile) return;
+  const base = document.getElementById('joystickBase');
+  const knob = document.getElementById('joystickKnob');
+  if (!base || !knob) return;
+
+  function setKnob(x, y) {
+    knob.style.left = (base.offsetLeft + base.offsetWidth / 2 + x) + 'px';
+    knob.style.top = (base.offsetTop + base.offsetHeight / 2 + y) + 'px';
+  }
+
+  function startTouch(t) {
+    mobileJoy.active = true;
+    mobileJoy.id = t.identifier;
+    const rect = base.getBoundingClientRect();
+    mobileJoy.baseX = rect.left + rect.width / 2;
+    mobileJoy.baseY = rect.top + rect.height / 2;
+    mobileJoy.maxR = rect.width / 2 - 10;
+    mobileJoy.cx = t.clientX;
+    mobileJoy.cy = t.clientY;
+    updateJoy(t.clientX, t.clientY);
+  }
+  function updateJoy(cx, cy) {
+    let dx = cx - mobileJoy.baseX;
+    let dy = cy - mobileJoy.baseY;
+    const d = Math.hypot(dx, dy);
+    if (d > mobileJoy.maxR) {
+      dx = dx / d * mobileJoy.maxR;
+      dy = dy / d * mobileJoy.maxR;
+    }
+    mobileJoy.dx = dx / mobileJoy.maxR;
+    mobileJoy.dy = dy / mobileJoy.maxR;
+    const w = base.offsetWidth / 2;
+    setKnob(dx, dy);
+  }
+  function endTouch() {
+    mobileJoy.active = false;
+    mobileJoy.id = null;
+    mobileJoy.dx = 0;
+    mobileJoy.dy = 0;
+    const w = base.offsetWidth / 2;
+    setKnob(0, 0);
+  }
+
+  base.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    const t = e.changedTouches[0];
+    startTouch(t);
+  }, { passive: false });
+  window.addEventListener('touchmove', (e) => {
+    if (!mobileJoy.active) return;
+    for (const t of e.changedTouches) {
+      if (t.identifier === mobileJoy.id) {
+        e.preventDefault();
+        updateJoy(t.clientX, t.clientY);
+      }
+    }
+  }, { passive: false });
+  window.addEventListener('touchend', (e) => {
+    if (!mobileJoy.active) return;
+    for (const t of e.changedTouches) {
+      if (t.identifier === mobileJoy.id) endTouch();
+    }
+  });
+  window.addEventListener('touchcancel', (e) => {
+    if (!mobileJoy.active) return;
+    for (const t of e.changedTouches) {
+      if (t.identifier === mobileJoy.id) endTouch();
+    }
+  });
+
+  // Стартовая позиция
+  setKnob(0, 0);
+  window.addEventListener('resize', () => setKnob(mobileJoy.dx * mobileJoy.maxR, mobileJoy.dy * mobileJoy.maxR));
+}
+
+// ==================== ТАЧ-СЛОТЫ ====================
+function initTouchSlots() {
+  if (!DEVICE.isMobile) return;
+  const slotsEl = document.getElementById('mobileSlots');
+  slotsEl.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    for (const t of e.changedTouches) {
+      const el = document.elementFromPoint(t.clientX, t.clientY);
+      if (!el) continue;
+      let node = el;
+      while (node && node !== slotsEl) {
+        if (node.classList && node.classList.contains('mSlot')) {
+          const si = parseInt(node.dataset.slot, 10);
+          if (!isNaN(si)) selectSlot(si);
+          break;
+        }
+        node = node.parentElement;
+      }
+    }
+  }, { passive: false });
+}
+
+// ==================== КНОПКА АТАКИ ====================
+function initAttackBtn() {
+  if (!DEVICE.isMobile) return;
+  const btn = document.getElementById('attackBtn');
+  if (!btn) return;
+  btn.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    doAttack();
+  }, { passive: false });
+  btn.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    doAttack();
+  });
+}
+
+function doAttack() {
+  if (!currentUser) return;
+  if (adminOpen) return;
+  if (bagOpen || statsOpen || questDialogOpen || questDialog2Open || rollDialogOpen || eatConfirm || bagEatConfirm) return;
+  if (aimingAbility) {
+    // Атака на прицельную способность — центр экрана
+    const cx = canvas.width / 2 + camera.x;
+    const cy = canvas.height / 2 + camera.y;
+    executeAbilityAt(cx, cy);
+    return;
+  }
+  if (heldSlot !== -1) {
+    const held = inventory[heldSlot];
+    if (held && held.type === 'fists') { punchFist(); return; }
+    if (held && held.type === 'power' && held.name === 'Контроль') { controlLmbAttack(); return; }
+    if (held && held.type === 'fruit') { openContextMenu(); return; }
+  }
+}
+
+// ==================== КНОПКА NPC ====================
+function initNpcBtn() {
+  const btn = document.getElementById('npcBtn');
+  if (!btn) return;
+  btn.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    handleInteract();
+  }, { passive: false });
+  btn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    handleInteract();
+  });
+}
+
+// ==================== КНОПКИ КОРАБЛЯ / ПОЛЁТА / ПРОБЕЛ ====================
+function initBottomBtns() {
+  const shipBtn = document.getElementById('mShipBtn');
+  const flightBtn = document.getElementById('mFlightBtn');
+  const spaceBtn = document.getElementById('mSpaceBtn');
+  if (shipBtn) {
+    shipBtn.addEventListener('touchstart', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      if (player.onShip) leaveShip();
+      else if (player.hasShip && !isOnAnyLand(player.x, player.y)) enterShip();
+    }, { passive: false });
+  }
+  if (spaceBtn) {
+    spaceBtn.addEventListener('touchstart', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      if (player.onShip) leaveShip();
+      else if (player.hasShip && !isOnAnyLand(player.x, player.y)) enterShip();
+    }, { passive: false });
+  }
+  if (flightBtn) {
+    flightBtn.addEventListener('touchstart', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      player.flightKeyDown = true;
+    }, { passive: false });
+    const stop = (e) => {
+      player.flightKeyDown = false;
+    };
+    flightBtn.addEventListener('touchend', stop);
+    flightBtn.addEventListener('touchcancel', stop);
+  }
+}
+
+// ==================== КНОПКИ МЕНЮ ====================
+function initMenuBtns() {
+  const bagBtn = document.getElementById('mBagBtn');
+  const statsBtn = document.getElementById('mStatsBtn');
+  if (bagBtn) {
+    bagBtn.addEventListener('touchstart', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      bagOpen = !bagOpen;
+      bagContextMenu = null;
+      updateNpcBtn();
+    }, { passive: false });
+    bagBtn.addEventListener('click', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      bagOpen = !bagOpen;
+      bagContextMenu = null;
+      updateNpcBtn();
+    });
+  }
+  if (statsBtn) {
+    statsBtn.addEventListener('touchstart', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      statsOpen = !statsOpen;
+      updateNpcBtn();
+    }, { passive: false });
+    statsBtn.addEventListener('click', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      statsOpen = !statsOpen;
+      updateNpcBtn();
+    });
+  }
+}
+
+// ==================== ТАЧ ПО ЭКРАНУ (клик) ====================
+function initCanvasTouch() {
+  canvas.addEventListener('touchstart', (e) => {
+    if (!currentUser) return;
+    if (adminOpen) return;
+    for (const t of e.changedTouches) {
+      const rect = canvas.getBoundingClientRect();
+      const mx = t.clientX - rect.left;
+      const my = t.clientY - rect.top;
+      // Пропускаем, если попал в UI-элемент
+      const el = document.elementFromPoint(t.clientX, t.clientY);
+      if (el && el !== canvas) continue;
+      // Открытые диалоги/меню — обрабатываем клик
+      if (bagContextMenu || bagEatConfirm || eatConfirm || questDialogOpen || questDialog2Open || rollDialogOpen || statsOpen || aimingAbility || bagOpen || contextMenu) {
+        handleCanvasClick(mx, my);
+      } else {
+        // Клик по пустому — атака
+        doAttack();
+      }
+    }
+  }, { passive: true });
+}
+
+// ==================== ОБНОВЛЕНИЕ HUD (каждый кадр) ====================
+let _lastMobileHudUpdate = 0;
+function tickMobileHud(now) {
+  if (!DEVICE.isMobile) return;
+  if (now - _lastMobileHudUpdate < 100) return;
+  _lastMobileHudUpdate = now;
+
+  // HP
+  const mhp = getMaxHp();
+  const hpFill = document.getElementById('mHpFill');
+  const hpTxt = document.getElementById('mHpTxt');
+  if (hpFill) hpFill.style.width = Math.max(0, Math.min(100, player.hp / mhp * 100)) + '%';
+  if (hpTxt) hpTxt.textContent = `❤️ ${Math.ceil(player.hp)}/${mhp}`;
+
+  // Энергия
+  const mst = getMaxStamina();
+  const stFill = document.getElementById('mStFill');
+  const stTxt = document.getElementById('mStTxt');
+  if (stFill) stFill.style.width = Math.max(0, Math.min(100, player.stamina / mst * 100)) + '%';
+  if (stTxt) stTxt.textContent = `⚡ ${Math.ceil(player.stamina)}/${mst}`;
+
+  // Mastery
+  const mBar = document.getElementById('mMasteryBar');
+  const mFill = document.getElementById('mMasteryFill');
+  const mTxt = document.getElementById('mMasteryTxt');
+  const powerSlot = inventory[POWER_SLOT_INDEX];
+  if (powerSlot && powerSlot.type === 'power' && mBar && mFill && mTxt) {
+    mBar.style.display = 'flex';
+    const lvl = powerSlot.masteryLevel || 0;
+    const xp = powerSlot.masteryXp || 0;
+    const need = masteryThreshold(lvl);
+    mFill.style.width = Math.max(0, Math.min(100, xp / need * 100)) + '%';
+    mTxt.textContent = `🌟 Lv.${lvl} · ${xp}/${need}`;
+  } else if (mBar) {
+    mBar.style.display = 'none';
+  }
+
+  // Вода
+  const wBar = document.getElementById('mWaterBar');
+  const wFill = document.getElementById('mWaterFill');
+  const wTxt = document.getElementById('mWaterTxt');
+  if (powerSlot && powerSlot.name === 'Акула' && wBar && wFill && wTxt) {
+    wBar.style.display = 'flex';
+    wFill.style.width = Math.max(0, Math.min(100, waterMeter / WATER_METER_MAX * 100)) + '%';
+    wTxt.textContent = `💧 ${Math.floor(waterMeter)}/${WATER_METER_MAX}`;
+  } else if (wBar) {
+    wBar.style.display = 'none';
+  }
+
+  // Монеты
+  const moneyTxt = document.getElementById('mMoneyTxt');
+  if (moneyTxt) moneyTxt.textContent = player.money;
+
+  // Кнопки
+  updateShipBtn();
+  updateFlightBtn();
+  updateSpaceBtn();
+  updateAttackBtn();
+
+  // Кнопка NPC — часто, чтобы вовремя появлялась
+  updateNpcBtn();
+
+  // Обновляем cooldown-оверлеи на кнопках способностей
+  const abBtns = document.querySelectorAll('#abilityBtns .abBtn');
+  for (const btn of abBtns) {
+    const id = btn.dataset.abId;
+    const cd = player.cooldowns[id] || 0;
+    const existing = btn.querySelector('.cdOverlay');
+    if (cd > 0) {
+      const ab = getHeldPower()?.abilities.find(a => a.id === id);
+      const cdMax = ab ? ab.cooldown : 1;
+      const txt = cd.toFixed(1);
+      if (existing) existing.textContent = txt;
+      else {
+        const ov = document.createElement('div');
+        ov.className = 'cdOverlay';
+        ov.textContent = txt;
+        btn.appendChild(ov);
+      }
+    } else if (existing) {
+      existing.remove();
+    }
+  }
+}
+
+// ==================== ИНИЦИАЛИЗАЦИЯ МОБИЛЬНОГО HUD ====================
+if (DEVICE.isMobile) {
+  buildMobileHud();
+  initJoystick();
+  initTouchSlots();
+  initAttackBtn();
+  initNpcBtn();
+  initBottomBtns();
+  initMenuBtns();
+  initCanvasTouch();
+  window.addEventListener('resize', () => {
+    mobileSlotRects.length = 0;
+    const slotsEl = document.getElementById('mobileSlots');
+    if (slotsEl) {
+      for (let i = 0; i < INVENTORY_SLOTS; i++) {
+        const el = slotsEl.children[i];
+        if (!el) continue;
+        const r = el.getBoundingClientRect();
+        mobileSlotRects[i] = { x: r.left, y: r.top, w: r.width, h: r.height };
+      }
+    }
+  });
+}
+
+// ==================== ОБНОВЛЕНИЕ ====================
 function update() {
   if (!currentUser) return;
   if (particles.length > 1500) particles.splice(0, particles.length - 1500);
@@ -2953,38 +3695,40 @@ function update() {
 
   if (now > player.seaDamageTimer && !blocked) { player.seaDamageTimer = now + 1000; applySeaDamage(); }
 
-  // ============ ВРАГИ: ТЕЛЕПОРТ ИЗ МОРЯ ============
   if (now > (player._enemyTeleportTimer || 0)) {
     player._enemyTeleportTimer = now + 500;
     teleportEnemiesFromSea();
   }
 
-  // ============ ВЕТРЯНАЯ МЕЛЬНИЦА: вращение лопасти ============
   if (player.windmillActive) {
     player.windmillAngle += WINDMILL_ROTATION_SPEED;
     player.flying = false;
     if (player.onShip) leaveShip();
   }
 
-  // ============ КОРАБЛЬ: движение ============
+  // ============ КОРАБЛЬ ============
   if (player.onShip && !blocked && !aimingAbility) {
     let dx = 0, dy = 0;
-    if (keys['w'] || keys['arrowup'] || keys['ц']) dy -= 1;
-    if (keys['s'] || keys['arrowdown'] || keys['ы']) dy += 1;
-    if (keys['a'] || keys['arrowleft'] || keys['ф']) dx -= 1;
-    if (keys['d'] || keys['arrowright'] || keys['в']) dx += 1;
+    // Мобильный джойстик
+    if (DEVICE.isMobile && (Math.abs(mobileJoy.dx) > 0.15 || Math.abs(mobileJoy.dy) > 0.15)) {
+      dx = mobileJoy.dx;
+      dy = mobileJoy.dy;
+    } else {
+      if (keys['w'] || keys['arrowup'] || keys['ц']) dy -= 1;
+      if (keys['s'] || keys['arrowdown'] || keys['ы']) dy += 1;
+      if (keys['a'] || keys['arrowleft'] || keys['ф']) dx -= 1;
+      if (keys['d'] || keys['arrowright'] || keys['в']) dx += 1;
+    }
     if (dx && dy) { const l = Math.hypot(dx, dy); dx /= l; dy /= l; }
     if (dx || dy) {
       const shipSpeed = spd * SHIP_SPEED_MULT;
       const nx = player.x + dx * shipSpeed;
       const ny = player.y + dy * shipSpeed;
-      // Корабль не может выехать на сушу
       if (!isOnAnyLand(nx, ny)) player.x = nx;
       if (!isOnAnyLand(player.x, ny)) player.y = ny;
       player.shipAngle = Math.atan2(dy, dx);
       player.lookX = dx;
       player.lookY = dy;
-      // Волны за кораблём
       if (Math.random() < 0.6) {
         shipWakes.push({
           x: player.x - dx * SHIP_RADIUS * 0.8 + (Math.random() - 0.5) * 20,
@@ -3006,7 +3750,7 @@ function update() {
     }
   }
 
-  // ============ ПОЛЁТ СВЕТА (HOLD F) ============
+  // ============ ПОЛЁТ СВЕТА ============
   if (!player.onShip) {
     const heldNow = getHeldPower();
     if (player.flying) {
@@ -3021,10 +3765,15 @@ function update() {
         player.flying = false;
       } else {
         let dx = 0, dy = 0;
-        if (keys['w'] || keys['arrowup'] || keys['ц']) dy -= 1;
-        if (keys['s'] || keys['arrowdown'] || keys['ы']) dy += 1;
-        if (keys['a'] || keys['arrowleft'] || keys['ф']) dx -= 1;
-        if (keys['d'] || keys['arrowright'] || keys['в']) dx += 1;
+        if (DEVICE.isMobile && (Math.abs(mobileJoy.dx) > 0.15 || Math.abs(mobileJoy.dy) > 0.15)) {
+          dx = mobileJoy.dx;
+          dy = mobileJoy.dy;
+        } else {
+          if (keys['w'] || keys['arrowup'] || keys['ц']) dy -= 1;
+          if (keys['s'] || keys['arrowdown'] || keys['ы']) dy += 1;
+          if (keys['a'] || keys['arrowleft'] || keys['ф']) dx -= 1;
+          if (keys['d'] || keys['arrowright'] || keys['в']) dx += 1;
+        }
         if (dx === 0 && dy === 0) { dx = player.lookX; dy = player.lookY; }
         if (dx === 0 && dy === 0) { dx = 1; dy = 0; }
         const dl = Math.hypot(dx, dy) || 1;
@@ -3087,10 +3836,15 @@ function update() {
   // ============ ОБЫЧНОЕ ДВИЖЕНИЕ ============
   if (!player.windmillActive && !player.onShip && !blocked && !aimingAbility && !player.flying) {
     let dx = 0, dy = 0;
-    if (keys['w'] || keys['arrowup'] || keys['ц']) dy -= 1;
-    if (keys['s'] || keys['arrowdown'] || keys['ы']) dy += 1;
-    if (keys['a'] || keys['arrowleft'] || keys['ф']) dx -= 1;
-    if (keys['d'] || keys['arrowright'] || keys['в']) dx += 1;
+    if (DEVICE.isMobile && (Math.abs(mobileJoy.dx) > 0.15 || Math.abs(mobileJoy.dy) > 0.15)) {
+      dx = mobileJoy.dx;
+      dy = mobileJoy.dy;
+    } else {
+      if (keys['w'] || keys['arrowup'] || keys['ц']) dy -= 1;
+      if (keys['s'] || keys['arrowdown'] || keys['ы']) dy += 1;
+      if (keys['a'] || keys['arrowleft'] || keys['ф']) dx -= 1;
+      if (keys['d'] || keys['arrowright'] || keys['в']) dx += 1;
+    }
     if (dx && dy) { const l = Math.hypot(dx, dy); dx /= l; dy /= l; }
     tryMoveWithZone(player, dx * spd, dy * spd);
     if (dx || dy) { player.lookX = dx; player.lookY = dy; }
@@ -3122,6 +3876,7 @@ function update() {
           sharedDroppedFruits.delete(id);
           sendFruitPicked(id);
           saveNow();
+          if (DEVICE.isMobile) refreshMobileHud();
         }
       }
     }
@@ -3134,7 +3889,7 @@ function update() {
   if (player.punchAnim > 0) player.punchAnim = Math.max(0, player.punchAnim - 0.08);
   if (player.controlLmbCooldown > 0) player.controlLmbCooldown -= 1/60;
 
-  // Зона Контроля: закрытие
+  // Зона Контроля
   if (controlZone && now >= controlZone.until) {
     for (let i = 0; i < 40; i++) {
       const a = (i / 40) * Math.PI * 2;
@@ -3689,7 +4444,6 @@ function drawWorld() {
   ctx.strokeStyle = 'rgba(200, 240, 255, 0.25)'; ctx.lineWidth = 2;
   for (let i = 0; i < 40; i++) { const wx = ((i * 173) % (canvas.width + 200)) - 100 - (camera.x * 0.3) % 200; const wy = ((i * 251) % canvas.height) + Math.sin(time + i * 0.7) * 8; ctx.beginPath(); ctx.arc(wx, wy, 20 + (i % 5) * 6, 0, Math.PI, false); ctx.stroke(); }
 
-  // ПИРАТСКИЙ ОСТРОВ
   const sx = ISLAND.x - camera.x, sy = ISLAND.y - camera.y;
   ctx.fillStyle = '#f2d68a';
   ctx.fillRect(sx, sy, ISLAND.width, ISLAND.height);
@@ -3705,7 +4459,6 @@ function drawWorld() {
   ctx.fillStyle = 'rgba(100, 180, 100, 0.6)';
   for (let i = 0; i < 100; i++) { const px = inX + ((i * 137) % inW); const py = inY + ((i * 251) % inH); const s = 5 + (i % 3) * 2; const sw = Math.sin(t + i * 0.5) * 1.5; ctx.fillRect(px + sw, py, 3, s); }
 
-  // ПУСТЫННЫЙ ОСТРОВ
   const dsx = DESERT.x - camera.x, dsy = DESERT.y - camera.y;
   ctx.fillStyle = '#e8d09a';
   ctx.fillRect(dsx, dsy, DESERT.width, DESERT.height);
@@ -4372,7 +5125,7 @@ function drawQuestNpc() {
   ctx.fillStyle = '#ffdd44'; ctx.font = 'bold 28px Arial';
   ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
   ctx.strokeText('!', x, y - questNpc.radius - 50 + bob); ctx.fillText('!', x, y - questNpc.radius - 50 + bob);
-  if (isNearQuestNpc()) {
+  if (isNearQuestNpc() && !DEVICE.isMobile) {
     ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
     const ht = 'E — поговорить';
     ctx.font = 'bold 14px Arial';
@@ -4406,7 +5159,7 @@ function drawQuestNpc2() {
   ctx.fillStyle = '#ffaa44'; ctx.font = 'bold 28px Arial';
   ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
   ctx.strokeText('!', x, y - questNpc2.radius - 50 + bob); ctx.fillText('!', x, y - questNpc2.radius - 50 + bob);
-  if (isNearQuestNpc2()) {
+  if (isNearQuestNpc2() && !DEVICE.isMobile) {
     ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
     const ht = 'E — поговорить';
     ctx.font = 'bold 14px Arial';
@@ -4446,7 +5199,7 @@ function drawRollNpc() {
   ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
   ctx.strokeText('💰', x, y - rollNpc.radius - 50 + bob);
   ctx.fillText('💰', x, y - rollNpc.radius - 50 + bob);
-  if (isNearRollNpc()) {
+  if (isNearRollNpc() && !DEVICE.isMobile) {
     ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
     const ht = 'E — купить фрукт';
     ctx.font = 'bold 14px Arial';
@@ -4457,7 +5210,6 @@ function drawRollNpc() {
   }
 }
 
-// ==================== АДМИРАЛЫ ====================
 function drawAdmirals() {
   for (const a of admirals) {
     const x = a.x - camera.x, y = a.y - camera.y;
@@ -4468,16 +5220,13 @@ function drawAdmirals() {
     g.addColorStop(1, a.color);
     ctx.beginPath(); ctx.arc(x, y, a.radius, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
     ctx.strokeStyle = darkenColor(a.color, 0.4); ctx.lineWidth = 3; ctx.stroke();
-    // Адмиральская фуражка
     ctx.beginPath();
     ctx.arc(x, y - a.radius * 0.55, a.radius * 0.95, Math.PI * 1.1, Math.PI * 1.9);
     ctx.strokeStyle = a.hatColor; ctx.lineWidth = 10; ctx.lineCap = 'round'; ctx.stroke();
-    // Козырёк
     ctx.fillStyle = a.hatColor;
     ctx.beginPath();
     ctx.ellipse(x, y - a.radius * 0.35, a.radius * 0.95, a.radius * 0.18, 0, 0, Math.PI);
     ctx.fill();
-    // Звёздочка
     ctx.fillStyle = '#ffd700';
     ctx.font = 'bold 14px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText('★', x, y - a.radius * 0.75);
@@ -4485,11 +5234,9 @@ function drawAdmirals() {
     ctx.fillStyle = 'white'; ctx.beginPath(); ctx.arc(x - eo, y - a.radius * 0.05, er, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.arc(x + eo, y - a.radius * 0.05, er, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#1a1a1a'; ctx.beginPath(); ctx.arc(x - eo, y - a.radius * 0.05, er * 0.55, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.arc(x + eo, y - a.radius * 0.05, er * 0.55, 0, Math.PI * 2); ctx.fill();
     ctx.beginPath(); ctx.arc(x, y + a.radius * 0.2, a.radius * 0.25, 0.15 * Math.PI, 0.85 * Math.PI); ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 2; ctx.stroke();
-    // Имя
     ctx.fillStyle = '#aaddff'; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
     ctx.strokeText(a.name, x, y - a.radius - 20); ctx.fillText(a.name, x, y - a.radius - 20);
-    // Иконка корабля или галочка, если куплен
     const bob = Math.sin(t * 4) * 4;
     if (player.hasShip) {
       ctx.fillStyle = '#88ff88'; ctx.font = 'bold 22px Arial';
@@ -4502,8 +5249,7 @@ function drawAdmirals() {
       ctx.strokeText('🚢', x, y - a.radius - 50 + bob);
       ctx.fillText('🚢', x, y - a.radius - 50 + bob);
     }
-    // Подсказка рядом
-    if (getNearAdmiral() === a) {
+    if (getNearAdmiral() === a && !DEVICE.isMobile) {
       ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
       let ht;
       if (player.hasShip) ht = 'Корабль уже куплен';
@@ -4726,23 +5472,17 @@ function drawBoss() {
   ctx.globalAlpha = 1;
 }
 
-// ==================== КОРАБЛЬ (отрисовка) ====================
 function drawShipAt(x, y, angle, radius, isPlayer) {
   const t = performance.now() * 0.003;
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(angle);
-
   const bw = SHIP_HULL_WIDTH * (radius / SHIP_RADIUS);
   const bl = SHIP_SAIL_LENGTH * (radius / SHIP_RADIUS);
-
-  // Тень на воде
   ctx.beginPath();
   ctx.ellipse(0, 0, bw * 0.9, bl * 1.1, 0, 0, Math.PI * 2);
   ctx.fillStyle = 'rgba(0, 40, 80, 0.3)';
   ctx.fill();
-
-  // Корпус (лодка)
   ctx.beginPath();
   ctx.moveTo(bl * 1.1, 0);
   ctx.quadraticCurveTo(bl * 0.5, -bw * 0.7, -bl * 0.6, -bw * 0.75);
@@ -4759,8 +5499,6 @@ function drawShipAt(x, y, angle, radius, isPlayer) {
   ctx.strokeStyle = '#2a1508';
   ctx.lineWidth = 2.5;
   ctx.stroke();
-
-  // Палуба (светлая полоса)
   ctx.beginPath();
   ctx.ellipse(0, 0, bl * 0.85, bw * 0.5, 0, 0, Math.PI * 2);
   ctx.fillStyle = '#c9a877';
@@ -4768,8 +5506,6 @@ function drawShipAt(x, y, angle, radius, isPlayer) {
   ctx.strokeStyle = '#8a6030';
   ctx.lineWidth = 1.5;
   ctx.stroke();
-
-  // Доски на палубе
   ctx.strokeStyle = 'rgba(120, 80, 40, 0.6)';
   ctx.lineWidth = 1;
   for (let i = -3; i <= 3; i++) {
@@ -4779,16 +5515,12 @@ function drawShipAt(x, y, angle, radius, isPlayer) {
     ctx.lineTo(lx, bw * 0.42);
     ctx.stroke();
   }
-
-  // Мачта
   ctx.fillStyle = '#5a3a1a';
   ctx.fillRect(-2.5, -bl * 0.05, 5, bl * 0.05);
   ctx.beginPath();
   ctx.arc(0, -bl * 0.05, 3, 0, Math.PI * 2);
   ctx.fillStyle = '#3a2a10';
   ctx.fill();
-
-  // Парус (треугольный, развевается)
   const wave = Math.sin(t * 4) * 2;
   ctx.beginPath();
   ctx.moveTo(0, -bl * 0.05);
@@ -4804,8 +5536,6 @@ function drawShipAt(x, y, angle, radius, isPlayer) {
   ctx.strokeStyle = '#8a6a4a';
   ctx.lineWidth = 1.5;
   ctx.stroke();
-
-  // Флаг на мачте
   ctx.beginPath();
   ctx.moveTo(0, -bl * 0.62);
   ctx.lineTo(bl * 0.15 + wave, -bl * 0.7);
@@ -4816,7 +5546,6 @@ function drawShipAt(x, y, angle, radius, isPlayer) {
   ctx.strokeStyle = '#5a0a15';
   ctx.lineWidth = 1;
   ctx.stroke();
-
   ctx.restore();
 }
 
@@ -4837,7 +5566,6 @@ function drawRemoteShips() {
     const x = rs.x - camera.x;
     const y = rs.y - camera.y;
     drawShipAt(x, y, rs.angle, SHIP_RADIUS, false);
-    // Ник над кораблём
     ctx.font = 'bold 13px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -4849,19 +5577,15 @@ function drawRemoteShips() {
   }
 }
 
-// ==================== МЕЛЬНИЦА (отрисовка) ====================
 function drawWindmillAt(x, y, angle, radius, isPlayer) {
-  // Тень
   ctx.beginPath();
   ctx.ellipse(x, y + radius * 0.95, radius * 0.9, 12, 0, 0, Math.PI * 2);
   ctx.fillStyle = 'rgba(0,0,0,0.35)';
   ctx.fill();
-
   const baseW = radius * 1.3;
   const baseH = radius * 1.6;
   const baseX = x - baseW / 2;
   const baseY = y - baseH * 0.5;
-
   const bg = ctx.createLinearGradient(baseX, baseY, baseX + baseW, baseY + baseH);
   bg.addColorStop(0, '#c9b088');
   bg.addColorStop(0.5, '#a88a5c');
@@ -4874,11 +5598,9 @@ function drawWindmillAt(x, y, angle, radius, isPlayer) {
   ctx.lineTo(baseX + baseW * 0.9, baseY + baseH);
   ctx.closePath();
   ctx.fill();
-
   ctx.strokeStyle = '#5a3a1a';
   ctx.lineWidth = 3;
   ctx.stroke();
-
   ctx.strokeStyle = 'rgba(90, 60, 30, 0.5)';
   ctx.lineWidth = 1.5;
   for (let i = 1; i < 5; i++) {
@@ -4891,7 +5613,6 @@ function drawWindmillAt(x, y, angle, radius, isPlayer) {
     ctx.lineTo(rx, yy);
     ctx.stroke();
   }
-
   ctx.fillStyle = '#7a4a2a';
   ctx.beginPath();
   ctx.ellipse(x, baseY, baseW * 0.42, baseW * 0.14, 0, 0, Math.PI * 2);
@@ -4899,7 +5620,6 @@ function drawWindmillAt(x, y, angle, radius, isPlayer) {
   ctx.strokeStyle = '#4a2a10';
   ctx.lineWidth = 2;
   ctx.stroke();
-
   ctx.fillStyle = '#4a2a10';
   ctx.beginPath();
   ctx.moveTo(x - radius * 0.25, y + radius * 0.95);
@@ -4911,7 +5631,6 @@ function drawWindmillAt(x, y, angle, radius, isPlayer) {
   ctx.strokeStyle = '#2a1508';
   ctx.lineWidth = 2;
   ctx.stroke();
-
   ctx.fillStyle = '#5a8aa0';
   ctx.beginPath();
   ctx.arc(x, y - radius * 0.55, radius * 0.2, 0, Math.PI * 2);
@@ -4925,10 +5644,8 @@ function drawWindmillAt(x, y, angle, radius, isPlayer) {
   ctx.moveTo(x, y - radius * 0.75);
   ctx.lineTo(x, y - radius * 0.35);
   ctx.stroke();
-
   const hubX = x;
   const hubY = y - radius * 1.1;
-
   ctx.save();
   ctx.translate(hubX, hubY);
   ctx.rotate(angle);
@@ -4972,7 +5689,6 @@ function drawWindmillAt(x, y, angle, radius, isPlayer) {
     ctx.restore();
   }
   ctx.restore();
-
   ctx.beginPath();
   ctx.arc(hubX, hubY, radius * 0.15, 0, Math.PI * 2);
   const hubG = ctx.createRadialGradient(hubX - 3, hubY - 3, 2, hubX, hubY, radius * 0.15);
@@ -4983,7 +5699,6 @@ function drawWindmillAt(x, y, angle, radius, isPlayer) {
   ctx.strokeStyle = '#2a1508';
   ctx.lineWidth = 2.5;
   ctx.stroke();
-
   if (isPlayer) {
     const pulse = 0.6 + Math.sin(performance.now() * 0.005) * 0.4;
     ctx.beginPath();
@@ -5561,6 +6276,7 @@ function getRarityBorderColor(name) {
 }
 
 function drawInventory() {
+  if (DEVICE.isMobile) return; // на мобилке хотбар HTML-ный
   const sw = INVENTORY_SLOTS * SLOT_SIZE + (INVENTORY_SLOTS - 1) * SLOT_GAP;
   const sx = (canvas.width - sw) / 2 - 40, sy = canvas.height - SLOT_SIZE - HOTBAR_BOTTOM_MARGIN;
   const pad = 10;
@@ -5606,6 +6322,7 @@ function drawInventory() {
 
 function drawAbilityGuide() {
   if (!abilityGuide) return;
+  if (DEVICE.isMobile) return; // на мобилке не показываем
   const abilities = abilityGuide.abilities;
   const pw = 300, hh = 110, rh = 78;
   const ph = hh + abilities.length * rh + 14;
@@ -5695,6 +6412,7 @@ function drawAbilityGuide() {
 }
 
 function drawLevelUi() {
+  if (DEVICE.isMobile) return;
   const x = 20, y = canvas.height - 100, w = 240, h = 80;
   ctx.fillStyle = 'rgba(0,0,0,0.65)'; ctx.strokeStyle = 'rgba(255,215,0,0.8)'; ctx.lineWidth = 2;
   roundRect(x, y, w, h, 12); ctx.fill(); ctx.stroke();
@@ -5718,6 +6436,7 @@ function drawLevelUi() {
 }
 
 function drawPlayerStats() {
+  if (DEVICE.isMobile) return;
   const bw = 260, bh = 20;
   const x = canvas.width - bw - 20, y = 20;
   ctx.fillStyle = 'rgba(0,0,0,0.6)'; roundRect(x - 4, y - 4, bw + 8, bh + 8, 6); ctx.fill();
@@ -5805,6 +6524,7 @@ function drawPlayerStats() {
 }
 
 function drawActiveQuest() {
+  if (DEVICE.isMobile) return;
   let yy = 200;
   if (quest.active) {
     const x = canvas.width - 300, y = yy, w = 280, h = 110;
@@ -5871,47 +6591,43 @@ function drawQuestDialog() {
   const p = b.panel;
   ctx.fillStyle = 'rgba(20,15,25,0.95)'; ctx.strokeStyle = 'rgba(255,215,0,0.8)'; ctx.lineWidth = 3;
   roundRect(p.x, p.y, p.w, p.h, 16); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = '#ffd700'; ctx.font = 'bold 26px Arial'; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
-  ctx.strokeText('⚓ Капитан Барнс', p.x + 30, p.y + 22); ctx.fillText('⚓ Капитан Барнс', p.x + 30, p.y + 22);
-  ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.font = 'italic 14px Arial'; ctx.strokeStyle = 'transparent';
-  ctx.fillText('Йо-хо-хо! У меня есть для тебя два дела.', p.x + 30, p.y + 62);
+  ctx.fillStyle = '#ffd700'; ctx.font = 'bold 22px Arial'; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
+  ctx.strokeText('⚓ Капитан Барнс', p.x + 25, p.y + 22); ctx.fillText('⚓ Капитан Барнс', p.x + 25, p.y + 22);
+  ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.font = 'italic 13px Arial'; ctx.strokeStyle = 'transparent';
+  ctx.fillText('Йо-хо-хо! У меня есть для тебя два дела.', p.x + 25, p.y + 58);
   ctx.strokeStyle = 'rgba(255,215,0,0.4)'; ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(p.x + 20, p.y + 90); ctx.lineTo(p.x + p.w - 20, p.y + 90); ctx.stroke();
-  ctx.fillStyle = 'rgba(255,215,0,0.9)'; ctx.font = 'bold 16px Arial'; ctx.textBaseline = 'top';
+  ctx.beginPath(); ctx.moveTo(p.x + 20, p.y + 85); ctx.lineTo(p.x + p.w - 20, p.y + 85); ctx.stroke();
+  ctx.fillStyle = 'rgba(255,215,0,0.9)'; ctx.font = 'bold 15px Arial'; ctx.textBaseline = 'top';
   ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
-  ctx.strokeText('📜 Обычный квест: убить 4 пиратов', p.x + 30, p.y + 105);
-  ctx.fillText('📜 Обычный квест: убить 4 пиратов', p.x + 30, p.y + 105);
-  ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.font = '13px Arial';
-  ctx.fillText('💰 +200 монет + 100 XP + 70 🌟 за пирата', p.x + 30, p.y + 130);
-  ctx.fillStyle = 'rgba(255,150,150,0.7)'; ctx.font = 'bold 11px Arial';
-  ctx.fillText('⚠️ Взяв новый квест — старый отменится', p.x + 30, p.y + 155);
+  ctx.strokeText('📜 Обычный квест: убить 4 пиратов', p.x + 25, p.y + 100);
+  ctx.fillText('📜 Обычный квест: убить 4 пиратов', p.x + 25, p.y + 100);
+  ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.font = '12px Arial';
+  ctx.fillText('💰 +200 монет + 100 XP + 70 🌟 за пирата', p.x + 25, p.y + 122);
   const tq = b.takeQuest;
   ctx.fillStyle = quest.active ? 'rgba(80,80,80,0.6)' : 'rgba(76,175,80,0.9)';
   roundRect(tq.x, tq.y, tq.w, tq.h, 10); ctx.fill();
   ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2; ctx.stroke();
-  ctx.fillStyle = 'white'; ctx.font = 'bold 18px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  const tt = quest.active ? '⏳ Квест уже активен' : '📜 Взять квест на пиратов';
+  ctx.fillStyle = 'white'; ctx.font = 'bold 16px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const tt = quest.active ? '⏳ Квест уже активен' : '📜 Взять квест';
   ctx.fillText(tt, tq.x + tq.w / 2, tq.y + tq.h / 2);
   ctx.strokeStyle = 'rgba(255,60,60,0.5)'; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(p.x + 20, p.y + 312); ctx.lineTo(p.x + p.w - 20, p.y + 312); ctx.stroke();
-  ctx.fillStyle = '#ff4444'; ctx.font = 'bold 17px Arial'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.beginPath(); ctx.moveTo(p.x + 20, p.y + 310); ctx.lineTo(p.x + p.w - 20, p.y + 310); ctx.stroke();
+  ctx.fillStyle = '#ff4444'; ctx.font = 'bold 15px Arial'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
   ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
-  ctx.strokeText('⚔️ КВЕСТ БОССА: Капитан пиратов', p.x + 30, p.y + 322);
-  ctx.fillText('⚔️ КВЕСТ БОССА: Капитан пиратов', p.x + 30, p.y + 322);
-  ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.font = '12px Arial';
-  ctx.fillText('💰 +1000 монет + 500 XP + 200 🌟 mastery · 🔒 нужен 5 уровень', p.x + 30, p.y + 348);
-  ctx.fillStyle = 'rgba(255,150,150,0.85)'; ctx.font = '11px Arial';
-  ctx.fillText('Босс: 500 HP · 25 урона кулаком · всегда на карте', p.x + 30, p.y + 368);
+  ctx.strokeText('⚔️ КВЕСТ БОССА: Капитан пиратов', p.x + 25, p.y + 320);
+  ctx.fillText('⚔️ КВЕСТ БОССА: Капитан пиратов', p.x + 25, p.y + 320);
+  ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.font = '11px Arial';
+  ctx.fillText('💰 +1000 монет + 500 XP + 200 🌟 · 🔒 нужен 5 уровень', p.x + 25, p.y + 342);
   const tb = b.takeBoss;
   let bossBtnColor, bossBtnText;
-  if (bossDefeated) { bossBtnColor = 'rgba(60,60,60,0.7)'; bossBtnText = '🏆 Босс уже побеждён'; }
+  if (bossDefeated) { bossBtnColor = 'rgba(60,60,60,0.7)'; bossBtnText = '🏆 Босс побеждён'; }
   else if (stats.level < 5) { bossBtnColor = 'rgba(80,40,40,0.7)'; bossBtnText = '🔒 Нужен 5 уровень'; }
   else if (questBoss.active) { bossBtnColor = 'rgba(120,80,40,0.85)'; bossBtnText = '⚔️ Квест уже активен'; }
   else { bossBtnColor = 'rgba(200,40,40,0.95)'; bossBtnText = '⚔️ ВЗЯТЬ КВЕСТ БОССА'; }
   ctx.fillStyle = bossBtnColor;
   roundRect(tb.x, tb.y, tb.w, tb.h, 10); ctx.fill();
   ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2; ctx.stroke();
-  ctx.fillStyle = 'white'; ctx.font = 'bold 20px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = 'white'; ctx.font = 'bold 17px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText(bossBtnText, tb.x + tb.w / 2, tb.y + tb.h / 2);
   const c = b.close;
   ctx.fillStyle = 'rgba(255,80,80,0.85)'; roundRect(c.x, c.y, c.w, c.h, 6); ctx.fill();
@@ -5926,33 +6642,31 @@ function drawQuestDialog2() {
   const p = b.panel;
   ctx.fillStyle = 'rgba(35,25,15,0.95)'; ctx.strokeStyle = 'rgba(212, 168, 106, 0.9)'; ctx.lineWidth = 3;
   roundRect(p.x, p.y, p.w, p.h, 16); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = '#d4a76a'; ctx.font = 'bold 26px Arial'; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
-  ctx.strokeText('🏜️ Капитан Барнс', p.x + 30, p.y + 22); ctx.fillText('🏜️ Капитан Барнс', p.x + 30, p.y + 22);
-  ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.font = 'italic 14px Arial'; ctx.strokeStyle = 'transparent';
-  ctx.fillText('Пустыня — суровое место. Здесь водятся воины пустыни.', p.x + 30, p.y + 62);
+  ctx.fillStyle = '#d4a76a'; ctx.font = 'bold 22px Arial'; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
+  ctx.strokeText('🏜️ Капитан Барнс', p.x + 25, p.y + 22); ctx.fillText('🏜️ Капитан Барнс', p.x + 25, p.y + 22);
+  ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.font = 'italic 13px Arial'; ctx.strokeStyle = 'transparent';
+  ctx.fillText('Пустыня — суровое место.', p.x + 25, p.y + 58);
   ctx.strokeStyle = 'rgba(212, 168, 106, 0.5)'; ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(p.x + 20, p.y + 90); ctx.lineTo(p.x + p.w - 20, p.y + 90); ctx.stroke();
-  ctx.fillStyle = 'rgba(255, 200, 120, 0.9)'; ctx.font = 'bold 17px Arial'; ctx.textBaseline = 'top';
+  ctx.beginPath(); ctx.moveTo(p.x + 20, p.y + 85); ctx.lineTo(p.x + p.w - 20, p.y + 85); ctx.stroke();
+  ctx.fillStyle = 'rgba(255, 200, 120, 0.9)'; ctx.font = 'bold 15px Arial'; ctx.textBaseline = 'top';
   ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
-  ctx.strokeText('⚔️ КВЕСТ ПУСТЫНИ: убить 6 воинов', p.x + 30, p.y + 110);
-  ctx.fillText('⚔️ КВЕСТ ПУСТЫНИ: убить 6 воинов', p.x + 30, p.y + 110);
-  ctx.fillStyle = 'rgba(255,255,255,0.75)'; ctx.font = '13px Arial';
-  ctx.fillText('💰 +' + DUNE_QUEST_MONEY + ' монет + ' + DUNE_QUEST_LEVEL_XP + ' XP', p.x + 30, p.y + 140);
-  ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.font = '12px Arial';
-  ctx.fillText('Награда за воина: +50 XP (уровень), +150 🌟 (mastery), +15 💰', p.x + 30, p.y + 165);
-  ctx.fillStyle = 'rgba(255,200,150,0.7)'; ctx.font = 'bold 12px Arial';
-  ctx.fillText('🔒 Нужен 10+ уровень', p.x + 30, p.y + 195);
-  ctx.fillStyle = 'rgba(255,150,150,0.7)'; ctx.font = 'bold 11px Arial';
-  ctx.fillText('⚠️ Взяв новый квест — старый отменится', p.x + 30, p.y + 220);
+  ctx.strokeText('⚔️ КВЕСТ ПУСТЫНИ: убить 6 воинов', p.x + 25, p.y + 100);
+  ctx.fillText('⚔️ КВЕСТ ПУСТЫНИ: убить 6 воинов', p.x + 25, p.y + 100);
+  ctx.fillStyle = 'rgba(255,255,255,0.75)'; ctx.font = '12px Arial';
+  ctx.fillText('💰 +' + DUNE_QUEST_MONEY + ' монет + ' + DUNE_QUEST_LEVEL_XP + ' XP', p.x + 25, p.y + 125);
+  ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.font = '11px Arial';
+  ctx.fillText('За воина: +50 XP, +150 🌟, +15 💰', p.x + 25, p.y + 148);
+  ctx.fillStyle = 'rgba(255,200,150,0.7)'; ctx.font = 'bold 11px Arial';
+  ctx.fillText('🔒 Нужен 10+ уровень', p.x + 25, p.y + 175);
   const tq = b.takeDune;
   let duneBtnColor, duneBtnText;
   if (stats.level < 10) { duneBtnColor = 'rgba(80,50,30,0.7)'; duneBtnText = '🔒 Нужен 10 уровень'; }
   else if (questDune.active) { duneBtnColor = 'rgba(120,90,50,0.85)'; duneBtnText = '⚔️ Квест уже активен'; }
-  else { duneBtnColor = 'rgba(200,140,60,0.95)'; duneBtnText = '⚔️ ВЗЯТЬ КВЕСТ ПУСТЫНИ'; }
+  else { duneBtnColor = 'rgba(200,140,60,0.95)'; duneBtnText = '⚔️ ВЗЯТЬ КВЕСТ'; }
   ctx.fillStyle = duneBtnColor;
   roundRect(tq.x, tq.y, tq.w, tq.h, 10); ctx.fill();
   ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2; ctx.stroke();
-  ctx.fillStyle = 'white'; ctx.font = 'bold 20px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = 'white'; ctx.font = 'bold 17px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText(duneBtnText, tq.x + tq.w / 2, tq.y + tq.h / 2);
   const c = b.close;
   ctx.fillStyle = 'rgba(255,80,80,0.85)'; roundRect(c.x, c.y, c.w, c.h, 6); ctx.fill();
@@ -5967,23 +6681,23 @@ function drawRollDialog() {
   const p = b.panel;
   ctx.fillStyle = 'rgba(25,15,35,0.96)'; ctx.strokeStyle = 'rgba(200,160,255,0.85)'; ctx.lineWidth = 3;
   roundRect(p.x, p.y, p.w, p.h, 16); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = '#c4a4ff'; ctx.font = 'bold 26px Arial'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.fillStyle = '#c4a4ff'; ctx.font = 'bold 22px Arial'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
   ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
-  ctx.strokeText('🎰 Nexvertix', p.x + 30, p.y + 22); ctx.fillText('🎰 Nexvertix', p.x + 30, p.y + 22);
-  ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.font = 'italic 15px Arial'; ctx.strokeStyle = 'transparent';
-  ctx.fillText('Крути и получай случайные фрукты!', p.x + 30, p.y + 62);
-  ctx.fillStyle = '#ffd700'; ctx.font = 'bold 19px Arial'; ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
+  ctx.strokeText('🎰 Nexvertix', p.x + 25, p.y + 22); ctx.fillText('🎰 Nexvertix', p.x + 25, p.y + 22);
+  ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.font = 'italic 13px Arial'; ctx.strokeStyle = 'transparent';
+  ctx.fillText('Крути и получай случайные фрукты!', p.x + 25, p.y + 58);
+  ctx.fillStyle = '#ffd700'; ctx.font = 'bold 16px Arial'; ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
   const mTxt = `💰 Твои монеты: ${player.money}`;
-  ctx.strokeText(mTxt, p.x + 30, p.y + 100); ctx.fillText(mTxt, p.x + 30, p.y + 100);
+  ctx.strokeText(mTxt, p.x + 25, p.y + 95); ctx.fillText(mTxt, p.x + 25, p.y + 95);
   const cost = getRollCost();
   const canAfford = player.money >= cost;
   ctx.fillStyle = canAfford ? '#88ff88' : '#ff6666';
   const cTxt = `💵 Стоимость: ${cost} монет`;
-  ctx.strokeText(cTxt, p.x + 30, p.y + 132); ctx.fillText(cTxt, p.x + 30, p.y + 132);
+  ctx.strokeText(cTxt, p.x + 25, p.y + 125); ctx.fillText(cTxt, p.x + 25, p.y + 125);
   const lvlOk = stats.level >= ROLL_MIN_LEVEL;
   ctx.fillStyle = lvlOk ? '#88ff88' : '#ff6666';
   const lTxt = `📈 Нужен ${ROLL_MIN_LEVEL}+ уровень (твой: ${stats.level})`;
-  ctx.strokeText(lTxt, p.x + 30, p.y + 164); ctx.fillText(lTxt, p.x + 30, p.y + 164);
+  ctx.strokeText(lTxt, p.x + 25, p.y + 155); ctx.fillText(lTxt, p.x + 25, p.y + 155);
   const now = Date.now();
   const onCooldown = now < rollCooldownUntil;
   let cdText, cdColor;
@@ -5998,14 +6712,13 @@ function drawRollDialog() {
     cdColor = '#88ff88';
   }
   ctx.fillStyle = cdColor;
-  ctx.strokeText(cdText, p.x + 30, p.y + 196); ctx.fillText(cdText, p.x + 30, p.y + 196);
-  ctx.fillStyle = 'rgba(255,255,255,0.75)'; ctx.font = 'bold 13px Arial';
-  ctx.fillText('Шансы:', p.x + 30, p.y + 230);
-  ctx.fillStyle = '#dddddd'; ctx.font = '12px Arial';
-  ctx.fillText('⚪ Обычный: 48%   🟢 Необычный: 22%   🔵 Редкий: 18%', p.x + 30, p.y + 252);
-  ctx.fillText('🟡 Легендарный (Акула/Свет): 8%   🔴 Мифический: 4%', p.x + 30, p.y + 272);
-  ctx.fillStyle = 'rgba(255,200,100,0.7)'; ctx.font = 'italic 11px Arial';
-  ctx.fillText('* Редкий — скоро будет!', p.x + 30, p.y + 290);
+  ctx.strokeText(cdText, p.x + 25, p.y + 185); ctx.fillText(cdText, p.x + 25, p.y + 185);
+  ctx.fillStyle = 'rgba(255,255,255,0.75)'; ctx.font = 'bold 12px Arial';
+  ctx.fillText('Шансы:', p.x + 25, p.y + 218);
+  ctx.fillStyle = '#dddddd'; ctx.font = '11px Arial';
+  ctx.fillText('⚪ Обычный: 48%  🟢 Необычный: 22%', p.x + 25, p.y + 238);
+  ctx.fillText('🔵 Редкий: 18%  🟡 Легендарный: 8%', p.x + 25, p.y + 256);
+  ctx.fillText('🔴 Мифический: 4%', p.x + 25, p.y + 274);
   const c = b.close;
   ctx.fillStyle = 'rgba(255,80,80,0.85)'; roundRect(c.x, c.y, c.w, c.h, 6); ctx.fill();
   ctx.fillStyle = 'white'; ctx.font = 'bold 18px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -6015,7 +6728,7 @@ function drawRollDialog() {
   ctx.fillStyle = btnOk ? 'rgba(180, 120, 255, 0.95)' : 'rgba(80,60,100,0.6)';
   roundRect(btn.x, btn.y, btn.w, btn.h, 10); ctx.fill();
   ctx.strokeStyle = btnOk ? '#e0c8ff' : 'rgba(150,120,180,0.5)'; ctx.lineWidth = 2; ctx.stroke();
-  ctx.fillStyle = 'white'; ctx.font = 'bold 22px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = 'white'; ctx.font = 'bold 20px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText('🎰 КРУТИТЬ', btn.x + btn.w / 2, btn.y + btn.h / 2);
 }
 
@@ -6026,18 +6739,18 @@ function drawStatsWindow() {
   const p = b.panel;
   ctx.fillStyle = 'rgba(15,15,25,0.95)'; ctx.strokeStyle = 'rgba(120,180,255,0.8)'; ctx.lineWidth = 3;
   roundRect(p.x, p.y, p.w, p.h, 16); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = '#aaddff'; ctx.font = 'bold 26px Arial'; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
-  ctx.strokeText('📊 Статистика', p.x + 30, p.y + 22); ctx.fillText('📊 Статистика', p.x + 30, p.y + 22);
-  ctx.fillStyle = stats.statPoints > 0 ? '#66ff66' : 'rgba(255,255,255,0.5)'; ctx.font = 'bold 18px Arial';
+  ctx.fillStyle = '#aaddff'; ctx.font = 'bold 22px Arial'; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
+  ctx.strokeText('📊 Статистика', p.x + 25, p.y + 22); ctx.fillText('📊 Статистика', p.x + 25, p.y + 22);
+  ctx.fillStyle = stats.statPoints > 0 ? '#66ff66' : 'rgba(255,255,255,0.5)'; ctx.font = 'bold 16px Arial';
   const pt = `Очки: ${stats.statPoints}`;
   ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
-  ctx.strokeText(pt, p.x + 30, p.y + 60); ctx.fillText(pt, p.x + 30, p.y + 60);
+  ctx.strokeText(pt, p.x + 25, p.y + 58); ctx.fillText(pt, p.x + 25, p.y + 58);
   const c = b.close;
   ctx.fillStyle = 'rgba(255,80,80,0.85)'; roundRect(c.x, c.y, c.w, c.h, 6); ctx.fill();
   ctx.fillStyle = 'white'; ctx.font = 'bold 18px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText('✕', c.x + c.w / 2, c.y + c.h / 2);
   const rows = [
-    { btn: b.damage, icon: '💪', name: 'Урон (кулак)', value: stats.points.damage, color: '#ff8844' },
+    { btn: b.damage, icon: '💪', name: 'Урон', value: stats.points.damage, color: '#ff8844' },
     { btn: b.health, icon: '❤️', name: 'Здоровье', value: stats.points.health, color: '#ff4444' },
     { btn: b.fruit, icon: '🍎', name: 'Урон фрукта', value: stats.points.fruit, color: '#44ff88' }
   ];
@@ -6045,17 +6758,17 @@ function drawStatsWindow() {
     const btn = r.btn;
     ctx.fillStyle = 'rgba(60,80,120,0.4)'; ctx.strokeStyle = 'rgba(120,160,220,0.5)'; ctx.lineWidth = 2;
     roundRect(btn.x, btn.y, btn.w, btn.h, 10); ctx.fill(); ctx.stroke();
-    ctx.font = '32px Arial'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillStyle = 'white';
+    ctx.font = '28px Arial'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillStyle = 'white';
     ctx.fillText(r.icon, btn.x + 15, btn.y + btn.h / 2);
-    ctx.fillStyle = r.color; ctx.font = 'bold 18px Arial'; ctx.textBaseline = 'top';
+    ctx.fillStyle = r.color; ctx.font = 'bold 16px Arial'; ctx.textBaseline = 'top';
     ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
-    ctx.strokeText(r.name, btn.x + 65, btn.y + 18); ctx.fillText(r.name, btn.x + 65, btn.y + 18);
-    ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.font = '11px Arial';
-    const dsc = (r.btn === b.damage) ? 'каждые 2 очка → ×1.1 урона + 5 энергии'
-              : (r.btn === b.health) ? 'каждые 2 очка → +5 HP'
-              : 'каждые 2 очка → ×1.1 урона фрукта';
-    ctx.fillText(dsc, btn.x + 65, btn.y + 42);
-    ctx.fillStyle = '#ffd700'; ctx.font = 'bold 24px Arial'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.strokeText(r.name, btn.x + 60, btn.y + 18); ctx.fillText(r.name, btn.x + 60, btn.y + 18);
+    ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.font = '10px Arial';
+    const dsc = (r.btn === b.damage) ? '2 очка → ×1.1 урона + 5 энергии'
+              : (r.btn === b.health) ? '2 очка → +5 HP'
+              : '2 очка → ×1.1 урона фрукта';
+    ctx.fillText(dsc, btn.x + 60, btn.y + 40);
+    ctx.fillStyle = '#ffd700'; ctx.font = 'bold 22px Arial'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
     ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
     ctx.strokeText(`${r.value}`, btn.x + btn.w - 20, btn.y + btn.h / 2);
     ctx.fillText(`${r.value}`, btn.x + btn.w - 20, btn.y + btn.h / 2);
@@ -6068,8 +6781,13 @@ function drawBag() {
   const p = getBagPanelRect();
   ctx.fillStyle = 'rgba(30,30,40,0.92)'; ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2;
   roundRect(p.x, p.y, p.w, p.h, 14); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = 'white'; ctx.font = 'bold 22px Arial'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-  ctx.fillText('🎒 Мешок · клик — съесть · ПКМ — меню', p.x + 30, p.y + 35);
+  ctx.fillStyle = 'white'; ctx.font = 'bold 18px Arial'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.fillText('🎒 Мешок', p.x + 20, p.y + 30);
+  if (!DEVICE.isMobile) {
+    ctx.font = '12px Arial';
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.fillText('клик — съесть · ПКМ — меню', p.x + 20, p.y + 55);
+  }
   const c = getBagCloseRect();
   ctx.fillStyle = 'rgba(255,80,80,0.85)'; roundRect(c.x, c.y, c.w, c.h, 6); ctx.fill();
   ctx.fillStyle = 'white'; ctx.font = 'bold 18px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -6077,7 +6795,7 @@ function drawBag() {
   const g = getBagGridRect();
   for (let r = 0; r < bagRows; r++) {
     for (let col = 0; col < bagCols; col++) {
-      const x = g.x + col * (bagSlotSize + bagGap), y = g.y + r * (bagSlotSize + bagGap);
+      const x = g.x + col * (g.slotSize + g.gap), y = g.y + r * (g.slotSize + g.gap);
       const i = r * bagCols + col;
       let fc = 'rgba(255,255,255,0.08)';
       let sc = 'rgba(255,255,255,0.35)';
@@ -6087,14 +6805,14 @@ function drawBag() {
         sc = getRarityBorderColor(item.name);
       }
       ctx.fillStyle = fc; ctx.strokeStyle = sc; ctx.lineWidth = 2;
-      roundRect(x, y, bagSlotSize, bagSlotSize, 10); ctx.fill(); ctx.stroke();
+      roundRect(x, y, g.slotSize, g.slotSize, 10); ctx.fill(); ctx.stroke();
       if (i < bag.length) {
         const item = bag[i];
-        drawFruitIcon(x + bagSlotSize / 2, y + bagSlotSize / 2, bagSlotSize * 0.3, item.color);
-        ctx.fillStyle = 'white'; ctx.font = '11px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+        drawFruitIcon(x + g.slotSize / 2, y + g.slotSize / 2, g.slotSize * 0.3, item.color);
+        ctx.fillStyle = 'white'; ctx.font = '10px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
         ctx.strokeStyle = 'black'; ctx.lineWidth = 2;
-        ctx.strokeText(item.name, x + bagSlotSize / 2, y + bagSlotSize - 16);
-        ctx.fillText(item.name, x + bagSlotSize / 2, y + bagSlotSize - 16);
+        ctx.strokeText(item.name, x + g.slotSize / 2, y + g.slotSize - 14);
+        ctx.fillText(item.name, x + g.slotSize / 2, y + g.slotSize - 14);
       }
     }
   }
@@ -6130,7 +6848,7 @@ function drawEatConfirm() {
   const p = b.panel;
   ctx.fillStyle = 'rgba(20,25,35,0.98)'; ctx.strokeStyle = 'rgba(255,215,0,0.9)'; ctx.lineWidth = 3;
   roundRect(p.x, p.y, p.w, p.h, 16); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = '#ffd700'; ctx.font = 'bold 24px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
+  ctx.fillStyle = '#ffd700'; ctx.font = 'bold 22px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
   const title = '🍎 Съесть фрукт?';
   ctx.strokeText(title, p.x + p.w / 2, p.y + 25); ctx.fillText(title, p.x + p.w / 2, p.y + 25);
   const fr = eatConfirm.item;
@@ -6147,8 +6865,6 @@ function drawEatConfirm() {
   ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 2; ctx.stroke();
   ctx.fillStyle = 'white'; ctx.font = 'bold 22px Arial';
   ctx.fillText('❌ НЕТ', no.x + no.w / 2, no.y + no.h / 2);
-  ctx.fillStyle = 'rgba(255,255,255,0.4)'; ctx.font = '11px Arial';
-  ctx.fillText('Y / Enter — да  ·  N / Esc — нет', p.x + p.w / 2, p.y + p.h - 15);
 }
 
 function drawBagEatConfirm() {
@@ -6158,8 +6874,8 @@ function drawBagEatConfirm() {
   const p = b.panel;
   ctx.fillStyle = 'rgba(20,25,35,0.98)'; ctx.strokeStyle = 'rgba(255,215,0,0.9)'; ctx.lineWidth = 3;
   roundRect(p.x, p.y, p.w, p.h, 16); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = '#ffd700'; ctx.font = 'bold 24px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
-  const title = '🍎 Съесть фрукт из мешка?';
+  ctx.fillStyle = '#ffd700'; ctx.font = 'bold 22px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
+  const title = '🍎 Съесть из мешка?';
   ctx.strokeText(title, p.x + p.w / 2, p.y + 25); ctx.fillText(title, p.x + p.w / 2, p.y + 25);
   const fr = bagEatConfirm.item;
   drawFruitIcon(p.x + p.w / 2, p.y + 105, 38, fr.color);
@@ -6175,8 +6891,6 @@ function drawBagEatConfirm() {
   ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 2; ctx.stroke();
   ctx.fillStyle = 'white'; ctx.font = 'bold 22px Arial';
   ctx.fillText('❌ НЕТ', no.x + no.w / 2, no.y + no.h / 2);
-  ctx.fillStyle = 'rgba(255,255,255,0.4)'; ctx.font = '11px Arial';
-  ctx.fillText('Y / Enter — да  ·  N / Esc — нет', p.x + p.w / 2, p.y + p.h - 15);
 }
 
 const mousePos = { x: 0, y: 0 };
@@ -6217,10 +6931,10 @@ function drawAimCursor() {
   ctx.stroke();
 }
 
-// ==================== КОМПАС ====================
 function drawCompass() {
-  const cx = 90, cy = 130;
-  const R = 55;
+  const cx = DEVICE.isMobile ? 70 : 90;
+  const cy = DEVICE.isMobile ? 240 : 130;
+  const R = DEVICE.isMobile ? 42 : 55;
   ctx.beginPath(); ctx.arc(cx, cy, R + 6, 0, Math.PI * 2);
   ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
   ctx.fill();
@@ -6230,14 +6944,14 @@ function drawCompass() {
   ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2);
   ctx.fillStyle = 'rgba(20, 30, 50, 0.75)';
   ctx.fill();
-  ctx.font = 'bold 11px Arial';
+  ctx.font = 'bold 10px Arial';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = 'rgba(255,255,255,0.6)';
-  ctx.fillText('С', cx, cy - R + 10);
-  ctx.fillText('Ю', cx, cy + R - 10);
-  ctx.fillText('З', cx - R + 10, cy);
-  ctx.fillText('В', cx + R - 10, cy);
+  ctx.fillText('С', cx, cy - R + 8);
+  ctx.fillText('Ю', cx, cy + R - 8);
+  ctx.fillText('З', cx - R + 8, cy);
+  ctx.fillText('В', cx + R - 8, cy);
 
   let targetX = null, targetY = null, targetName = '', targetColor = '#fff';
   if (questBoss.active === 'active' && boss.active && !boss.dead) {
@@ -6267,9 +6981,6 @@ function drawCompass() {
     ctx.arc(cx, cy, 4, 0, Math.PI * 2);
     ctx.fillStyle = 'rgba(150,150,150,0.7)';
     ctx.fill();
-    ctx.font = 'bold 10px Arial';
-    ctx.fillStyle = 'rgba(255,255,255,0.5)';
-    ctx.fillText('нет цели', cx, cy + R + 15);
     return;
   }
 
@@ -6280,10 +6991,10 @@ function drawCompass() {
   ctx.translate(cx, cy);
   ctx.rotate(angle);
   ctx.beginPath();
-  ctx.moveTo(R - 10, 0);
-  ctx.lineTo(R - 30, -10);
-  ctx.lineTo(R - 26, 0);
-  ctx.lineTo(R - 30, 10);
+  ctx.moveTo(R - 8, 0);
+  ctx.lineTo(R - 22, -8);
+  ctx.lineTo(R - 19, 0);
+  ctx.lineTo(R - 22, 8);
   ctx.closePath();
   const glow = stats.level >= 5;
   if (glow) {
@@ -6297,24 +7008,27 @@ function drawCompass() {
   ctx.lineWidth = 1.5;
   ctx.stroke();
   ctx.restore();
-  ctx.font = 'bold 11px Arial';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
-  ctx.strokeText(targetName, cx, cy + R + 16);
-  ctx.fillStyle = targetColor;
-  ctx.fillText(targetName, cx, cy + R + 16);
-  const dist = Math.round(Math.hypot(dx, dy));
-  ctx.font = 'bold 10px Arial';
-  ctx.fillStyle = 'rgba(255,255,255,0.7)';
-  ctx.fillText(dist + ' px', cx, cy + R + 30);
+  if (!DEVICE.isMobile) {
+    ctx.font = 'bold 11px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
+    ctx.strokeText(targetName, cx, cy + R + 16);
+    ctx.fillStyle = targetColor;
+    ctx.fillText(targetName, cx, cy + R + 16);
+    const dist = Math.round(Math.hypot(dx, dy));
+    ctx.font = 'bold 10px Arial';
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.fillText(dist + ' px', cx, cy + R + 30);
+  }
 }
 
 function drawAdminConsole() {
   if (!adminOpen) return;
   ctx.fillStyle = 'rgba(0,0,0,0.55)';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  const pw = 640, ph = 400;
+  const pw = Math.min(640, canvas.width - 20);
+  const ph = 400;
   const px = (canvas.width - pw) / 2;
   const py = (canvas.height - ph) / 2;
   ctx.fillStyle = 'rgba(10, 15, 10, 0.95)';
@@ -6322,35 +7036,28 @@ function drawAdminConsole() {
   ctx.lineWidth = 3;
   roundRect(px, py, pw, ph, 12); ctx.fill(); ctx.stroke();
   ctx.fillStyle = adminUnlocked ? '#66ff66' : '#ffaa00';
-  ctx.font = 'bold 22px Consolas, monospace';
+  ctx.font = 'bold 18px Consolas, monospace';
   ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-  ctx.fillText(adminUnlocked ? '⚙ АДМИН-КОНСОЛЬ [РАЗБЛОКИРОВАНА]' : '🔒 АДМИН-КОНСОЛЬ [ВВЕДИ ПАРОЛЬ]', px + 20, py + 18);
+  ctx.fillText(adminUnlocked ? '⚙ АДМИН-КОНСОЛЬ' : '🔒 АДМИН-КОНСОЛЬ', px + 20, py + 18);
   ctx.fillStyle = 'rgba(255,255,255,0.55)';
   ctx.font = '12px Consolas, monospace';
   if (adminUnlocked) {
-    ctx.fillText('g [фрукт]                    · пример: g свет', px + 20, py + 50);
-    ctx.fillText('g level X имя                · пример: g level 4 Test1', px + 20, py + 68);
-    ctx.fillText('g mastery N фрукт имя        · пример: g mastery 5 свет Test1', px + 20, py + 86);
-    ctx.fillStyle = 'rgba(200, 160, 80, 0.75)';
-    ctx.fillText('⚙ Админский фрукт: g ветряная мельница', px + 20, py + 104);
+    ctx.fillText('g [фрукт]           · пример: g свет', px + 20, py + 50);
+    ctx.fillText('g level X имя       · пример: g level 4 Test1', px + 20, py + 68);
+    ctx.fillText('g mastery N фрукт имя', px + 20, py + 86);
   } else {
-    ctx.fillText('Введи пароль администратора и нажми Enter', px + 20, py + 50);
-    ctx.fillText('(работает на любой раскладке)', px + 20, py + 68);
+    ctx.fillText('Введи пароль и Enter', px + 20, py + 50);
   }
   const logY = py + 130;
   const logH = ph - 210;
   ctx.fillStyle = 'rgba(0,0,0,0.6)';
   roundRect(px + 20, logY, pw - 40, logH, 6); ctx.fill();
-  ctx.strokeStyle = 'rgba(100,100,100,0.4)';
-  ctx.lineWidth = 1;
-  roundRect(px + 20, logY, pw - 40, logH, 6); ctx.stroke();
   const now = performance.now();
   const visibleHistory = adminHistory.filter(h => h.until > now);
-  ctx.font = '14px Consolas, monospace';
-  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.font = '13px Consolas, monospace';
   for (let i = 0; i < visibleHistory.length; i++) {
     ctx.fillStyle = visibleHistory[i].color;
-    ctx.fillText(visibleHistory[i].text, px + 32, logY + 10 + i * 20);
+    ctx.fillText(visibleHistory[i].text, px + 32, logY + 10 + i * 18);
   }
   const inY = py + ph - 60;
   ctx.fillStyle = 'rgba(0,0,0,0.7)';
@@ -6367,10 +7074,6 @@ function drawAdminConsole() {
   const inputX = px + 32 + ctx.measureText(promptText).width;
   const displayInput = adminUnlocked ? adminInput : '•'.repeat(adminInput.length);
   ctx.fillText(displayInput + (Math.floor(now / 500) % 2 === 0 ? '_' : ''), inputX, inY + 20);
-  ctx.fillStyle = 'rgba(255,255,255,0.35)';
-  ctx.font = '11px Arial';
-  ctx.textAlign = 'center';
-  ctx.fillText('Esc — закрыть  ·  Enter — выполнить', px + pw / 2, py + ph - 12);
 }
 
 // ==================== ГЛАВНЫЙ ЦИКЛ ====================
@@ -6455,10 +7158,27 @@ function gameLoop(now) {
     ticks++;
   }
   render();
+  if (DEVICE.isMobile) tickMobileHud(now);
   requestAnimationFrame(gameLoop);
 }
 
 requestAnimationFrame(gameLoop);
+
+// При ресайзе — пересобрать позиции мобильных слотов
+window.addEventListener('resize', () => {
+  if (DEVICE.isMobile && mobileButtonsBuilt) {
+    mobileSlotRects.length = 0;
+    const slotsEl = document.getElementById('mobileSlots');
+    if (slotsEl) {
+      for (let i = 0; i < INVENTORY_SLOTS; i++) {
+        const el = slotsEl.children[i];
+        if (!el) continue;
+        const r = el.getBoundingClientRect();
+        mobileSlotRects[i] = { x: r.left, y: r.top, w: r.width, h: r.height };
+      }
+    }
+  }
+});
 </script>
 </body>
 </html>
