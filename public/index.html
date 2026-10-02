@@ -8,8 +8,8 @@
   body { margin: 0; overflow: hidden; background: #1e3a5f; font-family: Arial, sans-serif; user-select: none; }
   canvas { display: block; background: #87CEEB; }
   canvas.crosshair { cursor: crosshair; }
-  #ui { position: absolute; top: 10px; left: 10px; color: white; font-size: 18px; text-shadow: 2px 2px 4px black; pointer-events: none; }
-  #hint { position: absolute; top: 40px; left: 10px; color: white; font-size: 13px; text-shadow: 2px 2px 4px black; pointer-events: none; opacity: 0.8; line-height: 1.4; }
+  #ui { position: absolute; top: 10px; left: 10px; color: white; font-size: 18px; text-shadow: 2px 2px 4px black; pointer-events: none; display: none; }
+  #hint { position: absolute; top: 40px; left: 10px; color: white; font-size: 13px; text-shadow: 2px 2px 4px black; pointer-events: none; opacity: 0.8; line-height: 1.4; display: none; }
   #fsBtn { position: absolute; top: 10px; right: 300px; width: 44px; height: 44px; background: rgba(0,0,0,0.5); border: 2px solid rgba(255,255,255,0.6); border-radius: 8px; color: white; font-size: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 10; }
   #fsBtn:hover { background: rgba(255,255,255,0.2); border-color: #ffd700; }
   #authOverlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: linear-gradient(135deg, #1a2a4a, #0a1a3a); display: flex; align-items: center; justify-content: center; z-index: 1000; font-family: Arial, sans-serif; }
@@ -109,6 +109,7 @@ const remoteSlashes = [];
 const remoteLightBeams = [];
 const remoteLightTrails = [];
 const remoteWindmills = new Map();
+const remoteShips = new Map();
 const sharedDroppedFruits = new Map();
 
 function updateMoneyUi() { document.getElementById('moneyCount').textContent = player.money; }
@@ -182,7 +183,6 @@ function loginAs(username, password, data) {
   try { localStorage.setItem('mf_session', JSON.stringify({ username, password })); } catch(e) {}
   hideAuth();
   applySave(data);
-  showToast('👋 Привет, ' + username + '!');
   connectWebSocket();
 }
 
@@ -218,7 +218,6 @@ function addMasteryXp(power, amount) {
   if (ups > 0) {
     power.masteryXp = m.xp;
     power.masteryLevel = m.level;
-    showToast(`🌟 ${power.name}: Mastery Lv.${m.level}!`);
     for (let i = 0; i < 40; i++) {
       const a = Math.random() * Math.PI * 2;
       const s = 3 + Math.random() * 5;
@@ -247,6 +246,7 @@ function applySave(d) {
   player.stamina = d.stamina || getMaxStamina();
   player.fruitCount = d.fruitCount || 0;
   player.money = d.money || 0;
+  player.hasShip = !!d.hasShip;
   rollCooldownUntil = d.rollCooldownUntil || 0;
   updateFruitUi();
   updateMoneyUi();
@@ -314,6 +314,7 @@ function applySave(d) {
   player.windmillActive = false;
   player.windmillAngle = 0;
   player.windmillSavedRadius = player.radius;
+  player.onShip = false;
   camera.x = player.x - canvas.width / 2;
   camera.y = player.y - canvas.height / 2;
 }
@@ -357,6 +358,7 @@ async function saveNow() {
     hp: player.hp, stamina: player.stamina,
     fruitCount: player.fruitCount,
     money: player.money,
+    hasShip: player.hasShip,
     rollCooldownUntil: rollCooldownUntil,
     power: powerData,
     powerMastery: powerMasteryData,
@@ -432,6 +434,7 @@ function connectWebSocket() {
     ws = null;
     remotePlayers.clear();
     remoteWindmills.clear();
+    remoteShips.clear();
     if (currentUser) setTimeout(connectWebSocket, 3000);
   };
   ws.onerror = () => {};
@@ -450,7 +453,8 @@ function mkRemote(p) {
     waterForm: !!p.wf,
     held: (p.held || null),
     hitFlash: 0,
-    punchAnim: 0
+    punchAnim: 0,
+    onShip: false
   };
 }
 
@@ -460,6 +464,7 @@ function handleWsMessage(msg) {
     myNetColor = msg.you && msg.you.c ? msg.you.c : '#ffb300';
     remotePlayers.clear();
     remoteWindmills.clear();
+    remoteShips.clear();
     if (Array.isArray(msg.players)) {
       for (const p of msg.players) remotePlayers.set(p.u, mkRemote(p));
     }
@@ -473,22 +478,32 @@ function handleWsMessage(msg) {
         });
       }
     }
+    if (Array.isArray(msg.ships)) {
+      for (const s of msg.ships) {
+        remoteShips.set(s.u, {
+          u: s.u, x: s.x, y: s.y,
+          targetX: s.x, targetY: s.y,
+          angle: s.angle || 0,
+          color: s.color || '#8a5a2a'
+        });
+        const rp = remotePlayers.get(s.u);
+        if (rp) rp.onShip = true;
+      }
+    }
     syncPositionNow();
-    showToast('🌐 Подключено к серверу (' + remotePlayers.size + ' онлайн)');
     return;
   }
   if (msg.type === 'hello_err') {
-    showToast('❌ Мультиплеер: ' + (msg.error || 'ошибка авторизации'));
     return;
   }
   if (msg.type === 'join') {
     remotePlayers.set(msg.u, mkRemote(msg));
-    showToast('👋 ' + msg.u + ' зашёл в игру');
     return;
   }
   if (msg.type === 'leave') {
     if (remotePlayers.has(msg.u)) remotePlayers.delete(msg.u);
     if (remoteWindmills.has(msg.u)) remoteWindmills.delete(msg.u);
+    if (remoteShips.has(msg.u)) remoteShips.delete(msg.u);
     return;
   }
   if (msg.type === 'pos') {
@@ -521,7 +536,6 @@ function handleWsMessage(msg) {
       angle: 0,
       color: msg.color || '#8a6a4a'
     });
-    showToast('🌀 ' + msg.u + ' стал мельницей');
     return;
   }
   if (msg.type === 'windmill_exit') {
@@ -531,6 +545,28 @@ function handleWsMessage(msg) {
   if (msg.type === 'windmill_move') {
     const rw = remoteWindmills.get(msg.u);
     if (rw) { rw.targetX = msg.x; rw.targetY = msg.y; }
+    return;
+  }
+  if (msg.type === 'ship_enter') {
+    remoteShips.set(msg.u, {
+      u: msg.u, x: msg.x, y: msg.y,
+      targetX: msg.x, targetY: msg.y,
+      angle: msg.angle || 0,
+      color: msg.color || '#8a5a2a'
+    });
+    const rp = remotePlayers.get(msg.u);
+    if (rp) rp.onShip = true;
+    return;
+  }
+  if (msg.type === 'ship_exit') {
+    remoteShips.delete(msg.u);
+    const rp = remotePlayers.get(msg.u);
+    if (rp) rp.onShip = false;
+    return;
+  }
+  if (msg.type === 'ship_move') {
+    const rs = remoteShips.get(msg.u);
+    if (rs) { rs.targetX = msg.x; rs.targetY = msg.y; rs.angle = msg.angle || 0; }
     return;
   }
   if (msg.type === 'fruit_dropped') {
@@ -543,7 +579,6 @@ function handleWsMessage(msg) {
       radius: 20,
       from: msg.from
     });
-    showToast(`🍎 ${msg.from} выбросил ${msg.name}`);
     return;
   }
   if (msg.type === 'fruit_picked') {
@@ -559,8 +594,6 @@ function handleWsMessage(msg) {
       vy: -1.6, life: 60, maxLife: 60,
       text: '-' + msg.dmg, color: '#ff4444'
     });
-    showToast('💥 ' + msg.from + ' ударил тебя (-' + msg.dmg + ' HP)');
-    if (player.hp <= 0) showToast('💀 Ты убит игроком ' + msg.from);
     return;
   }
   if (msg.type === 'hitfx') {
@@ -575,7 +608,6 @@ function handleWsMessage(msg) {
     return;
   }
   if (msg.type === 'kill') {
-    showToast('☠️ ' + msg.from + ' убил ' + msg.target);
     return;
   }
   if (msg.type === 'respawn') {
@@ -585,7 +617,7 @@ function handleWsMessage(msg) {
     player.invulnUntil = performance.now() + 1500;
     player.windmillActive = false;
     player.radius = player.windmillSavedRadius || 25;
-    showToast('🛡 Респавн');
+    if (player.onShip) leaveShip();
     return;
   }
   if (msg.type === 'admin_setlevel_ok') {
@@ -599,7 +631,6 @@ function handleWsMessage(msg) {
   if (msg.type === 'admin_setlevel_apply') {
     stats.level = msg.level;
     spawnLevelUpEffect(player.x, player.y);
-    showToast('🎁 Админ установил тебе ' + msg.level + ' уровень!');
     return;
   }
   if (msg.type === 'admin_setmastery_ok') {
@@ -618,7 +649,6 @@ function handleWsMessage(msg) {
       inventory[POWER_SLOT_INDEX].masteryLevel = msg.mastery;
       inventory[POWER_SLOT_INDEX].masteryXp = 0;
     }
-    showToast('🎁 Админ: ' + msg.fruit + ' mastery Lv.' + msg.mastery);
     return;
   }
 }
@@ -773,7 +803,7 @@ function sendFruitPicked(fruitId) {
   } catch (e) {}
 }
 
-// ==================== МУЛЬТИПЛЕЕР: МЕЛЬНИЦА ====================
+// ==================== МЕЛЬНИЦА (сеть) ====================
 function sendWindmillEnter(x, y, color) {
   if (!ws || ws.readyState !== 1) return;
   try {
@@ -783,6 +813,18 @@ function sendWindmillEnter(x, y, color) {
 function sendWindmillExit() {
   if (!ws || ws.readyState !== 1) return;
   try { ws.send(JSON.stringify({ type: 'windmill_exit' })); } catch (e) {}
+}
+
+// ==================== КОРАБЛЬ (сеть) ====================
+function sendShipEnter(x, y, angle, color) {
+  if (!ws || ws.readyState !== 1) return;
+  try {
+    ws.send(JSON.stringify({ type: 'ship_enter', x: Math.round(x), y: Math.round(y), angle, color }));
+  } catch (e) {}
+}
+function sendShipExit() {
+  if (!ws || ws.readyState !== 1) return;
+  try { ws.send(JSON.stringify({ type: 'ship_exit' })); } catch (e) {}
 }
 
 // ==================== МИР ====================
@@ -830,6 +872,22 @@ addCactus(DESERT.x + 500, DESERT.y + DESERT.height - 200);
 addCactus(DESERT.x + DESERT.width - 300, DESERT.y + 400);
 addCactus(DESERT.x + 800, DESERT.y + 900);
 
+// ==================== NPC-АДМИРАЛЫ (покупка корабля) ====================
+const SHIP_PRICE = 5;
+const admirals = [
+  // Пиратский остров — на восточном берегу
+  { x: ISLAND.x + ISLAND.width - 60, y: 0, radius: 30, name: 'Морской Адмирал', color: '#2a4f8c', hatColor: '#0a1a3a', nearMsg: 'E — купить корабль (5 💰)' },
+  // Пустынный остров — на западном берегу
+  { x: DESERT.x + 60, y: DESERT.y + DESERT.height / 2, radius: 30, name: 'Морской Адмирал', color: '#2a4f8c', hatColor: '#0a1a3a', nearMsg: 'E — купить корабль (5 💰)' }
+];
+
+function getNearAdmiral() {
+  for (const a of admirals) {
+    if (Math.hypot(player.x - a.x, player.y - a.y) < player.radius + a.radius + 20) return a;
+  }
+  return null;
+}
+
 // ==================== ХОТБАР ====================
 const INVENTORY_SLOTS = 5;
 const POWER_SLOT_INDEX = 1;
@@ -867,7 +925,7 @@ const CONTROL_ABILITIES = [
 ];
 const LIGHT_ABILITIES = [
   { id: 'light_beam', name: 'Луч света', key: 'Z', requiredMasteryLevel: 0, cooldown: 8, stamina: 25, damage: 12, description: 'Световой лазер 2с · 12 урона · кд 8с', aiming: false },
-  { id: 'light_flight', name: 'Полёт искры', key: 'F', requiredMasteryLevel: 3, cooldown: 10, stamina: 0, damage: 0, description: 'Зажми F — летишь ×7 · кд 10с', holdKey: true },
+  { id: 'light_flight', name: 'Полёт искры', key: 'F', requiredMasteryLevel: 3, cooldown: 10, stamina: 0, damage: 0, description: 'Зажми F — летишь · кд 10с', holdKey: true },
   { id: 'light_spear', name: 'Копьё света', key: 'X', requiredMasteryLevel: 7, cooldown: 15, stamina: 45, damage: 15, description: 'Копьё · 15 урона · кд 15с' },
   { id: 'light_sky', name: 'Луч с небес', key: 'C', requiredMasteryLevel: 15, cooldown: 20, stamina: 65, damage: 25, description: 'Столб света · 25 урона · кд 20с' }
 ];
@@ -923,7 +981,6 @@ function addXp(amount) {
   if (stats.level >= MAX_LEVEL) stats.xp = 0;
   if (leveledUp) {
     spawnLevelUpEffect(player.x, player.y);
-    showToast('🎉 УРОВЕНЬ ' + stats.level + '! +2 очка');
   }
 }
 
@@ -1001,7 +1058,13 @@ const player = {
   flightKeyDown: false,
   windmillActive: false,
   windmillAngle: 0,
-  windmillSavedRadius: 25
+  windmillSavedRadius: 25,
+  hasShip: false,
+  onShip: false,
+  shipAngle: 0,
+  shipX: 0,
+  shipY: 0,
+  shipSavedRadius: 25
 };
 const TRANSFORM_DURATION = 90000;
 const HP_REGEN_PER_TICK = 0.02 / 1.7;
@@ -1017,7 +1080,7 @@ const DUNE_LEVEL_XP_REWARD = 50;
 const DUNE_MONEY_REWARD = 15;
 const DUNE_QUEST_LEVEL_XP = 500;
 const DUNE_QUEST_MONEY = 450;
-const LIGHT_FLIGHT_SPEED_MULT = 7;
+const LIGHT_FLIGHT_SPEED_MULT = 3.5;
 const LIGHT_FLIGHT_STAMINA_DRAIN = 6;
 const LIGHT_FLIGHT_TRAIL_LIFE = 40;
 
@@ -1028,6 +1091,12 @@ const WINDMILL_BLADE_LENGTH = 90;
 const WINDMILL_BLADE_WIDTH = 14;
 const WINDMILL_ROTATION_SPEED = 0.02;
 const WINDMILL_TOWER_HEIGHT = 70;
+
+// ==================== КОРАБЛЬ (константы) ====================
+const SHIP_RADIUS = 45;
+const SHIP_SPEED_MULT = 2.3;
+const SHIP_SAIL_LENGTH = 55;
+const SHIP_HULL_WIDTH = 70;
 
 // ==================== КОНТРОЛЬ ====================
 let controlZone = null;
@@ -1186,10 +1255,12 @@ const whirlpools = [];
 const whipTrails = [];
 const lightBeams = [];
 const lightFlightTrails = [];
+const shipWakes = [];
 
 let aimingAbility = null;
 let contextMenu = null;
 let eatConfirm = null;
+let bagEatConfirm = null;
 const menuButtons = [
   { label: 'Съесть', action: 'eat', color: '#4caf50' },
   { label: 'Взять в руки', action: 'take', color: '#ff9800' },
@@ -1229,7 +1300,6 @@ function adminSubmit() {
   adminInput = '';
   if (!cmd) return;
 
-  // УМНЫЙ ПАРОЛЬ: passwordMatches учитывает раскладку
   if (!adminUnlocked) {
     if (passwordMatches(cmd, ADMIN_PASSWORD)) {
       adminUnlocked = true;
@@ -1244,7 +1314,6 @@ function adminSubmit() {
   const command = parts[0].toLowerCase();
 
   if (command === 'g' && parts.length >= 2) {
-    // Сначала проверяем "g level X имя" и "g mastery N фрукт имя"
     if (parts[1].toLowerCase() === 'level' && parts.length >= 4) {
       const lvl = parseInt(parts[2], 10);
       const targetName = parts.slice(3).join(' ');
@@ -1290,7 +1359,6 @@ function adminSubmit() {
       return;
     }
 
-    // Иначе — выдача фрукта. Собираем всю фразу, чтобы "ветряная мельница" работало
     const argAll = parts.slice(1).join(' ').toLowerCase();
     const fruitMap = {
       'огонь':  { name: 'Огонь', color: '#ff6600' },
@@ -1397,10 +1465,8 @@ function consumeFruit(item) {
         m.xp = oldPower.masteryXp || m.xp;
         m.level = oldPower.masteryLevel || m.level;
       }
-      showToast(`🔁 ${oldPower.name} → ${item.name}`);
       spawnReplaceEffect(player.x, player.y, oldPower.color, item.color);
     } else {
-      showToast(`✨ Получена сила: ${item.name}!`);
       spawnEatEffect(player.x, player.y, item.color);
     }
     const m = getMasteryFor(item.name);
@@ -1414,17 +1480,16 @@ function consumeFruit(item) {
     player.cooldowns = {};
     player.waterFormUntil = 0;
     player.flying = false;
-    // Сброс мельницы при смене фрукта
     if (player.windmillActive) {
       player.windmillActive = false;
       player.radius = player.windmillSavedRadius || 25;
       sendWindmillExit();
     }
+    if (player.onShip) leaveShip();
     if (aimingAbility) aimingAbility = null;
     saveNow();
     return true;
   } else {
-    showToast(`Съеден: ${item.name}`);
     spawnEatEffect(player.x, player.y, item.color);
     return false;
   }
@@ -1460,6 +1525,7 @@ function punchFist() {
   const item = inventory[heldSlot];
   if (!item || item.type !== 'fists') return;
   if (player.windmillActive) return;
+  if (player.onShip) return;
   if (player.punchCooldown > 0) return;
   if (player.stamina < 3) return;
   player.punchCooldown = 0.28;
@@ -1505,6 +1571,7 @@ function controlLmbAttack() {
   const held = getHeldPower();
   if (!held || held.power.name !== 'Контроль') return;
   if (player.windmillActive) return;
+  if (player.onShip) return;
   if (player.controlLmbCooldown > 0) return;
 
   let dx = player.lookX, dy = player.lookY;
@@ -1590,7 +1657,7 @@ function distToSegment(px, py, x1, y1, x2, y2) {
 
 // ==================== ТРАНСФОРМАЦИЯ АКУЛЫ ====================
 function activateWaterTransform() {
-  if (waterMeter < WATER_METER_MAX) { showToast(`Нужна полная шкала воды! (${Math.floor(waterMeter)}/100)`); return; }
+  if (waterMeter < WATER_METER_MAX) { return; }
   waterMeter = 0;
   player.waterFormUntil = performance.now() + TRANSFORM_DURATION;
   for (let i = 0; i < 80; i++) {
@@ -1600,7 +1667,6 @@ function activateWaterTransform() {
       color: Math.random() < 0.4 ? '#ffffff' : (Math.random() < 0.7 ? '#4fd4ff' : '#0a3a6c') });
   }
   particles.push({ isShockwave: true, x: player.x, y: player.y, radius: 10, maxRadius: 200, life: 40, maxLife: 40, color: '#4fd4ff' });
-  showToast('🌊 ВОДНЫЙ ОБЛИК! 90 секунд');
 }
 
 // ==================== ПОЛЁТ СВЕТА (F зажать) ====================
@@ -1613,6 +1679,7 @@ function startLightFlight() {
   const myLevel = held.power.masteryLevel || 0;
   if (myLevel < ab.requiredMasteryLevel) return;
   if ((player.cooldowns['light_flight'] || 0) > 0) return;
+  if (player.onShip) return;
   player.flying = true;
 }
 function stopLightFlight() {
@@ -1622,12 +1689,9 @@ function stopLightFlight() {
 // ==================== ТРАНСФОРМАЦИЯ МЕЛЬНИЦЫ (Z) ====================
 function toggleWindmill() {
   const held = getHeldPower();
-  if (!held || held.power.name !== 'Ветряная мельница') {
-    showToast('Возьми Ветряную мельницу в руки!');
-    return;
-  }
+  if (!held || held.power.name !== 'Ветряная мельница') return;
+  if (player.onShip) { return; }
   if (player.windmillActive) {
-    // Отмена
     player.windmillActive = false;
     player.radius = player.windmillSavedRadius || 25;
     player.lookX = 0; player.lookY = 0;
@@ -1643,12 +1707,9 @@ function toggleWindmill() {
         color: Math.random() < 0.5 ? '#c8a878' : '#8a6a4a'
       });
     }
-    showToast('🌀 Мельница отменена');
     return;
   }
-  // Активация
   if (player.flying) player.flying = false;
-  if (player.windmillActive) return;
   player.windmillSavedRadius = player.radius;
   player.windmillActive = true;
   player.radius = WINDMILL_RADIUS;
@@ -1664,50 +1725,82 @@ function toggleWindmill() {
       color: Math.random() < 0.4 ? '#ffdd88' : (Math.random() < 0.7 ? '#c8a878' : '#8a6a4a')
     });
   }
-  showToast('🌀 Ты стал ветряной мельницей! Z — отмена');
+}
+
+// ==================== КОРАБЛЬ ====================
+function buyShip() {
+  if (player.hasShip) return;
+  if (player.money < SHIP_PRICE) return;
+  player.money -= SHIP_PRICE;
+  updateMoneyUi();
+  player.hasShip = true;
+  saveNow();
+}
+
+function enterShip() {
+  if (!player.hasShip) return;
+  if (player.onShip) return;
+  if (player.windmillActive) {
+    player.windmillActive = false;
+    player.radius = player.windmillSavedRadius || 25;
+    sendWindmillExit();
+  }
+  if (player.flying) player.flying = false;
+  player.shipSavedRadius = player.radius;
+  player.onShip = true;
+  player.radius = SHIP_RADIUS;
+  player.shipAngle = 0;
+  sendShipEnter(player.x, player.y, 0, '#8a5a2a');
+}
+
+function leaveShip() {
+  if (!player.onShip) return;
+  player.onShip = false;
+  player.radius = player.shipSavedRadius || 25;
+  sendShipExit();
+  for (let i = 0; i < 20; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const s = 1 + Math.random() * 4;
+    particles.push({
+      x: player.x, y: player.y,
+      vx: Math.cos(a) * s, vy: Math.sin(a) * s - 1,
+      life: 30, maxLife: 40,
+      radius: 3 + Math.random() * 3,
+      color: Math.random() < 0.5 ? '#e8d4a8' : '#8a5a2a'
+    });
+  }
 }
 
 // ==================== ЗАПУСК СПОСОБНОСТИ ====================
 function startAbility(powerName, abilityId) {
   const held = getHeldPower();
-  if (!held || held.power.name !== powerName) { showToast(`Возьми ${powerName} в руки!`); return; }
+  if (!held || held.power.name !== powerName) return;
   const ab = held.abilities.find(a => a.id === abilityId);
   if (!ab) return;
   const myLevel = held.power.masteryLevel || 0;
-  if (myLevel < ab.requiredMasteryLevel) {
-    showToast(`🔒 Нужен Mastery Lv.${ab.requiredMasteryLevel} (у тебя Lv.${myLevel})`);
-    return;
-  }
+  if (myLevel < ab.requiredMasteryLevel) return;
   if (ab.usesWaterMeter) { activateWaterTransform(); return; }
   if (abilityId === 'light_flight') { return; }
   if (abilityId === 'windmill_transform') { toggleWindmill(); return; }
-  if (ab.zoneOnly && !isInControlZone(player.x, player.y)) {
-    showToast('❌ Только внутри зоны контроля!');
-    return;
-  }
+  if (player.onShip) return;
+  if (ab.zoneOnly && !isInControlZone(player.x, player.y)) return;
   if ((player.cooldowns[abilityId] || 0) > 0) return;
-  if (player.stamina < ab.stamina) { showToast('Мало стамины!'); return; }
-  if (player.windmillActive) { showToast('❌ Ты — мельница, способности недоступны'); return; }
+  if (player.stamina < ab.stamina) return;
+  if (player.windmillActive) return;
   if (abilityId === 'control_zone') { activateControlZone(); return; }
   if (abilityId === 'control_lasers') { activateControlLasers(); return; }
   if (abilityId === 'light_beam') { activateLightBeam(); return; }
-  if (ab.aiming !== false) { aimingAbility = { powerName, abilityId, ability: ab }; showToast('Кликни по цели'); return; }
+  if (ab.aiming !== false) { aimingAbility = { powerName, abilityId, ability: ab }; return; }
 }
 
 // ==================== КОНТРОЛЬ: ЗОНА ====================
 function activateControlZone() {
-  if (controlZone && performance.now() < controlZone.until) {
-    showToast('⏳ Зона ещё активна!');
-    return;
-  }
+  if (controlZone && performance.now() < controlZone.until) return;
   if (zoneClosedAt > 0) {
     const cdRemaining = (zoneClosedAt + 5000 - performance.now()) / 1000;
-    if (cdRemaining > 0) {
-      showToast(`⏳ Кд зоны: ${cdRemaining.toFixed(1)}с`);
-      return;
-    }
+    if (cdRemaining > 0) return;
   }
-  if (player.stamina < 30) { showToast('Мало стамины!'); return; }
+  if (player.stamina < 30) return;
   player.cooldowns['control_zone'] = 0;
   player.stamina = Math.max(0, player.stamina - 30);
   controlZone = {
@@ -1729,13 +1822,12 @@ function activateControlZone() {
     });
   }
   sendAttackUse('control_zone', player.x, player.y, 0, 0);
-  showToast('🌀 ЗОНА КОНТРОЛЯ АКТИВНА! 20 секунд');
 }
 
 // ==================== КОНТРОЛЬ: ЛАЗЕРЫ ====================
 function activateControlLasers() {
   if (player.cooldowns['control_lasers'] > 0) return;
-  if (player.stamina < 40) { showToast('Мало стамины!'); return; }
+  if (player.stamina < 40) return;
   player.cooldowns['control_lasers'] = 10;
   player.stamina = Math.max(0, player.stamina - 40);
   let fruitMult = getFruitDamageMultiplier();
@@ -1753,14 +1845,13 @@ function activateControlLasers() {
     });
   }
   sendAttackUse('control_lasers', player.x, player.y, 0, 0);
-  showToast('⚡ ЛАЗЕРНАЯ ПИЦЦА!');
 }
 
 // ==================== КОНТРОЛЬ: МЕТЕОР ====================
 function activateControlMeteorAt(tx, ty) {
   if (player.cooldowns['control_meteor'] > 0) return;
-  if (player.stamina < 50) { showToast('Мало стамины!'); return; }
-  if (!isInControlZone(tx, ty)) { showToast('❌ Целься внутри зоны!'); return; }
+  if (player.stamina < 50) return;
+  if (!isInControlZone(tx, ty)) return;
   player.cooldowns['control_meteor'] = 12;
   player.stamina = Math.max(0, player.stamina - 50);
   let fruitMult = getFruitDamageMultiplier();
@@ -1777,14 +1868,13 @@ function activateControlMeteorAt(tx, ty) {
   const dx = tx - player.x;
   const dy = ty - player.y;
   sendAttackUse('control_meteor', player.x, player.y, dx, dy);
-  showToast('☄️ Метеор контроля!');
 }
 
 // ==================== КОНТРОЛЬ: ЛУЧ ====================
 function activateControlBeamAt(tx, ty) {
   if (player.cooldowns['control_beam'] > 0) return;
-  if (player.stamina < 70) { showToast('Мало стамины!'); return; }
-  if (!isInControlZone(tx, ty)) { showToast('❌ Целься внутри зоны!'); return; }
+  if (player.stamina < 70) return;
+  if (!isInControlZone(tx, ty)) return;
   player.cooldowns['control_beam'] = 20;
   player.stamina = Math.max(0, player.stamina - 70);
   let fruitMult = getFruitDamageMultiplier();
@@ -1801,13 +1891,12 @@ function activateControlBeamAt(tx, ty) {
   const dx = tx - player.x;
   const dy = ty - player.y;
   sendAttackUse('control_beam', player.x, player.y, dx, dy);
-  showToast('🔵 Луч заряжается... 2 секунды');
 }
 
 // ==================== СВЕТ: ЛУЧ (Z) ====================
 function activateLightBeam() {
   if (player.cooldowns['light_beam'] > 0) return;
-  if (player.stamina < 25) { showToast('Мало стамины!'); return; }
+  if (player.stamina < 25) return;
   player.cooldowns['light_beam'] = 8;
   player.stamina = Math.max(0, player.stamina - 25);
 
@@ -1832,7 +1921,6 @@ function activateLightBeam() {
   });
 
   sendAttackUse('light_beam', player.x, player.y, dx, dy);
-  showToast('⚡ ЛУЧ СВЕТА!');
 }
 
 // ==================== ВЫПОЛНЕНИЕ ПРИЦЕЛЬНОЙ ====================
@@ -1915,7 +2003,7 @@ function executeAbilityAt(tx, ty) {
 // ==================== СВЕТ: КОПЬЁ (X) ====================
 function activateLightSpearAt(tx, ty) {
   if (player.cooldowns['light_spear'] > 0) return;
-  if (player.stamina < 45) { showToast('Мало стамины!'); return; }
+  if (player.stamina < 45) return;
   player.cooldowns['light_spear'] = 15;
   player.stamina = Math.max(0, player.stamina - 45);
   const dx = tx - player.x, dy = ty - player.y;
@@ -1936,13 +2024,12 @@ function activateLightSpearAt(tx, ty) {
     trail: [], pierced: new Set()
   });
   sendAttackUse('light_spear', player.x, player.y, nx, ny);
-  showToast('💫 Копьё света!');
 }
 
 // ==================== СВЕТ: ЛУЧ С НЕБЕС (C) ====================
 function activateLightSkyAt(tx, ty) {
   if (player.cooldowns['light_sky'] > 0) return;
-  if (player.stamina < 65) { showToast('Мало стамины!'); return; }
+  if (player.stamina < 65) return;
   player.cooldowns['light_sky'] = 20;
   player.stamina = Math.max(0, player.stamina - 65);
   let fruitMult = getFruitDamageMultiplier();
@@ -1959,7 +2046,6 @@ function activateLightSkyAt(tx, ty) {
   });
   const dx = tx - player.x, dy = ty - player.y;
   sendAttackUse('light_sky', player.x, player.y, dx, dy);
-  showToast('🌟 Луч с небес заряжается...');
 }
 
 // ==================== УРОН ====================
@@ -1991,7 +2077,6 @@ function damagePirate(pirate, dmg) {
         pendingXp.push(quest.active.rewardXp);
         player.money += 200;
         updateMoneyUi();
-        showToast('✅ КВЕСТ ПИРАТОВ ВЫПОЛНЕН! +200 💰');
         quest.active = null;
       }
     }
@@ -2037,9 +2122,6 @@ function damageDuneWarrior(warrior, dmg) {
         pendingXp.push(DUNE_QUEST_LEVEL_XP);
         player.money += DUNE_QUEST_MONEY;
         updateMoneyUi();
-        showToast('✅ КВЕСТ ВОИНОВ ВЫПОЛНЕН! +' + DUNE_QUEST_MONEY + ' 💰 +' + DUNE_QUEST_LEVEL_XP + ' XP');
-        damageNumbers.push({ x: player.x, y: player.y - player.radius - 20, vy: -1.4, life: 90, maxLife: 90, text: '+' + DUNE_QUEST_MONEY + '💰', color: '#ffd700' });
-        damageNumbers.push({ x: player.x, y: player.y - player.radius - 42, vy: -1.4, life: 90, maxLife: 90, text: '+' + DUNE_QUEST_LEVEL_XP + ' XP', color: '#aaffaa' });
         questDune.active = null;
       }
     }
@@ -2072,7 +2154,6 @@ function damageBoss(dmg) {
     player.money += BOSS_MONEY_REWARD;
     updateMoneyUi();
     if (questBoss.active) questBoss.active = null;
-    showToast('🏆 БОСС ПОВЕРЖЕН! Награда: +1000💰 +500 XP +200 🌟');
     damageNumbers.push({ x: boss.x, y: boss.y - boss.radius - 20, vy: -1.4, life: 90, maxLife: 90, text: '+1000💰', color: '#ffd700' });
     damageNumbers.push({ x: boss.x, y: boss.y - boss.radius - 42, vy: -1.4, life: 90, maxLife: 90, text: '+' + BOSS_LEVEL_XP_REWARD + ' XP', color: '#aaffaa' });
     damageNumbers.push({ x: boss.x, y: boss.y - boss.radius - 64, vy: -1.4, life: 90, maxLife: 90, text: '+' + BOSS_MASTERY_XP_REWARD + ' 🌟', color: '#ffd700' });
@@ -2096,7 +2177,6 @@ function damagePlayer(dmg) {
   player.lastDamageTime = performance.now();
   damageNumbers.push({ x: player.x, y: player.y - player.radius, vy: -1.6, life: 60, maxLife: 60, text: '-' + dmg, color: '#ff4444' });
   if (player.hp <= 0) {
-    showToast('Ты погиб!');
     player.hp = getMaxHp();
     player.x = 0;
     player.y = 0;
@@ -2106,10 +2186,11 @@ function damagePlayer(dmg) {
       player.radius = player.windmillSavedRadius || 25;
       sendWindmillExit();
     }
+    if (player.onShip) leaveShip();
   }
 }// ==================== МОРСКОЙ УРОН ====================
 function applySeaDamage() {
-  if (!isOnAnyLand(player.x, player.y) && !isInWaterForm() && !isFlying() && !player.windmillActive) {
+  if (!isOnAnyLand(player.x, player.y) && !isInWaterForm() && !isFlying() && !player.windmillActive && !player.onShip) {
     player.hp = Math.max(0, player.hp - 30);
     player.lastDamageTime = performance.now();
     damageNumbers.push({ x: player.x, y: player.y - player.radius, vy: -1.6, life: 60, maxLife: 60, text: '-30 💧', color: '#44aaff' });
@@ -2119,7 +2200,6 @@ function applySeaDamage() {
       particles.push({ x: player.x, y: player.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 1, life: 30, maxLife: 30, radius: 3, color: '#4fd4ff' });
     }
     if (player.hp <= 0) {
-      showToast('🌊 Ты утонул!');
       player.hp = getMaxHp();
       player.x = 0;
       player.y = 0;
@@ -2129,6 +2209,50 @@ function applySeaDamage() {
         player.radius = player.windmillSavedRadius || 25;
         sendWindmillExit();
       }
+      if (player.onShip) leaveShip();
+    }
+  }
+}
+
+// ==================== ТЕЛЕПОРТ ВРАГОВ ИЗ МОРЯ ====================
+function teleportEnemiesFromSea() {
+  for (const pir of pirates) {
+    if (pir.dead) continue;
+    if (!isOnAnyLand(pir.x, pir.y)) {
+      pir.x = pir.homeX;
+      pir.y = pir.homeY;
+      pir.aggro = false;
+      pir.chasing = false;
+      for (let k = 0; k < 20; k++) {
+        const a = Math.random() * Math.PI * 2;
+        const s = 2 + Math.random() * 5;
+        particles.push({ x: pir.x, y: pir.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 1, life: 30, maxLife: 40, radius: 3 + Math.random() * 4, color: '#ffaaaa' });
+      }
+    }
+  }
+  for (const dw of duneWarriors) {
+    if (dw.dead) continue;
+    if (!isOnAnyLand(dw.x, dw.y)) {
+      dw.x = dw.homeX;
+      dw.y = dw.homeY;
+      dw.aggro = false;
+      dw.chasing = false;
+      for (let k = 0; k < 20; k++) {
+        const a = Math.random() * Math.PI * 2;
+        const s = 2 + Math.random() * 5;
+        particles.push({ x: dw.x, y: dw.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 1, life: 30, maxLife: 40, radius: 3 + Math.random() * 4, color: '#ffccaa' });
+      }
+    }
+  }
+  if (boss.active && !boss.dead && !isOnAnyLand(boss.x, boss.y)) {
+    boss.x = boss.homeX;
+    boss.y = boss.homeY;
+    boss.aggro = false;
+    boss.chasing = false;
+    for (let k = 0; k < 30; k++) {
+      const a = Math.random() * Math.PI * 2;
+      const s = 3 + Math.random() * 6;
+      particles.push({ x: boss.x, y: boss.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 1, life: 35, maxLife: 50, radius: 4 + Math.random() * 5, color: '#ff8844' });
     }
   }
 }
@@ -2150,6 +2274,7 @@ canvas.addEventListener('click', (e) => {
     bagContextMenu = null;
     return;
   }
+  if (bagEatConfirm) { handleBagEatConfirmClick(mx, my); return; }
   if (eatConfirm) { handleEatConfirmClick(mx, my); return; }
   if (questDialogOpen) { handleQuestDialogClick(mx, my); return; }
   if (questDialog2Open) { handleQuestDialog2Click(mx, my); return; }
@@ -2174,7 +2299,6 @@ canvas.addEventListener('click', (e) => {
       contextMenu = null;
       const held = getHeldPower();
       sendHeldChange(held ? held.power.name : null);
-      // Если сменили фрукт при активной мельнице — отменить её
       if (player.windmillActive && (!held || held.power.name !== 'Ветряная мельница')) {
         player.windmillActive = false;
         player.radius = player.windmillSavedRadius || 25;
@@ -2198,7 +2322,7 @@ canvas.addEventListener('click', (e) => {
 });
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 
-// ПКМ в мешке
+// ПКМ в мешке — открыть контекстное меню
 canvas.addEventListener('mousedown', (e) => {
   if (!currentUser) return;
   if (adminOpen) return;
@@ -2265,6 +2389,40 @@ function handleEatConfirmClick(mx, my) {
   }
 }
 
+// ==================== ПОДТВЕРЖДЕНИЕ ЕДЫ ИЗ МЕШКА ====================
+function openBagEatConfirm(bagIndex) {
+  if (bagIndex === -1 || bagIndex === null || bagIndex === undefined) return;
+  if (bagIndex < 0 || bagIndex >= bag.length) return;
+  const item = bag[bagIndex];
+  if (!item || item.type !== 'fruit') return;
+  bagEatConfirm = { bagIndex, item: { type: 'fruit', name: item.name, color: item.color } };
+}
+function closeBagEatConfirm() { bagEatConfirm = null; }
+function handleBagEatConfirmClick(mx, my) {
+  const b = getEatConfirmButtons();
+  if (mx >= b.yes.x && mx <= b.yes.x + b.yes.w && my >= b.yes.y && my <= b.yes.y + b.yes.h) {
+    if (bagEatConfirm) {
+      const idx = bagEatConfirm.bagIndex;
+      if (idx >= 0 && idx < bag.length) {
+        const item = bag[idx];
+        if (item && item.type === 'fruit') {
+          bag.splice(idx, 1);
+          consumeFruit(item);
+          player.fruitCount = Math.max(0, player.fruitCount - 1);
+          updateFruitUi();
+          saveNow();
+        }
+      }
+    }
+    closeBagEatConfirm();
+    return;
+  }
+  if (mx >= b.no.x && mx <= b.no.x + b.no.w && my >= b.no.y && my <= b.no.y + b.no.h) {
+    closeBagEatConfirm();
+    return;
+  }
+}
+
 // ==================== NPC ДИАЛОГ 1 (ПИРАТСКИЙ БАРНС) ====================
 let questDialogOpen = false;
 function openQuestDialog() { questDialogOpen = true; }
@@ -2283,37 +2441,24 @@ function handleQuestDialogClick(mx, my) {
   const b = getQuestDialogButtons();
   if (mx >= b.close.x && mx <= b.close.x + b.close.w && my >= b.close.y && my <= b.close.y + b.close.h) { closeQuestDialog(); return; }
   if (mx >= b.takeQuest.x && mx <= b.takeQuest.x + b.takeQuest.w && my >= b.takeQuest.y && my <= b.takeQuest.y + b.takeQuest.h) {
-    if (quest.active) { showToast('Квест уже активен!'); return; }
+    if (quest.active) { return; }
     if (questBoss.active || questDune.active) {
       clearAllQuests();
-      showToast('⚠️ Предыдущий квест отменён');
     }
     quest.active = { type: 'kill', target: 4, current: 0, rewardXp: 100 };
-    showToast('📜 Квест: убить 4 пирата (+200 💰)');
     closeQuestDialog();
     saveNow();
     return;
   }
   if (mx >= b.takeBoss.x && mx <= b.takeBoss.x + b.takeBoss.w && my >= b.takeBoss.y && my <= b.takeBoss.y + b.takeBoss.h) {
-    if (stats.level < 5) {
-      showToast('🔒 Нужен 5 уровень для квеста на босса!');
-      return;
-    }
-    if (bossDefeated) {
-      showToast('🏆 Ты уже победил Капитана пиратов!');
-      return;
-    }
-    if (questBoss.active) {
-      showToast('⚔️ Квест на босса уже активен!');
-      return;
-    }
+    if (stats.level < 5) { return; }
+    if (bossDefeated) { return; }
+    if (questBoss.active) { return; }
     if (quest.active || questDune.active) {
       clearAllQuests();
-      showToast('⚠️ Предыдущий квест отменён');
     }
     questBoss.active = 'active';
     if (boss.dead) resetBoss();
-    showToast('⚔️ КВЕСТ БОССА АКТИВЕН! Найди Капитана пиратов справа на острове');
     closeQuestDialog();
     saveNow();
     return;
@@ -2337,20 +2482,12 @@ function handleQuestDialog2Click(mx, my) {
   const b = getQuestDialog2Buttons();
   if (mx >= b.close.x && mx <= b.close.x + b.close.w && my >= b.close.y && my <= b.close.y + b.close.h) { closeQuestDialog2(); return; }
   if (mx >= b.takeDune.x && mx <= b.takeDune.x + b.takeDune.w && my >= b.takeDune.y && my <= b.takeDune.y + b.takeDune.h) {
-    if (stats.level < 10) {
-      showToast('🔒 Нужен 10 уровень для квеста на воинов!');
-      return;
-    }
-    if (questDune.active) {
-      showToast('⚔️ Квест на воинов уже активен!');
-      return;
-    }
+    if (stats.level < 10) { return; }
+    if (questDune.active) { return; }
     if (quest.active || questBoss.active) {
       clearAllQuests();
-      showToast('⚠️ Предыдущий квест отменён');
     }
     questDune.active = { type: 'kill_dune', target: 6, current: 0, rewardXp: DUNE_QUEST_LEVEL_XP };
-    showToast('📜 Квест: убить 6 пустынных воинов (+' + DUNE_QUEST_MONEY + ' 💰 +' + DUNE_QUEST_LEVEL_XP + ' XP)');
     closeQuestDialog2();
     saveNow();
     return;
@@ -2380,20 +2517,14 @@ function handleRollDialogClick(mx, my) {
 
 function tryRollFruit() {
   if (stats.level < ROLL_MIN_LEVEL) {
-    showToast(`❌ Нужен ${ROLL_MIN_LEVEL} уровень (у тебя ${stats.level})`);
     return;
   }
   const now = Date.now();
   if (now < rollCooldownUntil) {
-    const rem = Math.ceil((rollCooldownUntil - now) / 1000);
-    const m = Math.floor(rem / 60);
-    const s = rem % 60;
-    showToast(`⏳ Перезарядка: ${m}:${String(s).padStart(2, '0')}`);
     return;
   }
   const cost = getRollCost();
   if (player.money < cost) {
-    showToast(`❌ Нужно ${cost} 💰 (у тебя ${player.money})`);
     return;
   }
   player.money -= cost;
@@ -2411,9 +2542,6 @@ function tryRollFruit() {
   else { rarity = 'mythic'; fruitData = { name: 'Контроль', color: '#7c5cff' }; }
   if (fruitData) {
     giveFruitToSlot5(fruitData.name, fruitData.color);
-    showToast(`${getRarityLabel(rarity)}: ${fruitData.name}!`);
-  } else {
-    showToast(`${getRarityLabel(rarity)} — скоро будет! (пока пусто)`);
   }
   rollCooldownUntil = Date.now() + ROLL_COOLDOWN_MS;
   saveNow();
@@ -2437,13 +2565,13 @@ function handleStatsClick(mx, my) {
   const b = getStatsButtons();
   if (mx >= b.close.x && mx <= b.close.x + b.close.w && my >= b.close.y && my <= b.close.y + b.close.h) { closeStats(); return; }
   if (mx >= b.damage.x && mx <= b.damage.x + b.damage.w && my >= b.damage.y && my <= b.damage.y + b.damage.h) {
-    if (stats.statPoints > 0) { stats.points.damage++; stats.statPoints--; saveNow(); } else showToast('Нет очков!'); return;
+    if (stats.statPoints > 0) { stats.points.damage++; stats.statPoints--; saveNow(); } return;
   }
   if (mx >= b.health.x && mx <= b.health.x + b.health.w && my >= b.health.y && my <= b.health.y + b.health.h) {
-    if (stats.statPoints > 0) { stats.points.health++; stats.statPoints--; player.hp = Math.min(getMaxHp(), player.hp + 5); saveNow(); } else showToast('Нет очков!'); return;
+    if (stats.statPoints > 0) { stats.points.health++; stats.statPoints--; player.hp = Math.min(getMaxHp(), player.hp + 5); saveNow(); } return;
   }
   if (mx >= b.fruit.x && mx <= b.fruit.x + b.fruit.w && my >= b.fruit.y && my <= b.fruit.y + b.fruit.h) {
-    if (stats.statPoints > 0) { stats.points.fruit++; stats.statPoints--; saveNow(); } else showToast('Нет очков!'); return;
+    if (stats.statPoints > 0) { stats.points.fruit++; stats.statPoints--; saveNow(); } return;
   }
 }
 
@@ -2492,7 +2620,6 @@ function executeMenuAction(action) {
     heldSlot = slotIdx;
     const held = getHeldPower();
     sendHeldChange(held ? held.power.name : null);
-    showToast('🍎 Взял фрукт в руки');
   } else if (action === 'drop') {
     let lx = player.lookX, ly = player.lookY;
     if (lx === 0 && ly === 0) { lx = 1; ly = 0; }
@@ -2515,7 +2642,6 @@ function executeMenuAction(action) {
     updateFruitUi();
     const held = getHeldPower();
     sendHeldChange(held ? held.power.name : null);
-    showToast('Фрукт выброшен!');
     saveNow();
   } else if (action === 'save') {
     bag.push({ type: 'fruit', color: item.color, name: item.name });
@@ -2525,7 +2651,6 @@ function executeMenuAction(action) {
     updateFruitUi();
     const held = getHeldPower();
     sendHeldChange(held ? held.power.name : null);
-    showToast('Фрукт в мешке!');
     saveNow();
   }
   contextMenu = null;
@@ -2543,7 +2668,9 @@ function handleBagClick(mx, my) {
       const y = g.y + r * (bagSlotSize + bagGap);
       if (mx >= x && mx <= x + bagSlotSize && my >= y && my <= y + bagSlotSize) {
         const i = r * bagCols + col;
-        if (i < bag.length) { const item = bag[i]; bag.splice(i, 1); consumeFruit(item); saveNow(); }
+        if (i < bag.length) {
+          openBagEatConfirm(i);
+        }
         return;
       }
     }
@@ -2580,9 +2707,7 @@ function executeBagMenuAction(action) {
   if (!item || item.type !== 'fruit') { bagContextMenu = null; return; }
 
   if (action === 'eat') {
-    bag.splice(idx, 1);
-    consumeFruit(item);
-    saveNow();
+    openBagEatConfirm(idx);
   } else if (action === 'take') {
     let free = -1;
     for (let s = 0; s < INVENTORY_SLOTS; s++) {
@@ -2590,7 +2715,6 @@ function executeBagMenuAction(action) {
       if (inventory[s] === null) { free = s; break; }
     }
     if (free === -1) {
-      showToast('❌ Хотбар полон!');
     } else {
       inventory[free] = { type: 'fruit', name: item.name, color: item.color };
       bag.splice(idx, 1);
@@ -2599,7 +2723,6 @@ function executeBagMenuAction(action) {
       heldSlot = free;
       const held = getHeldPower();
       sendHeldChange(held ? held.power.name : null);
-      showToast('🍎 Фрукт взят в слот ' + (free + 1));
       saveNow();
     }
   } else if (action === 'drop') {
@@ -2621,7 +2744,6 @@ function executeBagMenuAction(action) {
     bag.splice(idx, 1);
     player.fruitCount = Math.max(0, player.fruitCount - 1);
     updateFruitUi();
-    showToast('Фрукт выброшен из мешка!');
     saveNow();
   }
   bagContextMenu = null;
@@ -2658,6 +2780,25 @@ window.addEventListener('keydown', (e) => {
     if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) { adminInput += e.key; e.preventDefault(); return; }
     return;
   }
+  if (bagEatConfirm) {
+    if (e.key === 'Escape') { closeBagEatConfirm(); e.preventDefault(); return; }
+    if (e.key === 'Enter') {
+      const b = getEatConfirmButtons();
+      handleBagEatConfirmClick(b.yes.x + 5, b.yes.y + 5);
+      e.preventDefault(); return;
+    }
+    if (e.key.toLowerCase() === 'y' || e.key.toLowerCase() === 'н') {
+      const b = getEatConfirmButtons();
+      handleBagEatConfirmClick(b.yes.x + 5, b.yes.y + 5);
+      e.preventDefault(); return;
+    }
+    if (e.key.toLowerCase() === 'n' || e.key.toLowerCase() === 'т') {
+      const b = getEatConfirmButtons();
+      handleBagEatConfirmClick(b.no.x + 5, b.no.y + 5);
+      e.preventDefault(); return;
+    }
+    return;
+  }
   if (eatConfirm) {
     if (e.key === 'Escape') { closeEatConfirm(); e.preventDefault(); return; }
     if (e.key === 'Enter') {
@@ -2680,7 +2821,22 @@ window.addEventListener('keydown', (e) => {
   const k = e.key.toLowerCase(), code = e.code;
   if (k === 'i' || k === 'ш' || code === 'KeyI') { bagOpen = !bagOpen; contextMenu = null; bagContextMenu = null; return; }
   if (code === 'Tab' || e.key === 'Tab') { e.preventDefault(); statsOpen = !statsOpen; questDialogOpen = false; questDialog2Open = false; rollDialogOpen = false; return; }
+  // ПРОБЕЛ — сесть/встать с корабля
+  if (code === 'Space' || k === ' ') {
+    e.preventDefault();
+    if (bagOpen || statsOpen || questDialogOpen || questDialog2Open || rollDialogOpen || adminOpen || aimingAbility) return;
+    if (player.onShip) { leaveShip(); return; }
+    if (player.hasShip && !isOnAnyLand(player.x, player.y)) { enterShip(); return; }
+    return;
+  }
   if (code === 'KeyE' || k === 'e' || k === 'у') {
+    const adm = getNearAdmiral();
+    if (adm) {
+      if (!player.hasShip && player.money >= SHIP_PRICE) {
+        buyShip();
+      }
+      return;
+    }
     if (isNearRollNpc() && !rollDialogOpen && !questDialogOpen && !questDialog2Open && !statsOpen) { openRollDialog(); return; }
     if (isNearQuestNpc() && !questDialogOpen && !questDialog2Open && !rollDialogOpen && !statsOpen) { openQuestDialog(); return; }
     if (isNearQuestNpc2() && !questDialog2Open && !questDialogOpen && !rollDialogOpen && !statsOpen) { openQuestDialog2(); return; }
@@ -2690,14 +2846,12 @@ window.addEventListener('keydown', (e) => {
   const tc = (letter) => {
     if (bagOpen || contextMenu || aimingAbility || statsOpen || questDialogOpen || questDialog2Open || rollDialogOpen) return;
     if (held) { const ab = held.abilities.find(a => a.key === letter); if (ab) startAbility(held.power.name, ab.id); }
-    else showToast('Возьми силу в руки!');
   };
   if (code === 'KeyZ' || k === 'z' || k === 'я') { tc('Z'); return; }
   if (code === 'KeyX' || k === 'x' || k === 'ч') { tc('X'); return; }
   if (code === 'KeyC' || k === 'c' || k === 'с') { tc('C'); return; }
   if (code === 'KeyR' || k === 'r' || k === 'к') { tc('R'); return; }
   if (code === 'KeyV' || k === 'v' || k === 'м') { tc('V'); return; }
-  // F — только флаг. Всё в update()
   if (code === 'KeyF' || k === 'f' || k === 'а') {
     if (e.repeat) return;
     player.flightKeyDown = true;
@@ -2731,7 +2885,6 @@ window.addEventListener('keydown', (e) => {
     contextMenu = null;
     const heldNow = getHeldPower();
     sendHeldChange(heldNow ? heldNow.power.name : null);
-    // Отмена мельницы при смене фрукта
     if (player.windmillActive && (!heldNow || heldNow.power.name !== 'Ветряная мельница')) {
       player.windmillActive = false;
       player.radius = player.windmillSavedRadius || 25;
@@ -2768,6 +2921,7 @@ function update() {
   if (lightFlightTrails.length > 300) lightFlightTrails.splice(0, lightFlightTrails.length - 300);
   if (remoteLightBeams.length > 20) remoteLightBeams.splice(0, remoteLightBeams.length - 20);
   if (remoteLightTrails.length > 120) remoteLightTrails.splice(0, remoteLightTrails.length - 120);
+  if (shipWakes.length > 200) shipWakes.splice(0, shipWakes.length - 200);
 
   let g = 0;
   while (pendingXp.length > 0 && g < 50) { g++; addXp(pendingXp.shift()); }
@@ -2780,15 +2934,18 @@ function update() {
     if (rp.hitFlash > 0) rp.hitFlash--;
     if (rp.punchAnim > 0) rp.punchAnim = Math.max(0, rp.punchAnim - 0.08);
   }
-  // Плавное перемещение чужих мельниц
   for (const rw of remoteWindmills.values()) {
     rw.x += (rw.targetX - rw.x) * 0.25;
     rw.y += (rw.targetY - rw.y) * 0.25;
     rw.angle += WINDMILL_ROTATION_SPEED;
   }
+  for (const rs of remoteShips.values()) {
+    rs.x += (rs.targetX - rs.x) * 0.25;
+    rs.y += (rs.targetY - rs.y) * 0.25;
+  }
 
   const now = performance.now();
-  const blocked = bagOpen || statsOpen || questDialogOpen || questDialog2Open || adminOpen || rollDialogOpen || !!eatConfirm;
+  const blocked = bagOpen || statsOpen || questDialogOpen || questDialog2Open || adminOpen || rollDialogOpen || !!eatConfirm || !!bagEatConfirm;
   player.isRunning = false;
   const spd = player.speedWalk;
   if (now < player.waterFormUntil) player.waterRage = 0.5 + Math.sin(now * 0.008) * 0.5;
@@ -2796,18 +2953,61 @@ function update() {
 
   if (now > player.seaDamageTimer && !blocked) { player.seaDamageTimer = now + 1000; applySeaDamage(); }
 
+  // ============ ВРАГИ: ТЕЛЕПОРТ ИЗ МОРЯ ============
+  if (now > (player._enemyTeleportTimer || 0)) {
+    player._enemyTeleportTimer = now + 500;
+    teleportEnemiesFromSea();
+  }
+
   // ============ ВЕТРЯНАЯ МЕЛЬНИЦА: вращение лопасти ============
   if (player.windmillActive) {
     player.windmillAngle += WINDMILL_ROTATION_SPEED;
-    // Лопасть сама по себе крутится, но игрок не двигается — блокируем всё движение
     player.flying = false;
-    if (now > player.seaDamageTimer + 500) {
-      // если стоит в море — урон всё равно идёт (не отключаем), но это отдельная логика, оставим как есть
+    if (player.onShip) leaveShip();
+  }
+
+  // ============ КОРАБЛЬ: движение ============
+  if (player.onShip && !blocked && !aimingAbility) {
+    let dx = 0, dy = 0;
+    if (keys['w'] || keys['arrowup'] || keys['ц']) dy -= 1;
+    if (keys['s'] || keys['arrowdown'] || keys['ы']) dy += 1;
+    if (keys['a'] || keys['arrowleft'] || keys['ф']) dx -= 1;
+    if (keys['d'] || keys['arrowright'] || keys['в']) dx += 1;
+    if (dx && dy) { const l = Math.hypot(dx, dy); dx /= l; dy /= l; }
+    if (dx || dy) {
+      const shipSpeed = spd * SHIP_SPEED_MULT;
+      const nx = player.x + dx * shipSpeed;
+      const ny = player.y + dy * shipSpeed;
+      // Корабль не может выехать на сушу
+      if (!isOnAnyLand(nx, ny)) player.x = nx;
+      if (!isOnAnyLand(player.x, ny)) player.y = ny;
+      player.shipAngle = Math.atan2(dy, dx);
+      player.lookX = dx;
+      player.lookY = dy;
+      // Волны за кораблём
+      if (Math.random() < 0.6) {
+        shipWakes.push({
+          x: player.x - dx * SHIP_RADIUS * 0.8 + (Math.random() - 0.5) * 20,
+          y: player.y - dy * SHIP_RADIUS * 0.8 + (Math.random() - 0.5) * 20,
+          life: 40, maxLife: 40,
+          radius: 6 + Math.random() * 6
+        });
+      }
+    }
+    if (ws && ws.readyState === 1) {
+      try {
+        ws.send(JSON.stringify({
+          type: 'ship_move',
+          x: Math.round(player.x),
+          y: Math.round(player.y),
+          angle: player.shipAngle
+        }));
+      } catch (e) {}
     }
   }
 
   // ============ ПОЛЁТ СВЕТА (HOLD F) ============
-  {
+  if (!player.onShip) {
     const heldNow = getHeldPower();
     if (player.flying) {
       const stillOk = player.flightKeyDown
@@ -2815,7 +3015,8 @@ function update() {
         && heldNow.power.name === 'Свет'
         && player.stamina > 0
         && !blocked
-        && !player.windmillActive;
+        && !player.windmillActive
+        && !player.onShip;
       if (!stillOk) {
         player.flying = false;
       } else {
@@ -2831,7 +3032,7 @@ function update() {
         player.flightDir = { x: dx, y: dy };
         player.lookX = dx;
         player.lookY = dy;
-        const flySpeed = spd * LIGHT_FLIGHT_SPEED_MULT * 3;
+        const flySpeed = spd * LIGHT_FLIGHT_SPEED_MULT * 1.5;
         tryMoveWithZone(player, dx * flySpeed, dy * flySpeed);
         player.stamina = Math.max(0, player.stamina - LIGHT_FLIGHT_STAMINA_DRAIN / 60);
         lightFlightTrails.push({
@@ -2862,11 +3063,11 @@ function update() {
         && (player.cooldowns['light_flight'] || 0) <= 0
         && !blocked
         && !aimingAbility
-        && !player.windmillActive;
+        && !player.windmillActive
+        && !player.onShip;
       if (canStart) {
         player.flying = true;
         player.cooldowns['light_flight'] = 10;
-        showToast('✨ ИСКРА СВЕТА!');
         for (let i = 0; i < 30; i++) {
           const a = Math.random() * Math.PI * 2;
           const s = 3 + Math.random() * 6;
@@ -2883,8 +3084,8 @@ function update() {
     }
   }
 
-  // ============ ОБЫЧНОЕ ДВИЖЕНИЕ (заблокировано если мельница) ============
-  if (!player.windmillActive && !blocked && !aimingAbility && !player.flying) {
+  // ============ ОБЫЧНОЕ ДВИЖЕНИЕ ============
+  if (!player.windmillActive && !player.onShip && !blocked && !aimingAbility && !player.flying) {
     let dx = 0, dy = 0;
     if (keys['w'] || keys['arrowup'] || keys['ц']) dy -= 1;
     if (keys['s'] || keys['arrowdown'] || keys['ы']) dy += 1;
@@ -2894,7 +3095,7 @@ function update() {
     tryMoveWithZone(player, dx * spd, dy * spd);
     if (dx || dy) { player.lookX = dx; player.lookY = dy; }
     player.stamina = Math.min(getMaxStamina(), player.stamina + STAMINA_REGEN_PER_TICK);
-  } else if (!player.flying && !player.windmillActive) {
+  } else if (!player.flying && !player.windmillActive && !player.onShip) {
     player.stamina = Math.min(getMaxStamina(), player.stamina + STAMINA_REGEN_PER_TICK);
   }
 
@@ -2918,12 +3119,9 @@ function update() {
           inventory[free] = { type: 'fruit', color: f.color, name: f.name };
           player.fruitCount++;
           updateFruitUi();
-          showToast(`Подобран: ${f.name}`);
           sharedDroppedFruits.delete(id);
           sendFruitPicked(id);
           saveNow();
-        } else {
-          if (!f.warned || now - f.warned > 2000) { f.warned = now; showToast('Хотбар полон!'); }
         }
       }
     }
@@ -2971,6 +3169,11 @@ function update() {
   for (let i = remoteLightBeams.length - 1; i >= 0; i--) {
     remoteLightBeams[i].life--;
     if (remoteLightBeams[i].life <= 0) remoteLightBeams.splice(i, 1);
+  }
+  for (let i = shipWakes.length - 1; i >= 0; i--) {
+    shipWakes[i].life--;
+    shipWakes[i].radius += 0.3;
+    if (shipWakes[i].life <= 0) shipWakes.splice(i, 1);
   }
 
   // Локальные световые лучи
@@ -3525,7 +3728,7 @@ function drawWorld() {
   ctx.strokeStyle = '#c9a86a'; ctx.lineWidth = 4;
   ctx.strokeRect(dsx, dsy, DESERT.width, DESERT.height);
 
-  if (!isOnAnyLand(player.x, player.y) && !player.windmillActive) {
+  if (!isOnAnyLand(player.x, player.y) && !player.windmillActive && !player.onShip) {
     const pulse = 0.3 + Math.sin(performance.now() * 0.008) * 0.2;
     ctx.strokeStyle = `rgba(80, 200, 255, ${pulse})`;
     ctx.lineWidth = 8;
@@ -3878,14 +4081,6 @@ function drawControlZone() {
     ctx.fill();
   }
   ctx.restore();
-  ctx.font = 'bold 16px Arial';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
-  const secLeft = Math.ceil((controlZone.until - now) / 1000);
-  ctx.strokeText('🌀 ЗОНА: ' + secLeft + 'с', x, y - controlZone.radius - 18);
-  ctx.fillStyle = '#7c5cff';
-  ctx.fillText('🌀 ЗОНА: ' + secLeft + 'с', x, y - controlZone.radius - 18);
 }
 
 function drawControlLasers() {
@@ -4262,6 +4457,67 @@ function drawRollNpc() {
   }
 }
 
+// ==================== АДМИРАЛЫ ====================
+function drawAdmirals() {
+  for (const a of admirals) {
+    const x = a.x - camera.x, y = a.y - camera.y;
+    const t = performance.now() * 0.003;
+    ctx.beginPath(); ctx.ellipse(x, a.y - camera.y + a.radius * 0.9, a.radius * 0.9, 7, 0, 0, Math.PI * 2); ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fill();
+    const g = ctx.createRadialGradient(x - a.radius * 0.35, y - a.radius * 0.35, 3, x, y, a.radius);
+    g.addColorStop(0, lightenColor(a.color, 0.3));
+    g.addColorStop(1, a.color);
+    ctx.beginPath(); ctx.arc(x, y, a.radius, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
+    ctx.strokeStyle = darkenColor(a.color, 0.4); ctx.lineWidth = 3; ctx.stroke();
+    // Адмиральская фуражка
+    ctx.beginPath();
+    ctx.arc(x, y - a.radius * 0.55, a.radius * 0.95, Math.PI * 1.1, Math.PI * 1.9);
+    ctx.strokeStyle = a.hatColor; ctx.lineWidth = 10; ctx.lineCap = 'round'; ctx.stroke();
+    // Козырёк
+    ctx.fillStyle = a.hatColor;
+    ctx.beginPath();
+    ctx.ellipse(x, y - a.radius * 0.35, a.radius * 0.95, a.radius * 0.18, 0, 0, Math.PI);
+    ctx.fill();
+    // Звёздочка
+    ctx.fillStyle = '#ffd700';
+    ctx.font = 'bold 14px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('★', x, y - a.radius * 0.75);
+    const eo = a.radius * 0.35, er = a.radius * 0.14;
+    ctx.fillStyle = 'white'; ctx.beginPath(); ctx.arc(x - eo, y - a.radius * 0.05, er, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.arc(x + eo, y - a.radius * 0.05, er, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#1a1a1a'; ctx.beginPath(); ctx.arc(x - eo, y - a.radius * 0.05, er * 0.55, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.arc(x + eo, y - a.radius * 0.05, er * 0.55, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x, y + a.radius * 0.2, a.radius * 0.25, 0.15 * Math.PI, 0.85 * Math.PI); ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 2; ctx.stroke();
+    // Имя
+    ctx.fillStyle = '#aaddff'; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
+    ctx.strokeText(a.name, x, y - a.radius - 20); ctx.fillText(a.name, x, y - a.radius - 20);
+    // Иконка корабля или галочка, если куплен
+    const bob = Math.sin(t * 4) * 4;
+    if (player.hasShip) {
+      ctx.fillStyle = '#88ff88'; ctx.font = 'bold 22px Arial';
+      ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
+      ctx.strokeText('✓', x, y - a.radius - 50 + bob);
+      ctx.fillText('✓', x, y - a.radius - 50 + bob);
+    } else {
+      ctx.fillStyle = '#ffd700'; ctx.font = 'bold 22px Arial';
+      ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
+      ctx.strokeText('🚢', x, y - a.radius - 50 + bob);
+      ctx.fillText('🚢', x, y - a.radius - 50 + bob);
+    }
+    // Подсказка рядом
+    if (getNearAdmiral() === a) {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+      let ht;
+      if (player.hasShip) ht = 'Корабль уже куплен';
+      else if (player.money < SHIP_PRICE) ht = `E — нужно ${SHIP_PRICE} 💰 (у тебя ${player.money})`;
+      else ht = `E — купить корабль (${SHIP_PRICE} 💰)`;
+      ctx.font = 'bold 14px Arial';
+      const tw = ctx.measureText(ht).width + 20;
+      roundRect(x - tw / 2, y + a.radius + 15, tw, 24, 6); ctx.fill();
+      ctx.fillStyle = player.hasShip ? '#88ff88' : '#ffd700'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(ht, x, y + a.radius + 27);
+    }
+  }
+}
+
 function drawNpc() {
   const x = npc.x - camera.x + npc.shakeOffset.x, y = npc.y - camera.y + npc.shakeOffset.y;
   const isSlowed = performance.now() < npc.slowUntil;
@@ -4470,7 +4726,130 @@ function drawBoss() {
   ctx.globalAlpha = 1;
 }
 
-// ==================== ОТРИСОВКА МЕЛЬНИЦЫ ====================
+// ==================== КОРАБЛЬ (отрисовка) ====================
+function drawShipAt(x, y, angle, radius, isPlayer) {
+  const t = performance.now() * 0.003;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle);
+
+  const bw = SHIP_HULL_WIDTH * (radius / SHIP_RADIUS);
+  const bl = SHIP_SAIL_LENGTH * (radius / SHIP_RADIUS);
+
+  // Тень на воде
+  ctx.beginPath();
+  ctx.ellipse(0, 0, bw * 0.9, bl * 1.1, 0, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(0, 40, 80, 0.3)';
+  ctx.fill();
+
+  // Корпус (лодка)
+  ctx.beginPath();
+  ctx.moveTo(bl * 1.1, 0);
+  ctx.quadraticCurveTo(bl * 0.5, -bw * 0.7, -bl * 0.6, -bw * 0.75);
+  ctx.quadraticCurveTo(-bl * 1.15, -bw * 0.6, -bl * 1.15, 0);
+  ctx.quadraticCurveTo(-bl * 1.15, bw * 0.6, -bl * 0.6, bw * 0.75);
+  ctx.quadraticCurveTo(bl * 0.5, bw * 0.7, bl * 1.1, 0);
+  ctx.closePath();
+  const hullGrad = ctx.createLinearGradient(0, -bw, 0, bw);
+  hullGrad.addColorStop(0, '#a06a3a');
+  hullGrad.addColorStop(0.5, '#7a4a24');
+  hullGrad.addColorStop(1, '#4a2a10');
+  ctx.fillStyle = hullGrad;
+  ctx.fill();
+  ctx.strokeStyle = '#2a1508';
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+
+  // Палуба (светлая полоса)
+  ctx.beginPath();
+  ctx.ellipse(0, 0, bl * 0.85, bw * 0.5, 0, 0, Math.PI * 2);
+  ctx.fillStyle = '#c9a877';
+  ctx.fill();
+  ctx.strokeStyle = '#8a6030';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // Доски на палубе
+  ctx.strokeStyle = 'rgba(120, 80, 40, 0.6)';
+  ctx.lineWidth = 1;
+  for (let i = -3; i <= 3; i++) {
+    const lx = i * bl * 0.25;
+    ctx.beginPath();
+    ctx.moveTo(lx, -bw * 0.42);
+    ctx.lineTo(lx, bw * 0.42);
+    ctx.stroke();
+  }
+
+  // Мачта
+  ctx.fillStyle = '#5a3a1a';
+  ctx.fillRect(-2.5, -bl * 0.05, 5, bl * 0.05);
+  ctx.beginPath();
+  ctx.arc(0, -bl * 0.05, 3, 0, Math.PI * 2);
+  ctx.fillStyle = '#3a2a10';
+  ctx.fill();
+
+  // Парус (треугольный, развевается)
+  const wave = Math.sin(t * 4) * 2;
+  ctx.beginPath();
+  ctx.moveTo(0, -bl * 0.05);
+  ctx.quadraticCurveTo(bl * 0.4, -bl * 0.25 + wave, bl * 0.15, -bl * 0.6);
+  ctx.quadraticCurveTo(-bl * 0.05, -bl * 0.4, -bl * 0.35, -bl * 0.35 + wave * 0.5);
+  ctx.quadraticCurveTo(-bl * 0.2, -bl * 0.15, 0, -bl * 0.05);
+  ctx.closePath();
+  const sailGrad = ctx.createLinearGradient(0, -bl * 0.6, 0, -bl * 0.05);
+  sailGrad.addColorStop(0, '#ffffff');
+  sailGrad.addColorStop(1, '#e8d4a8');
+  ctx.fillStyle = sailGrad;
+  ctx.fill();
+  ctx.strokeStyle = '#8a6a4a';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // Флаг на мачте
+  ctx.beginPath();
+  ctx.moveTo(0, -bl * 0.62);
+  ctx.lineTo(bl * 0.15 + wave, -bl * 0.7);
+  ctx.lineTo(0, -bl * 0.55);
+  ctx.closePath();
+  ctx.fillStyle = '#c9243b';
+  ctx.fill();
+  ctx.strokeStyle = '#5a0a15';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+function drawShipWakes() {
+  for (const w of shipWakes) {
+    const a = w.life / w.maxLife;
+    const x = w.x - camera.x, y = w.y - camera.y;
+    ctx.beginPath();
+    ctx.arc(x, y, w.radius, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(200, 240, 255, ${a * 0.7})`;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+}
+
+function drawRemoteShips() {
+  for (const rs of remoteShips.values()) {
+    const x = rs.x - camera.x;
+    const y = rs.y - camera.y;
+    drawShipAt(x, y, rs.angle, SHIP_RADIUS, false);
+    // Ник над кораблём
+    ctx.font = 'bold 13px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.strokeStyle = 'black';
+    ctx.lineWidth = 3;
+    ctx.strokeText(rs.u, x, y - SHIP_RADIUS - 25);
+    ctx.fillStyle = rs.color || '#ffd700';
+    ctx.fillText(rs.u, x, y - SHIP_RADIUS - 25);
+  }
+}
+
+// ==================== МЕЛЬНИЦА (отрисовка) ====================
 function drawWindmillAt(x, y, angle, radius, isPlayer) {
   // Тень
   ctx.beginPath();
@@ -4478,7 +4857,6 @@ function drawWindmillAt(x, y, angle, radius, isPlayer) {
   ctx.fillStyle = 'rgba(0,0,0,0.35)';
   ctx.fill();
 
-  // Основание — каменный цилиндр
   const baseW = radius * 1.3;
   const baseH = radius * 1.6;
   const baseX = x - baseW / 2;
@@ -4501,7 +4879,6 @@ function drawWindmillAt(x, y, angle, radius, isPlayer) {
   ctx.lineWidth = 3;
   ctx.stroke();
 
-  // Каменные линии
   ctx.strokeStyle = 'rgba(90, 60, 30, 0.5)';
   ctx.lineWidth = 1.5;
   for (let i = 1; i < 5; i++) {
@@ -4515,7 +4892,6 @@ function drawWindmillAt(x, y, angle, radius, isPlayer) {
     ctx.stroke();
   }
 
-  // Верхняя крышка
   ctx.fillStyle = '#7a4a2a';
   ctx.beginPath();
   ctx.ellipse(x, baseY, baseW * 0.42, baseW * 0.14, 0, 0, Math.PI * 2);
@@ -4524,7 +4900,6 @@ function drawWindmillAt(x, y, angle, radius, isPlayer) {
   ctx.lineWidth = 2;
   ctx.stroke();
 
-  // Дверь
   ctx.fillStyle = '#4a2a10';
   ctx.beginPath();
   ctx.moveTo(x - radius * 0.25, y + radius * 0.95);
@@ -4537,7 +4912,6 @@ function drawWindmillAt(x, y, angle, radius, isPlayer) {
   ctx.lineWidth = 2;
   ctx.stroke();
 
-  // Окно
   ctx.fillStyle = '#5a8aa0';
   ctx.beginPath();
   ctx.arc(x, y - radius * 0.55, radius * 0.2, 0, Math.PI * 2);
@@ -4552,11 +4926,9 @@ function drawWindmillAt(x, y, angle, radius, isPlayer) {
   ctx.lineTo(x, y - radius * 0.35);
   ctx.stroke();
 
-  // Ось лопасти
   const hubX = x;
   const hubY = y - radius * 1.1;
 
-  // Лопасти (4 шт)
   ctx.save();
   ctx.translate(hubX, hubY);
   ctx.rotate(angle);
@@ -4565,13 +4937,11 @@ function drawWindmillAt(x, y, angle, radius, isPlayer) {
     ctx.rotate(i * (Math.PI * 2 / WINDMILL_BLADE_COUNT));
     const bl = WINDMILL_BLADE_LENGTH * (radius / WINDMILL_RADIUS);
     const bw = WINDMILL_BLADE_WIDTH * (radius / WINDMILL_RADIUS);
-    // Стержень
     ctx.fillStyle = '#8a6a4a';
     ctx.fillRect(0, -bw / 3, bl * 0.3, bw * 0.66);
     ctx.strokeStyle = '#5a3a1a';
     ctx.lineWidth = 2;
     ctx.strokeRect(0, -bw / 3, bl * 0.3, bw * 0.66);
-    // Парус
     const sg = ctx.createLinearGradient(bl * 0.3, -bw, bl * 0.3, bw);
     sg.addColorStop(0, '#f5e6c8');
     sg.addColorStop(0.5, '#e8d4a8');
@@ -4587,7 +4957,6 @@ function drawWindmillAt(x, y, angle, radius, isPlayer) {
     ctx.strokeStyle = '#8a6a4a';
     ctx.lineWidth = 2;
     ctx.stroke();
-    // Полоски на парусе
     ctx.strokeStyle = 'rgba(138, 106, 74, 0.5)';
     ctx.lineWidth = 1;
     for (let k = 1; k < 4; k++) {
@@ -4604,7 +4973,6 @@ function drawWindmillAt(x, y, angle, radius, isPlayer) {
   }
   ctx.restore();
 
-  // Центральная втулка
   ctx.beginPath();
   ctx.arc(hubX, hubY, radius * 0.15, 0, Math.PI * 2);
   const hubG = ctx.createRadialGradient(hubX - 3, hubY - 3, 2, hubX, hubY, radius * 0.15);
@@ -4616,7 +4984,6 @@ function drawWindmillAt(x, y, angle, radius, isPlayer) {
   ctx.lineWidth = 2.5;
   ctx.stroke();
 
-  // Свечение если это игрок
   if (isPlayer) {
     const pulse = 0.6 + Math.sin(performance.now() * 0.005) * 0.4;
     ctx.beginPath();
@@ -4632,7 +4999,6 @@ function drawRemoteWindmills() {
     const x = rw.x - camera.x;
     const y = rw.y - camera.y;
     drawWindmillAt(x, y, rw.angle, WINDMILL_RADIUS, false);
-    // Ник над мельницей
     ctx.font = 'bold 13px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -4646,6 +5012,7 @@ function drawRemoteWindmills() {
 
 function drawRemotePlayers() {
   for (const rp of remotePlayers.values()) {
+    if (rp.onShip) continue;
     const x = rp.x - camera.x;
     const y = rp.y - camera.y;
     const r = player.radius;
@@ -4938,7 +5305,21 @@ function drawPlayer() {
   const inWater = isInWaterForm();
   const flying = player.flying;
 
-  // Если игрок — мельница, рисуем мельницу вместо игрока
+  if (player.onShip) {
+    drawShipAt(x, y, player.shipAngle, SHIP_RADIUS, true);
+    if (currentUser) {
+      ctx.font = 'bold 13px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.strokeStyle = 'black';
+      ctx.lineWidth = 3;
+      ctx.strokeText(currentUser.username, x, y - SHIP_RADIUS - 25);
+      ctx.fillStyle = '#ffd700';
+      ctx.fillText(currentUser.username, x, y - SHIP_RADIUS - 25);
+    }
+    return;
+  }
+
   if (player.windmillActive) {
     drawWindmillAt(x, y, player.windmillAngle, WINDMILL_RADIUS, true);
     if (currentUser) {
@@ -5029,7 +5410,7 @@ function drawPlayer() {
 function drawHeldItem() {
   if (heldSlot === -1) return;
   const item = inventory[heldSlot];
-  if (!item || item.type === 'fists' || isInWaterForm() || player.windmillActive) return;
+  if (!item || item.type === 'fists' || isInWaterForm() || player.windmillActive || player.onShip) return;
   const x = player.x - camera.x + player.radius * 1.1, y = player.y - camera.y + player.radius * 0.5;
   if (item.type === 'fruit') {
     ctx.beginPath(); ctx.strokeStyle = '#b37700'; ctx.lineWidth = 4; ctx.lineCap = 'round';
@@ -5101,7 +5482,6 @@ function drawPowerIcon(cx, cy, radius, name) {
   } else if (name === 'Ветряная мельница') {
     const bg = ctx.createRadialGradient(cx, cy, 1, cx, cy, radius * 1.2); bg.addColorStop(0, '#3a2a1a'); bg.addColorStop(1, '#1a0f05');
     ctx.beginPath(); ctx.arc(cx, cy, radius * 1.1, 0, Math.PI * 2); ctx.fillStyle = bg; ctx.fill(); ctx.strokeStyle = '#c9b088'; ctx.lineWidth = 2.5; ctx.stroke();
-    // Основание мельницы
     ctx.fillStyle = '#a88a5c';
     ctx.beginPath();
     ctx.moveTo(cx - radius * 0.35, cy + radius * 0.9);
@@ -5111,10 +5491,8 @@ function drawPowerIcon(cx, cy, radius, name) {
     ctx.closePath();
     ctx.fill();
     ctx.strokeStyle = '#5a3a1a'; ctx.lineWidth = 1.5; ctx.stroke();
-    // Дверь
     ctx.fillStyle = '#4a2a10';
     ctx.fillRect(cx - radius * 0.1, cy + radius * 0.5, radius * 0.2, radius * 0.4);
-    // Ось + лопасти
     const hubX = cx, hubY = cy - radius * 0.1;
     const t = performance.now() * 0.001;
     ctx.save();
@@ -5139,7 +5517,6 @@ function drawPowerIcon(cx, cy, radius, name) {
       ctx.restore();
     }
     ctx.restore();
-    // Втулка
     ctx.beginPath();
     ctx.arc(hubX, hubY, radius * 0.12, 0, Math.PI * 2);
     ctx.fillStyle = '#e8c88a';
@@ -5400,6 +5777,12 @@ function drawPlayerStats() {
     ctx.strokeText(wt2, x + bw / 2, nextY + bh / 2); ctx.fillText(wt2, x + bw / 2, nextY + bh / 2);
     nextY += bh + 10;
   }
+  if (player.onShip) {
+    ctx.fillStyle = 'rgba(0,0,0,0.6)'; roundRect(x - 4, nextY - 4, bw + 8, 24, 6); ctx.fill();
+    ctx.fillStyle = '#ffdd88'; ctx.font = 'bold 13px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('🚢 НА КОРАБЛЕ (Пробел — выйти)', x + bw / 2, nextY + 8);
+    nextY += 30;
+  }
   if (player.windmillActive) {
     ctx.fillStyle = 'rgba(0,0,0,0.6)'; roundRect(x - 4, nextY - 4, bw + 8, 24, 6); ctx.fill();
     ctx.fillStyle = '#c9b088'; ctx.font = 'bold 13px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -5411,13 +5794,6 @@ function drawPlayerStats() {
     ctx.fillStyle = '#fff6b0'; ctx.font = 'bold 13px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText('✨ ПОЛЁТ!', x + bw / 2, nextY + 8);
     nextY += 30;
-  }
-  if (!isOnAnyLand(player.x, player.y) && !isInWaterForm() && !player.flying && !player.windmillActive) {
-    const pulse = 0.6 + Math.sin(performance.now() * 0.01) * 0.4;
-    ctx.fillStyle = `rgba(80,180,255,${pulse})`; ctx.font = 'bold 16px Arial'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
-    const wt3 = '🌊 ТОНЕШЬ! -30 HP/сек';
-    ctx.strokeText(wt3, x + bw, nextY); ctx.fillText(wt3, x + bw, nextY);
-    nextY += 24;
   }
   if (wsConnected) {
     ctx.fillStyle = 'rgba(0,0,0,0.55)';
@@ -5693,7 +6069,7 @@ function drawBag() {
   ctx.fillStyle = 'rgba(30,30,40,0.92)'; ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2;
   roundRect(p.x, p.y, p.w, p.h, 14); ctx.fill(); ctx.stroke();
   ctx.fillStyle = 'white'; ctx.font = 'bold 22px Arial'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-  ctx.fillText('🎒 Мешок (сохраняется) · ПКМ — меню', p.x + 30, p.y + 35);
+  ctx.fillText('🎒 Мешок · клик — съесть · ПКМ — меню', p.x + 30, p.y + 35);
   const c = getBagCloseRect();
   ctx.fillStyle = 'rgba(255,80,80,0.85)'; roundRect(c.x, c.y, c.w, c.h, 6); ctx.fill();
   ctx.fillStyle = 'white'; ctx.font = 'bold 18px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -5758,6 +6134,34 @@ function drawEatConfirm() {
   const title = '🍎 Съесть фрукт?';
   ctx.strokeText(title, p.x + p.w / 2, p.y + 25); ctx.fillText(title, p.x + p.w / 2, p.y + 25);
   const fr = eatConfirm.item;
+  drawFruitIcon(p.x + p.w / 2, p.y + 105, 38, fr.color);
+  ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.font = 'bold 17px Arial'; ctx.strokeStyle = 'black'; ctx.lineWidth = 3; ctx.textBaseline = 'middle';
+  ctx.strokeText(fr.name, p.x + p.w / 2, p.y + 160); ctx.fillText(fr.name, p.x + p.w / 2, p.y + 160);
+  const yes = b.yes;
+  ctx.fillStyle = 'rgba(76,175,80,0.95)'; roundRect(yes.x, yes.y, yes.w, yes.h, 10); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = 'white'; ctx.font = 'bold 22px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('✅ ДА', yes.x + yes.w / 2, yes.y + yes.h / 2);
+  const no = b.no;
+  ctx.fillStyle = 'rgba(200,60,60,0.9)'; roundRect(no.x, no.y, no.w, no.h, 10); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.6)'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = 'white'; ctx.font = 'bold 22px Arial';
+  ctx.fillText('❌ НЕТ', no.x + no.w / 2, no.y + no.h / 2);
+  ctx.fillStyle = 'rgba(255,255,255,0.4)'; ctx.font = '11px Arial';
+  ctx.fillText('Y / Enter — да  ·  N / Esc — нет', p.x + p.w / 2, p.y + p.h - 15);
+}
+
+function drawBagEatConfirm() {
+  if (!bagEatConfirm) return;
+  ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const b = getEatConfirmButtons();
+  const p = b.panel;
+  ctx.fillStyle = 'rgba(20,25,35,0.98)'; ctx.strokeStyle = 'rgba(255,215,0,0.9)'; ctx.lineWidth = 3;
+  roundRect(p.x, p.y, p.w, p.h, 16); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#ffd700'; ctx.font = 'bold 24px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
+  const title = '🍎 Съесть фрукт из мешка?';
+  ctx.strokeText(title, p.x + p.w / 2, p.y + 25); ctx.fillText(title, p.x + p.w / 2, p.y + 25);
+  const fr = bagEatConfirm.item;
   drawFruitIcon(p.x + p.w / 2, p.y + 105, 38, fr.color);
   ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.font = 'bold 17px Arial'; ctx.strokeStyle = 'black'; ctx.lineWidth = 3; ctx.textBaseline = 'middle';
   ctx.strokeText(fr.name, p.x + p.w / 2, p.y + 160); ctx.fillText(fr.name, p.x + p.w / 2, p.y + 160);
@@ -5906,20 +6310,6 @@ function drawCompass() {
   ctx.fillText(dist + ' px', cx, cy + R + 30);
 }
 
-let toast = null;
-function showToast(t) { toast = { text: t, until: performance.now() + 1500 }; }
-function drawToast() {
-  if (!toast) return;
-  if (performance.now() > toast.until) { toast = null; return; }
-  const el = toast.until - performance.now();
-  const a = Math.min(1, el / 400);
-  ctx.font = 'bold 22px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  const w = ctx.measureText(toast.text).width + 50;
-  const x = (canvas.width - w) / 2, y = 100;
-  ctx.fillStyle = `rgba(0,0,0,${0.65 * a})`; roundRect(x, y, w, 50, 12); ctx.fill();
-  ctx.fillStyle = `rgba(255,255,255,${a})`; ctx.fillText(toast.text, canvas.width / 2, y + 25);
-}
-
 function drawAdminConsole() {
   if (!adminOpen) return;
   ctx.fillStyle = 'rgba(0,0,0,0.55)';
@@ -6013,11 +6403,14 @@ function render() {
     drawQuestNpc();
     drawQuestNpc2();
     drawRollNpc();
+    drawAdmirals();
     drawNpc();
     drawPirates();
     drawDuneWarriors();
     drawBoss();
     drawRemoteWindmills();
+    drawRemoteShips();
+    drawShipWakes();
     drawRemotePlayers();
     drawMeteors();
     drawSharkBites();
@@ -6041,9 +6434,9 @@ function render() {
     drawRollDialog();
     drawStatsWindow();
     drawEatConfirm();
+    drawBagEatConfirm();
     drawAdminConsole();
     drawCompass();
-    drawToast();
   } else {
     ctx.fillStyle = '#0a1a3a';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
