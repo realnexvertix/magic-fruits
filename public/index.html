@@ -108,6 +108,7 @@ const remoteBeams = [];
 const remoteSlashes = [];
 const remoteLightBeams = [];
 const remoteLightTrails = [];
+const remoteWindmills = new Map();
 const sharedDroppedFruits = new Map();
 
 function updateMoneyUi() { document.getElementById('moneyCount').textContent = player.money; }
@@ -310,6 +311,9 @@ function applySave(d) {
     boss.dead = true;
     boss.deathTimer = 0;
   }
+  player.windmillActive = false;
+  player.windmillAngle = 0;
+  player.windmillSavedRadius = player.radius;
   camera.x = player.x - canvas.width / 2;
   camera.y = player.y - canvas.height / 2;
 }
@@ -427,6 +431,7 @@ function connectWebSocket() {
     wsConnected = false;
     ws = null;
     remotePlayers.clear();
+    remoteWindmills.clear();
     if (currentUser) setTimeout(connectWebSocket, 3000);
   };
   ws.onerror = () => {};
@@ -454,8 +459,19 @@ function handleWsMessage(msg) {
     wsConnected = true;
     myNetColor = msg.you && msg.you.c ? msg.you.c : '#ffb300';
     remotePlayers.clear();
+    remoteWindmills.clear();
     if (Array.isArray(msg.players)) {
       for (const p of msg.players) remotePlayers.set(p.u, mkRemote(p));
+    }
+    if (Array.isArray(msg.windmills)) {
+      for (const w of msg.windmills) {
+        remoteWindmills.set(w.u, {
+          u: w.u, x: w.x, y: w.y,
+          targetX: w.x, targetY: w.y,
+          angle: w.angle || 0,
+          color: w.color || '#8a6a4a'
+        });
+      }
     }
     syncPositionNow();
     showToast('🌐 Подключено к серверу (' + remotePlayers.size + ' онлайн)');
@@ -472,6 +488,7 @@ function handleWsMessage(msg) {
   }
   if (msg.type === 'leave') {
     if (remotePlayers.has(msg.u)) remotePlayers.delete(msg.u);
+    if (remoteWindmills.has(msg.u)) remoteWindmills.delete(msg.u);
     return;
   }
   if (msg.type === 'pos') {
@@ -497,13 +514,32 @@ function handleWsMessage(msg) {
     spawnRemoteAttack(msg);
     return;
   }
+  if (msg.type === 'windmill_enter') {
+    remoteWindmills.set(msg.u, {
+      u: msg.u, x: msg.x, y: msg.y,
+      targetX: msg.x, targetY: msg.y,
+      angle: 0,
+      color: msg.color || '#8a6a4a'
+    });
+    showToast('🌀 ' + msg.u + ' стал мельницей');
+    return;
+  }
+  if (msg.type === 'windmill_exit') {
+    remoteWindmills.delete(msg.u);
+    return;
+  }
+  if (msg.type === 'windmill_move') {
+    const rw = remoteWindmills.get(msg.u);
+    if (rw) { rw.targetX = msg.x; rw.targetY = msg.y; }
+    return;
+  }
   if (msg.type === 'fruit_dropped') {
     sharedDroppedFruits.set(msg.fruitId, {
       id: msg.fruitId,
       x: msg.x, y: msg.y,
       name: msg.name, color: msg.color,
       bobPhase: Math.random() * 6,
-      glow: msg.name === 'Акула' || msg.name === 'Контроль' || msg.name === 'Свет',
+      glow: msg.name === 'Акула' || msg.name === 'Контроль' || msg.name === 'Свет' || msg.name === 'Ветряная мельница',
       radius: 20,
       from: msg.from
     });
@@ -547,6 +583,8 @@ function handleWsMessage(msg) {
     player.y = msg.y;
     player.hp = msg.hp || getMaxHp();
     player.invulnUntil = performance.now() + 1500;
+    player.windmillActive = false;
+    player.radius = player.windmillSavedRadius || 25;
     showToast('🛡 Респавн');
     return;
   }
@@ -735,12 +773,24 @@ function sendFruitPicked(fruitId) {
   } catch (e) {}
 }
 
+// ==================== МУЛЬТИПЛЕЕР: МЕЛЬНИЦА ====================
+function sendWindmillEnter(x, y, color) {
+  if (!ws || ws.readyState !== 1) return;
+  try {
+    ws.send(JSON.stringify({ type: 'windmill_enter', x: Math.round(x), y: Math.round(y), color }));
+  } catch (e) {}
+}
+function sendWindmillExit() {
+  if (!ws || ws.readyState !== 1) return;
+  try { ws.send(JSON.stringify({ type: 'windmill_exit' })); } catch (e) {}
+}
+
 // ==================== МИР ====================
 const camera = { x: 0, y: 0 };
 // Пиратский остров
 const ISLAND = { x: -1200, y: -900, width: 2400, height: 1800 };
 const BEACH_WIDTH = 120;
-// ПУСТЫННЫЙ ОСТРОВ — РАССТОЯНИЕ ×4 (было 1800, -1400 → стало 7200, -5600)
+// Пустынный остров
 const DESERT = { x: 7200, y: -5600, width: 1800, height: 1400 };
 const DESERT_BEACH = 100;
 
@@ -821,6 +871,9 @@ const LIGHT_ABILITIES = [
   { id: 'light_spear', name: 'Копьё света', key: 'X', requiredMasteryLevel: 7, cooldown: 15, stamina: 45, damage: 15, description: 'Копьё · 15 урона · кд 15с' },
   { id: 'light_sky', name: 'Луч с небес', key: 'C', requiredMasteryLevel: 15, cooldown: 20, stamina: 65, damage: 25, description: 'Столб света · 25 урона · кд 20с' }
 ];
+const WINDMILL_ABILITIES = [
+  { id: 'windmill_transform', name: 'Трансформация мельницы', key: 'Z', requiredMasteryLevel: 0, cooldown: 0, stamina: 0, damage: 0, description: 'Стань мельницей · Z — отмена', isWindmill: true }
+];
 
 function getAbilitiesFor(name) {
   if (name === 'Огонь') return FIRE_ABILITIES;
@@ -828,10 +881,11 @@ function getAbilitiesFor(name) {
   if (name === 'Акула') return SHARK_ABILITIES;
   if (name === 'Контроль') return CONTROL_ABILITIES;
   if (name === 'Свет') return LIGHT_ABILITIES;
+  if (name === 'Ветряная мельница') return WINDMILL_ABILITIES;
   return [];
 }
 
-const FRUIT_RARITY = { 'Огонь': 'common', 'Лёд': 'uncommon', 'Акула': 'legendary', 'Контроль': 'mythic', 'Свет': 'legendary' };
+const FRUIT_RARITY = { 'Огонь': 'common', 'Лёд': 'uncommon', 'Акула': 'legendary', 'Контроль': 'mythic', 'Свет': 'legendary', 'Ветряная мельница': 'admin' };
 function getFruitRarity(name) { return FRUIT_RARITY[name] || 'common'; }
 function getRarityLabel(rar) {
   if (rar === 'common') return '⚪ Обычный';
@@ -839,6 +893,7 @@ function getRarityLabel(rar) {
   if (rar === 'rare') return '🔵 Редкий';
   if (rar === 'legendary') return '🟡 Легендарный';
   if (rar === 'mythic') return '🔴 Мифический';
+  if (rar === 'admin') return '⚙️ Админский';
   return '⚪ Обычный';
 }
 
@@ -943,7 +998,10 @@ const player = {
   controlLmbCooldown: 0,
   flying: false,
   flightDir: { x: 1, y: 0 },
-  flightKeyDown: false
+  flightKeyDown: false,
+  windmillActive: false,
+  windmillAngle: 0,
+  windmillSavedRadius: 25
 };
 const TRANSFORM_DURATION = 90000;
 const HP_REGEN_PER_TICK = 0.02 / 1.7;
@@ -962,6 +1020,14 @@ const DUNE_QUEST_MONEY = 450;
 const LIGHT_FLIGHT_SPEED_MULT = 7;
 const LIGHT_FLIGHT_STAMINA_DRAIN = 6;
 const LIGHT_FLIGHT_TRAIL_LIFE = 40;
+
+// ==================== ВЕТРЯНАЯ МЕЛЬНИЦА (константы) ====================
+const WINDMILL_RADIUS = 60;
+const WINDMILL_BLADE_COUNT = 4;
+const WINDMILL_BLADE_LENGTH = 90;
+const WINDMILL_BLADE_WIDTH = 14;
+const WINDMILL_ROTATION_SPEED = 0.02;
+const WINDMILL_TOWER_HEIGHT = 70;
 
 // ==================== КОНТРОЛЬ ====================
 let controlZone = null;
@@ -1177,8 +1243,55 @@ function adminSubmit() {
   const parts = cmd.split(/\s+/);
   const command = parts[0].toLowerCase();
 
-  if (command === 'g' && parts.length === 2) {
-    const arg = parts[1].toLowerCase();
+  if (command === 'g' && parts.length >= 2) {
+    // Сначала проверяем "g level X имя" и "g mastery N фрукт имя"
+    if (parts[1].toLowerCase() === 'level' && parts.length >= 4) {
+      const lvl = parseInt(parts[2], 10);
+      const targetName = parts.slice(3).join(' ');
+      if (!Number.isFinite(lvl) || lvl < 1 || lvl > 20) {
+        adminLog('❌ Уровень должен быть 1-20', '#ff5555');
+        return;
+      }
+      if (!targetName) {
+        adminLog('❌ Укажи имя игрока: g level 4 Test1', '#ff5555');
+        return;
+      }
+      sendAdminSetLevel(targetName, lvl);
+      adminLog('📤 Запрос: ' + targetName + ' → уровень ' + lvl, '#aaddff');
+      return;
+    }
+    if (parts[1].toLowerCase() === 'mastery' && parts.length >= 5) {
+      const masteryLvl = parseInt(parts[2], 10);
+      const fruitArg = parts[3].toLowerCase();
+      const targetName = parts.slice(4).join(' ');
+      if (!Number.isFinite(masteryLvl) || masteryLvl < 0 || masteryLvl > 100) {
+        adminLog('❌ Mastery должен быть 0-100', '#ff5555');
+        return;
+      }
+      const fruitMap = {
+        'огонь': 'Огонь', 'огня': 'Огонь', 'fire': 'Огонь',
+        'лёд': 'Лёд', 'лед': 'Лёд', 'льда': 'Лёд', 'ice': 'Лёд',
+        'акула': 'Акула', 'акулы': 'Акула', 'shark': 'Акула',
+        'контроль': 'Контроль', 'контроля': 'Контроль', 'control': 'Контроль',
+        'свет': 'Свет', 'света': 'Свет', 'light': 'Свет',
+        'мельница': 'Ветряная мельница', 'мельницы': 'Ветряная мельница', 'windmill': 'Ветряная мельница'
+      };
+      const fruitName = fruitMap[fruitArg];
+      if (!fruitName) {
+        adminLog('❌ Фрукт не найден: ' + fruitArg, '#ff5555');
+        return;
+      }
+      if (!targetName) {
+        adminLog('❌ Укажи имя: g mastery 5 свет Test1', '#ff5555');
+        return;
+      }
+      sendAdminSetMastery(targetName, fruitName, masteryLvl);
+      adminLog('📤 Запрос: ' + targetName + ' ' + fruitName + ' → mastery ' + masteryLvl, '#aaddff');
+      return;
+    }
+
+    // Иначе — выдача фрукта. Собираем всю фразу, чтобы "ветряная мельница" работало
+    const argAll = parts.slice(1).join(' ').toLowerCase();
     const fruitMap = {
       'огонь':  { name: 'Огонь', color: '#ff6600' },
       'огня':   { name: 'Огонь', color: '#ff6600' },
@@ -1195,61 +1308,21 @@ function adminSubmit() {
       'control': { name: 'Контроль', color: '#7c5cff' },
       'свет':   { name: 'Свет', color: '#fff6b0' },
       'света':  { name: 'Свет', color: '#fff6b0' },
-      'light':  { name: 'Свет', color: '#fff6b0' }
+      'light':  { name: 'Свет', color: '#fff6b0' },
+      'ветряная мельница': { name: 'Ветряная мельница', color: '#8a6a4a' },
+      'ветряной мельницы': { name: 'Ветряная мельница', color: '#8a6a4a' },
+      'мельница': { name: 'Ветряная мельница', color: '#8a6a4a' },
+      'мельницы': { name: 'Ветряная мельница', color: '#8a6a4a' },
+      'windmill': { name: 'Ветряная мельница', color: '#8a6a4a' }
     };
-    const fruit = fruitMap[arg];
+    const fruit = fruitMap[argAll];
     if (!fruit) {
-      adminLog('❌ Фрукт не найден: ' + arg, '#ff5555');
-      adminLog('Доступно: огонь / лёд / акула / контроль / свет', '#ffdd66');
+      adminLog('❌ Фрукт не найден: ' + argAll, '#ff5555');
+      adminLog('Доступно: огонь / лёд / акула / контроль / свет / ветряная мельница', '#ffdd66');
       return;
     }
     giveFruitToSlot5(fruit.name, fruit.color);
     adminLog('🍎 Выдан фрукт: ' + fruit.name + ' (слот 5)', '#66ff66');
-    return;
-  }
-
-  if (command === 'g' && parts.length >= 4 && parts[1].toLowerCase() === 'level') {
-    const lvl = parseInt(parts[2], 10);
-    const targetName = parts.slice(3).join(' ');
-    if (!Number.isFinite(lvl) || lvl < 1 || lvl > 20) {
-      adminLog('❌ Уровень должен быть 1-20', '#ff5555');
-      return;
-    }
-    if (!targetName) {
-      adminLog('❌ Укажи имя игрока: g level 4 Test1', '#ff5555');
-      return;
-    }
-    sendAdminSetLevel(targetName, lvl);
-    adminLog('📤 Запрос: ' + targetName + ' → уровень ' + lvl, '#aaddff');
-    return;
-  }
-
-  if (command === 'g' && parts.length >= 5 && parts[1].toLowerCase() === 'mastery') {
-    const masteryLvl = parseInt(parts[2], 10);
-    const fruitArg = parts[3].toLowerCase();
-    const targetName = parts.slice(4).join(' ');
-    if (!Number.isFinite(masteryLvl) || masteryLvl < 0 || masteryLvl > 100) {
-      adminLog('❌ Mastery должен быть 0-100', '#ff5555');
-      return;
-    }
-    const fruitMap = {
-      'огонь': 'Огонь', 'огня': 'Огонь', 'fire': 'Огонь',
-      'лёд': 'Лёд', 'лед': 'Лёд', 'льда': 'Лёд', 'ice': 'Лёд',
-      'акула': 'Акула', 'акулы': 'Акула', 'shark': 'Акула',
-      'контроль': 'Контроль', 'контроля': 'Контроль', 'control': 'Контроль',
-      'свет': 'Свет', 'света': 'Свет', 'light': 'Свет'
-    };
-    const fruitName = fruitMap[fruitArg];
-    if (!fruitName) {
-      adminLog('❌ Фрукт не найден: ' + fruitArg, '#ff5555');
-      return;
-    }
-    if (!targetName) {
-      adminLog('❌ Укажи имя: g mastery 5 свет Test1', '#ff5555');
-      return;
-    }
-    sendAdminSetMastery(targetName, fruitName, masteryLvl);
-    adminLog('📤 Запрос: ' + targetName + ' ' + fruitName + ' → mastery ' + masteryLvl, '#aaddff');
     return;
   }
 
@@ -1273,7 +1346,6 @@ function canBeAt(x, y, r) {
       const ny = Math.max(ob.y, Math.min(y, ob.y + ob.h));
       if ((x - nx) ** 2 + (y - ny) ** 2 < r * r) return false;
     } else if (ob.type === 'pyramid') {
-      // Пирамида = bounding box
       const left = ob.x - ob.baseW / 2;
       const right = ob.x + ob.baseW / 2;
       const top = ob.y;
@@ -1316,7 +1388,7 @@ function tryMoveDesert(ent, dx, dy) {
 
 // ==================== СЪЕСТЬ ФРУКТ ====================
 function consumeFruit(item) {
-  const powers = ['Огонь', 'Лёд', 'Акула', 'Контроль', 'Свет'];
+  const powers = ['Огонь', 'Лёд', 'Акула', 'Контроль', 'Свет', 'Ветряная мельница'];
   if (powers.includes(item.name)) {
     const oldPower = inventory[POWER_SLOT_INDEX];
     if (oldPower && oldPower.type === 'power') {
@@ -1342,6 +1414,12 @@ function consumeFruit(item) {
     player.cooldowns = {};
     player.waterFormUntil = 0;
     player.flying = false;
+    // Сброс мельницы при смене фрукта
+    if (player.windmillActive) {
+      player.windmillActive = false;
+      player.radius = player.windmillSavedRadius || 25;
+      sendWindmillExit();
+    }
     if (aimingAbility) aimingAbility = null;
     saveNow();
     return true;
@@ -1381,6 +1459,7 @@ function punchFist() {
   if (heldSlot === -1) return;
   const item = inventory[heldSlot];
   if (!item || item.type !== 'fists') return;
+  if (player.windmillActive) return;
   if (player.punchCooldown > 0) return;
   if (player.stamina < 3) return;
   player.punchCooldown = 0.28;
@@ -1425,6 +1504,7 @@ function punchFist() {
 function controlLmbAttack() {
   const held = getHeldPower();
   if (!held || held.power.name !== 'Контроль') return;
+  if (player.windmillActive) return;
   if (player.controlLmbCooldown > 0) return;
 
   let dx = player.lookX, dy = player.lookY;
@@ -1508,7 +1588,7 @@ function distToSegment(px, py, x1, y1, x2, y2) {
   return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
 }
 
-// ==================== ТРАНСФОРМАЦИЯ ====================
+// ==================== ТРАНСФОРМАЦИЯ АКУЛЫ ====================
 function activateWaterTransform() {
   if (waterMeter < WATER_METER_MAX) { showToast(`Нужна полная шкала воды! (${Math.floor(waterMeter)}/100)`); return; }
   waterMeter = 0;
@@ -1539,6 +1619,54 @@ function stopLightFlight() {
   player.flying = false;
 }
 
+// ==================== ТРАНСФОРМАЦИЯ МЕЛЬНИЦЫ (Z) ====================
+function toggleWindmill() {
+  const held = getHeldPower();
+  if (!held || held.power.name !== 'Ветряная мельница') {
+    showToast('Возьми Ветряную мельницу в руки!');
+    return;
+  }
+  if (player.windmillActive) {
+    // Отмена
+    player.windmillActive = false;
+    player.radius = player.windmillSavedRadius || 25;
+    player.lookX = 0; player.lookY = 0;
+    sendWindmillExit();
+    for (let i = 0; i < 30; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const s = 2 + Math.random() * 5;
+      particles.push({
+        x: player.x, y: player.y,
+        vx: Math.cos(a) * s, vy: Math.sin(a) * s - 1,
+        life: 30, maxLife: 40,
+        radius: 3 + Math.random() * 4,
+        color: Math.random() < 0.5 ? '#c8a878' : '#8a6a4a'
+      });
+    }
+    showToast('🌀 Мельница отменена');
+    return;
+  }
+  // Активация
+  if (player.flying) player.flying = false;
+  if (player.windmillActive) return;
+  player.windmillSavedRadius = player.radius;
+  player.windmillActive = true;
+  player.radius = WINDMILL_RADIUS;
+  sendWindmillEnter(player.x, player.y, '#8a6a4a');
+  for (let i = 0; i < 40; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const s = 2 + Math.random() * 6;
+    particles.push({
+      x: player.x, y: player.y,
+      vx: Math.cos(a) * s, vy: Math.sin(a) * s - 1,
+      life: 40, maxLife: 60,
+      radius: 4 + Math.random() * 5,
+      color: Math.random() < 0.4 ? '#ffdd88' : (Math.random() < 0.7 ? '#c8a878' : '#8a6a4a')
+    });
+  }
+  showToast('🌀 Ты стал ветряной мельницей! Z — отмена');
+}
+
 // ==================== ЗАПУСК СПОСОБНОСТИ ====================
 function startAbility(powerName, abilityId) {
   const held = getHeldPower();
@@ -1552,12 +1680,14 @@ function startAbility(powerName, abilityId) {
   }
   if (ab.usesWaterMeter) { activateWaterTransform(); return; }
   if (abilityId === 'light_flight') { return; }
+  if (abilityId === 'windmill_transform') { toggleWindmill(); return; }
   if (ab.zoneOnly && !isInControlZone(player.x, player.y)) {
     showToast('❌ Только внутри зоны контроля!');
     return;
   }
   if ((player.cooldowns[abilityId] || 0) > 0) return;
   if (player.stamina < ab.stamina) { showToast('Мало стамины!'); return; }
+  if (player.windmillActive) { showToast('❌ Ты — мельница, способности недоступны'); return; }
   if (abilityId === 'control_zone') { activateControlZone(); return; }
   if (abilityId === 'control_lasers') { activateControlLasers(); return; }
   if (abilityId === 'light_beam') { activateLightBeam(); return; }
@@ -1965,10 +2095,21 @@ function damagePlayer(dmg) {
   player.invulnUntil = performance.now() + 400;
   player.lastDamageTime = performance.now();
   damageNumbers.push({ x: player.x, y: player.y - player.radius, vy: -1.6, life: 60, maxLife: 60, text: '-' + dmg, color: '#ff4444' });
-  if (player.hp <= 0) { showToast('Ты погиб!'); player.hp = getMaxHp(); player.x = 0; player.y = 0; player.flying = false; }
+  if (player.hp <= 0) {
+    showToast('Ты погиб!');
+    player.hp = getMaxHp();
+    player.x = 0;
+    player.y = 0;
+    player.flying = false;
+    if (player.windmillActive) {
+      player.windmillActive = false;
+      player.radius = player.windmillSavedRadius || 25;
+      sendWindmillExit();
+    }
+  }
 }// ==================== МОРСКОЙ УРОН ====================
 function applySeaDamage() {
-  if (!isOnAnyLand(player.x, player.y) && !isInWaterForm() && !isFlying()) {
+  if (!isOnAnyLand(player.x, player.y) && !isInWaterForm() && !isFlying() && !player.windmillActive) {
     player.hp = Math.max(0, player.hp - 30);
     player.lastDamageTime = performance.now();
     damageNumbers.push({ x: player.x, y: player.y - player.radius, vy: -1.6, life: 60, maxLife: 60, text: '-30 💧', color: '#44aaff' });
@@ -1977,7 +2118,18 @@ function applySeaDamage() {
       const s = 2 + Math.random() * 4;
       particles.push({ x: player.x, y: player.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 1, life: 30, maxLife: 30, radius: 3, color: '#4fd4ff' });
     }
-    if (player.hp <= 0) { showToast('🌊 Ты утонул!'); player.hp = getMaxHp(); player.x = 0; player.y = 0; player.flying = false; }
+    if (player.hp <= 0) {
+      showToast('🌊 Ты утонул!');
+      player.hp = getMaxHp();
+      player.x = 0;
+      player.y = 0;
+      player.flying = false;
+      if (player.windmillActive) {
+        player.windmillActive = false;
+        player.radius = player.windmillSavedRadius || 25;
+        sendWindmillExit();
+      }
+    }
   }
 }
 
@@ -2022,6 +2174,12 @@ canvas.addEventListener('click', (e) => {
       contextMenu = null;
       const held = getHeldPower();
       sendHeldChange(held ? held.power.name : null);
+      // Если сменили фрукт при активной мельнице — отменить её
+      if (player.windmillActive && (!held || held.power.name !== 'Ветряная мельница')) {
+        player.windmillActive = false;
+        player.radius = player.windmillSavedRadius || 25;
+        sendWindmillExit();
+      }
       return;
     }
     heldSlot = (heldSlot === si) ? -1 : si;
@@ -2126,7 +2284,6 @@ function handleQuestDialogClick(mx, my) {
   if (mx >= b.close.x && mx <= b.close.x + b.close.w && my >= b.close.y && my <= b.close.y + b.close.h) { closeQuestDialog(); return; }
   if (mx >= b.takeQuest.x && mx <= b.takeQuest.x + b.takeQuest.w && my >= b.takeQuest.y && my <= b.takeQuest.y + b.takeQuest.h) {
     if (quest.active) { showToast('Квест уже активен!'); return; }
-    // ЗАМЕНА КВЕСТА: если есть другой — сбрасываем
     if (questBoss.active || questDune.active) {
       clearAllQuests();
       showToast('⚠️ Предыдущий квест отменён');
@@ -2347,7 +2504,7 @@ function executeMenuAction(action) {
       id: fruitId, x: fx, y: fy,
       name: item.name, color: item.color,
       bobPhase: Math.random() * 6,
-      glow: item.name === 'Акула' || item.name === 'Контроль' || item.name === 'Свет',
+      glow: item.name === 'Акула' || item.name === 'Контроль' || item.name === 'Свет' || item.name === 'Ветряная мельница',
       radius: 20,
       from: currentUser ? currentUser.username : 'me'
     });
@@ -2456,7 +2613,7 @@ function executeBagMenuAction(action) {
       id: fruitId, x: fx, y: fy,
       name: item.name, color: item.color,
       bobPhase: Math.random() * 6,
-      glow: item.name === 'Акула' || item.name === 'Контроль' || item.name === 'Свет',
+      glow: item.name === 'Акула' || item.name === 'Контроль' || item.name === 'Свет' || item.name === 'Ветряная мельница',
       radius: 20,
       from: currentUser ? currentUser.username : 'me'
     });
@@ -2574,6 +2731,12 @@ window.addEventListener('keydown', (e) => {
     contextMenu = null;
     const heldNow = getHeldPower();
     sendHeldChange(heldNow ? heldNow.power.name : null);
+    // Отмена мельницы при смене фрукта
+    if (player.windmillActive && (!heldNow || heldNow.power.name !== 'Ветряная мельница')) {
+      player.windmillActive = false;
+      player.radius = player.windmillSavedRadius || 25;
+      sendWindmillExit();
+    }
   }
 });
 window.addEventListener('keyup', (e) => {
@@ -2617,6 +2780,12 @@ function update() {
     if (rp.hitFlash > 0) rp.hitFlash--;
     if (rp.punchAnim > 0) rp.punchAnim = Math.max(0, rp.punchAnim - 0.08);
   }
+  // Плавное перемещение чужих мельниц
+  for (const rw of remoteWindmills.values()) {
+    rw.x += (rw.targetX - rw.x) * 0.25;
+    rw.y += (rw.targetY - rw.y) * 0.25;
+    rw.angle += WINDMILL_ROTATION_SPEED;
+  }
 
   const now = performance.now();
   const blocked = bagOpen || statsOpen || questDialogOpen || questDialog2Open || adminOpen || rollDialogOpen || !!eatConfirm;
@@ -2627,21 +2796,29 @@ function update() {
 
   if (now > player.seaDamageTimer && !blocked) { player.seaDamageTimer = now + 1000; applySeaDamage(); }
 
-  // ============ ПОЛЁТ СВЕТА (HOLD F) — ФИКС! ============
-  // КД проверяется ТОЛЬКО при старте. Если уже летим — кд не блокирует продолжение.
+  // ============ ВЕТРЯНАЯ МЕЛЬНИЦА: вращение лопасти ============
+  if (player.windmillActive) {
+    player.windmillAngle += WINDMILL_ROTATION_SPEED;
+    // Лопасть сама по себе крутится, но игрок не двигается — блокируем всё движение
+    player.flying = false;
+    if (now > player.seaDamageTimer + 500) {
+      // если стоит в море — урон всё равно идёт (не отключаем), но это отдельная логика, оставим как есть
+    }
+  }
+
+  // ============ ПОЛЁТ СВЕТА (HOLD F) ============
   {
     const heldNow = getHeldPower();
     if (player.flying) {
-      // Уже летим — проверяем только условия продолжения
       const stillOk = player.flightKeyDown
         && heldNow
         && heldNow.power.name === 'Свет'
         && player.stamina > 0
-        && !blocked;
+        && !blocked
+        && !player.windmillActive;
       if (!stillOk) {
         player.flying = false;
       } else {
-        // Летим непрерывно
         let dx = 0, dy = 0;
         if (keys['w'] || keys['arrowup'] || keys['ц']) dy -= 1;
         if (keys['s'] || keys['arrowdown'] || keys['ы']) dy += 1;
@@ -2677,7 +2854,6 @@ function update() {
         }
       }
     } else {
-      // Пытаемся стартовать
       const canStart = player.flightKeyDown
         && heldNow
         && heldNow.power.name === 'Свет'
@@ -2685,7 +2861,8 @@ function update() {
         && player.stamina > 0
         && (player.cooldowns['light_flight'] || 0) <= 0
         && !blocked
-        && !aimingAbility;
+        && !aimingAbility
+        && !player.windmillActive;
       if (canStart) {
         player.flying = true;
         player.cooldowns['light_flight'] = 10;
@@ -2706,8 +2883,8 @@ function update() {
     }
   }
 
-  // Обычное движение
-  if (!blocked && !aimingAbility && !player.flying) {
+  // ============ ОБЫЧНОЕ ДВИЖЕНИЕ (заблокировано если мельница) ============
+  if (!player.windmillActive && !blocked && !aimingAbility && !player.flying) {
     let dx = 0, dy = 0;
     if (keys['w'] || keys['arrowup'] || keys['ц']) dy -= 1;
     if (keys['s'] || keys['arrowdown'] || keys['ы']) dy += 1;
@@ -2717,7 +2894,7 @@ function update() {
     tryMoveWithZone(player, dx * spd, dy * spd);
     if (dx || dy) { player.lookX = dx; player.lookY = dy; }
     player.stamina = Math.min(getMaxStamina(), player.stamina + STAMINA_REGEN_PER_TICK);
-  } else if (!player.flying) {
+  } else if (!player.flying && !player.windmillActive) {
     player.stamina = Math.min(getMaxStamina(), player.stamina + STAMINA_REGEN_PER_TICK);
   }
 
@@ -3113,7 +3290,7 @@ function update() {
     if (m.impactDone && m.progress > m.duration + 40) controlMeteors.splice(i, 1);
   }
 
-  // Контроль: лучи и Луч с небес
+  // Контроль: лучи
   for (let i = controlBeams.length - 1; i >= 0; i--) {
     const B = controlBeams[i];
     if (now > B.until) { controlBeams.splice(i, 1); continue; }
@@ -3212,7 +3389,7 @@ function update() {
     if (dist < pir.radius + player.radius + 8 && now - pir.lastAttackTime > PIRATE_ATTACK_INTERVAL) { pir.lastAttackTime = now; damagePlayer(PIRATE_DAMAGE); }
   }
 
-  // ПУСТЫННЫЕ ВОИНЫ — tryMoveDesert (не уходят с острова)
+  // ПУСТЫННЫЕ ВОИНЫ
   for (let i = duneWarriors.length - 1; i >= 0; i--) {
     const dw = duneWarriors[i];
     if (dw.dead) { if (dw.deathTimer > 0) dw.deathTimer--; if (now >= dw.respawnAt) { const idx = dw.spawnIdx; duneWarriors.splice(i, 1); spawnDuneWarrior(idx); } continue; }
@@ -3348,7 +3525,7 @@ function drawWorld() {
   ctx.strokeStyle = '#c9a86a'; ctx.lineWidth = 4;
   ctx.strokeRect(dsx, dsy, DESERT.width, DESERT.height);
 
-  if (!isOnAnyLand(player.x, player.y)) {
+  if (!isOnAnyLand(player.x, player.y) && !player.windmillActive) {
     const pulse = 0.3 + Math.sin(performance.now() * 0.008) * 0.2;
     ctx.strokeStyle = `rgba(80, 200, 255, ${pulse})`;
     ctx.lineWidth = 8;
@@ -4293,6 +4470,180 @@ function drawBoss() {
   ctx.globalAlpha = 1;
 }
 
+// ==================== ОТРИСОВКА МЕЛЬНИЦЫ ====================
+function drawWindmillAt(x, y, angle, radius, isPlayer) {
+  // Тень
+  ctx.beginPath();
+  ctx.ellipse(x, y + radius * 0.95, radius * 0.9, 12, 0, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.fill();
+
+  // Основание — каменный цилиндр
+  const baseW = radius * 1.3;
+  const baseH = radius * 1.6;
+  const baseX = x - baseW / 2;
+  const baseY = y - baseH * 0.5;
+
+  const bg = ctx.createLinearGradient(baseX, baseY, baseX + baseW, baseY + baseH);
+  bg.addColorStop(0, '#c9b088');
+  bg.addColorStop(0.5, '#a88a5c');
+  bg.addColorStop(1, '#7a5f38');
+  ctx.fillStyle = bg;
+  ctx.beginPath();
+  ctx.moveTo(baseX + baseW * 0.1, baseY + baseH);
+  ctx.lineTo(baseX + baseW * 0.15, baseY);
+  ctx.lineTo(baseX + baseW * 0.85, baseY);
+  ctx.lineTo(baseX + baseW * 0.9, baseY + baseH);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.strokeStyle = '#5a3a1a';
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  // Каменные линии
+  ctx.strokeStyle = 'rgba(90, 60, 30, 0.5)';
+  ctx.lineWidth = 1.5;
+  for (let i = 1; i < 5; i++) {
+    const t = i / 5;
+    const yy = baseY + baseH * t;
+    const lx = baseX + baseW * (0.1 + 0.05 * (1 - t));
+    const rx = baseX + baseW * (0.9 - 0.05 * (1 - t));
+    ctx.beginPath();
+    ctx.moveTo(lx, yy);
+    ctx.lineTo(rx, yy);
+    ctx.stroke();
+  }
+
+  // Верхняя крышка
+  ctx.fillStyle = '#7a4a2a';
+  ctx.beginPath();
+  ctx.ellipse(x, baseY, baseW * 0.42, baseW * 0.14, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#4a2a10';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Дверь
+  ctx.fillStyle = '#4a2a10';
+  ctx.beginPath();
+  ctx.moveTo(x - radius * 0.25, y + radius * 0.95);
+  ctx.lineTo(x - radius * 0.25, y + radius * 0.2);
+  ctx.quadraticCurveTo(x, y - radius * 0.15, x + radius * 0.25, y + radius * 0.2);
+  ctx.lineTo(x + radius * 0.25, y + radius * 0.95);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = '#2a1508';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Окно
+  ctx.fillStyle = '#5a8aa0';
+  ctx.beginPath();
+  ctx.arc(x, y - radius * 0.55, radius * 0.2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#3a6a80';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x - radius * 0.2, y - radius * 0.55);
+  ctx.lineTo(x + radius * 0.2, y - radius * 0.55);
+  ctx.moveTo(x, y - radius * 0.75);
+  ctx.lineTo(x, y - radius * 0.35);
+  ctx.stroke();
+
+  // Ось лопасти
+  const hubX = x;
+  const hubY = y - radius * 1.1;
+
+  // Лопасти (4 шт)
+  ctx.save();
+  ctx.translate(hubX, hubY);
+  ctx.rotate(angle);
+  for (let i = 0; i < WINDMILL_BLADE_COUNT; i++) {
+    ctx.save();
+    ctx.rotate(i * (Math.PI * 2 / WINDMILL_BLADE_COUNT));
+    const bl = WINDMILL_BLADE_LENGTH * (radius / WINDMILL_RADIUS);
+    const bw = WINDMILL_BLADE_WIDTH * (radius / WINDMILL_RADIUS);
+    // Стержень
+    ctx.fillStyle = '#8a6a4a';
+    ctx.fillRect(0, -bw / 3, bl * 0.3, bw * 0.66);
+    ctx.strokeStyle = '#5a3a1a';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(0, -bw / 3, bl * 0.3, bw * 0.66);
+    // Парус
+    const sg = ctx.createLinearGradient(bl * 0.3, -bw, bl * 0.3, bw);
+    sg.addColorStop(0, '#f5e6c8');
+    sg.addColorStop(0.5, '#e8d4a8');
+    sg.addColorStop(1, '#c8a878');
+    ctx.fillStyle = sg;
+    ctx.beginPath();
+    ctx.moveTo(bl * 0.3, -bw * 0.4);
+    ctx.lineTo(bl, -bw * 0.9);
+    ctx.lineTo(bl, bw * 0.9);
+    ctx.lineTo(bl * 0.3, bw * 0.4);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#8a6a4a';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    // Полоски на парусе
+    ctx.strokeStyle = 'rgba(138, 106, 74, 0.5)';
+    ctx.lineWidth = 1;
+    for (let k = 1; k < 4; k++) {
+      const t = k / 4;
+      const lx = bl * 0.3 + (bl - bl * 0.3) * t;
+      const top = -bw * (0.4 + 0.5 * t);
+      const bot = bw * (0.4 + 0.5 * t);
+      ctx.beginPath();
+      ctx.moveTo(lx, top);
+      ctx.lineTo(lx, bot);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+  ctx.restore();
+
+  // Центральная втулка
+  ctx.beginPath();
+  ctx.arc(hubX, hubY, radius * 0.15, 0, Math.PI * 2);
+  const hubG = ctx.createRadialGradient(hubX - 3, hubY - 3, 2, hubX, hubY, radius * 0.15);
+  hubG.addColorStop(0, '#e8c88a');
+  hubG.addColorStop(1, '#5a3a1a');
+  ctx.fillStyle = hubG;
+  ctx.fill();
+  ctx.strokeStyle = '#2a1508';
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+
+  // Свечение если это игрок
+  if (isPlayer) {
+    const pulse = 0.6 + Math.sin(performance.now() * 0.005) * 0.4;
+    ctx.beginPath();
+    ctx.arc(x, y, radius * 1.5, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(200, 160, 100, ${pulse * 0.5})`;
+    ctx.lineWidth = 3;
+    ctx.stroke();
+  }
+}
+
+function drawRemoteWindmills() {
+  for (const rw of remoteWindmills.values()) {
+    const x = rw.x - camera.x;
+    const y = rw.y - camera.y;
+    drawWindmillAt(x, y, rw.angle, WINDMILL_RADIUS, false);
+    // Ник над мельницей
+    ctx.font = 'bold 13px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.strokeStyle = 'black';
+    ctx.lineWidth = 3;
+    ctx.strokeText(rw.u, x, y - WINDMILL_RADIUS * 2.5);
+    ctx.fillStyle = rw.color || '#ffd700';
+    ctx.fillText(rw.u, x, y - WINDMILL_RADIUS * 2.5);
+  }
+}
+
 function drawRemotePlayers() {
   for (const rp of remotePlayers.values()) {
     const x = rp.x - camera.x;
@@ -4346,6 +4697,7 @@ function drawRemotePlayers() {
       else if (rp.held === 'Лёд') { gg.addColorStop(0, 'rgba(255,255,255,1)'); gg.addColorStop(0.4, 'rgba(180,240,255,1)'); gg.addColorStop(0.7, 'rgba(80,180,255,0.8)'); gg.addColorStop(1, 'rgba(40,100,200,0)'); }
       else if (rp.held === 'Контроль') { gg.addColorStop(0, 'rgba(255,255,255,1)'); gg.addColorStop(0.4, 'rgba(200,180,255,1)'); gg.addColorStop(0.7, 'rgba(124,92,255,0.8)'); gg.addColorStop(1, 'rgba(60,40,180,0)'); }
       else if (rp.held === 'Свет') { gg.addColorStop(0, 'rgba(255,255,255,1)'); gg.addColorStop(0.4, 'rgba(255,246,176,1)'); gg.addColorStop(0.7, 'rgba(255,220,80,0.8)'); gg.addColorStop(1, 'rgba(255,180,0,0)'); }
+      else if (rp.held === 'Ветряная мельница') { gg.addColorStop(0, 'rgba(255,255,255,1)'); gg.addColorStop(0.4, 'rgba(232,200,160,1)'); gg.addColorStop(0.7, 'rgba(138,106,74,0.85)'); gg.addColorStop(1, 'rgba(90,58,26,0)'); }
       else { gg.addColorStop(0, 'rgba(200,240,255,1)'); gg.addColorStop(0.5, 'rgba(80,180,255,0.7)'); gg.addColorStop(1, 'rgba(20,60,140,0)'); }
       ctx.beginPath(); ctx.arc(hx, hy, 16 + Math.sin(t) * 2, 0, Math.PI * 2); ctx.fillStyle = gg; ctx.fill();
     }
@@ -4585,6 +4937,23 @@ function drawPlayer() {
   const x = player.x - camera.x, y = player.y - camera.y;
   const inWater = isInWaterForm();
   const flying = player.flying;
+
+  // Если игрок — мельница, рисуем мельницу вместо игрока
+  if (player.windmillActive) {
+    drawWindmillAt(x, y, player.windmillAngle, WINDMILL_RADIUS, true);
+    if (currentUser) {
+      ctx.font = 'bold 13px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.strokeStyle = 'black';
+      ctx.lineWidth = 3;
+      ctx.strokeText(currentUser.username, x, y - WINDMILL_RADIUS * 2.5);
+      ctx.fillStyle = '#ffd700';
+      ctx.fillText(currentUser.username, x, y - WINDMILL_RADIUS * 2.5);
+    }
+    return;
+  }
+
   const t = performance.now() * 0.005;
   if (flying) {
     const fr = player.radius + 22 + Math.sin(t * 8) * 5;
@@ -4660,13 +5029,13 @@ function drawPlayer() {
 function drawHeldItem() {
   if (heldSlot === -1) return;
   const item = inventory[heldSlot];
-  if (!item || item.type === 'fists' || isInWaterForm()) return;
+  if (!item || item.type === 'fists' || isInWaterForm() || player.windmillActive) return;
   const x = player.x - camera.x + player.radius * 1.1, y = player.y - camera.y + player.radius * 0.5;
   if (item.type === 'fruit') {
     ctx.beginPath(); ctx.strokeStyle = '#b37700'; ctx.lineWidth = 4; ctx.lineCap = 'round';
     ctx.moveTo(player.x - camera.x + player.radius * 0.7, player.y - camera.y + player.radius * 0.3);
     ctx.lineTo(x - 5, y - 5); ctx.stroke();
-    drawFruitShape(x, y, 14, item.color, performance.now() * 0.002, false, item.name === 'Акула' || item.name === 'Контроль' || item.name === 'Свет');
+    drawFruitShape(x, y, 14, item.color, performance.now() * 0.002, false, item.name === 'Акула' || item.name === 'Контроль' || item.name === 'Свет' || item.name === 'Ветряная мельница');
   } else if (item.type === 'power') {
     const t = performance.now() * 0.005;
     const g = ctx.createRadialGradient(x, y, 0, x, y, 16 + Math.sin(t) * 2);
@@ -4674,6 +5043,7 @@ function drawHeldItem() {
     else if (item.name === 'Лёд') { g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.4, 'rgba(180,240,255,1)'); g.addColorStop(0.7, 'rgba(80,180,255,0.8)'); g.addColorStop(1, 'rgba(40,100,200,0)'); }
     else if (item.name === 'Контроль') { g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.4, 'rgba(200,180,255,1)'); g.addColorStop(0.7, 'rgba(124,92,255,0.8)'); g.addColorStop(1, 'rgba(60,40,180,0)'); }
     else if (item.name === 'Свет') { g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.4, 'rgba(255,246,176,1)'); g.addColorStop(0.7, 'rgba(255,220,80,0.85)'); g.addColorStop(1, 'rgba(255,180,0,0)'); }
+    else if (item.name === 'Ветряная мельница') { g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.4, 'rgba(232,200,160,1)'); g.addColorStop(0.7, 'rgba(138,106,74,0.85)'); g.addColorStop(1, 'rgba(90,58,26,0)'); }
     else { g.addColorStop(0, 'rgba(200,240,255,1)'); g.addColorStop(0.5, 'rgba(80,180,255,0.7)'); g.addColorStop(1, 'rgba(20,60,140,0)'); }
     ctx.beginPath(); ctx.arc(x, y, 16 + Math.sin(t) * 2, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
   }
@@ -4728,6 +5098,53 @@ function drawPowerIcon(cx, cy, radius, name) {
       ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.stroke();
     }
     ctx.restore();
+  } else if (name === 'Ветряная мельница') {
+    const bg = ctx.createRadialGradient(cx, cy, 1, cx, cy, radius * 1.2); bg.addColorStop(0, '#3a2a1a'); bg.addColorStop(1, '#1a0f05');
+    ctx.beginPath(); ctx.arc(cx, cy, radius * 1.1, 0, Math.PI * 2); ctx.fillStyle = bg; ctx.fill(); ctx.strokeStyle = '#c9b088'; ctx.lineWidth = 2.5; ctx.stroke();
+    // Основание мельницы
+    ctx.fillStyle = '#a88a5c';
+    ctx.beginPath();
+    ctx.moveTo(cx - radius * 0.35, cy + radius * 0.9);
+    ctx.lineTo(cx - radius * 0.28, cy + radius * 0.1);
+    ctx.lineTo(cx + radius * 0.28, cy + radius * 0.1);
+    ctx.lineTo(cx + radius * 0.35, cy + radius * 0.9);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#5a3a1a'; ctx.lineWidth = 1.5; ctx.stroke();
+    // Дверь
+    ctx.fillStyle = '#4a2a10';
+    ctx.fillRect(cx - radius * 0.1, cy + radius * 0.5, radius * 0.2, radius * 0.4);
+    // Ось + лопасти
+    const hubX = cx, hubY = cy - radius * 0.1;
+    const t = performance.now() * 0.001;
+    ctx.save();
+    ctx.translate(hubX, hubY);
+    ctx.rotate(t);
+    for (let i = 0; i < 4; i++) {
+      ctx.save();
+      ctx.rotate(i * (Math.PI / 2));
+      ctx.fillStyle = '#8a6a4a';
+      ctx.fillRect(0, -1.2, radius * 0.35, 2.4);
+      const sg = ctx.createLinearGradient(radius * 0.35, -radius * 0.25, radius * 0.35, radius * 0.25);
+      sg.addColorStop(0, '#f5e6c8'); sg.addColorStop(1, '#c8a878');
+      ctx.fillStyle = sg;
+      ctx.beginPath();
+      ctx.moveTo(radius * 0.35, -radius * 0.2);
+      ctx.lineTo(radius * 0.95, -radius * 0.45);
+      ctx.lineTo(radius * 0.95, radius * 0.45);
+      ctx.lineTo(radius * 0.35, radius * 0.2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = '#8a6a4a'; ctx.lineWidth = 1; ctx.stroke();
+      ctx.restore();
+    }
+    ctx.restore();
+    // Втулка
+    ctx.beginPath();
+    ctx.arc(hubX, hubY, radius * 0.12, 0, Math.PI * 2);
+    ctx.fillStyle = '#e8c88a';
+    ctx.fill();
+    ctx.strokeStyle = '#5a3a1a'; ctx.lineWidth = 1.5; ctx.stroke();
   }
 }
 function drawFistsIcon(cx, cy, radius) {
@@ -4753,6 +5170,7 @@ function getRarityBgColor(name) {
   if (rar === 'legendary') return 'rgba(255, 105, 180, 0.38)';
   if (rar === 'rare')      return 'rgba(150, 80, 220, 0.38)';
   if (rar === 'uncommon')  return 'rgba(80, 180, 240, 0.35)';
+  if (rar === 'admin')     return 'rgba(200, 160, 80, 0.42)';
   return 'rgba(120, 120, 120, 0.32)';
 }
 function getRarityBorderColor(name) {
@@ -4761,6 +5179,7 @@ function getRarityBorderColor(name) {
   if (rar === 'legendary') return 'rgba(255, 160, 210, 0.9)';
   if (rar === 'rare')      return 'rgba(190, 130, 255, 0.9)';
   if (rar === 'uncommon')  return 'rgba(130, 210, 255, 0.9)';
+  if (rar === 'admin')     return 'rgba(255, 215, 100, 0.95)';
   return 'rgba(200, 200, 200, 0.75)';
 }
 
@@ -4814,13 +5233,13 @@ function drawAbilityGuide() {
   const pw = 300, hh = 110, rh = 78;
   const ph = hh + abilities.length * rh + 14;
   const px = canvas.width - pw - 20, py = canvas.height - ph - 80;
-  const isFire = abilityGuide.name === 'Огонь', isIce = abilityGuide.name === 'Лёд', isCtrl = abilityGuide.name === 'Контроль', isLight = abilityGuide.name === 'Свет';
-  const themeSolid = isFire ? '#ff6600' : (isIce ? '#00c8ff' : (isCtrl ? '#7c5cff' : (isLight ? '#fff6b0' : '#4fd4ff')));
-  const theme2 = isFire ? '#ffcc66' : (isIce ? '#aaffff' : (isCtrl ? '#c8b0ff' : (isLight ? '#ffffff' : '#aaddff')));
-  const theme = isFire ? 'rgba(255,102,0,0.35)' : (isIce ? 'rgba(0,200,255,0.35)' : (isCtrl ? 'rgba(124,92,255,0.4)' : (isLight ? 'rgba(255,246,176,0.5)' : 'rgba(80,180,255,0.35)')));
+  const isFire = abilityGuide.name === 'Огонь', isIce = abilityGuide.name === 'Лёд', isCtrl = abilityGuide.name === 'Контроль', isLight = abilityGuide.name === 'Свет', isWind = abilityGuide.name === 'Ветряная мельница';
+  const themeSolid = isFire ? '#ff6600' : (isIce ? '#00c8ff' : (isCtrl ? '#7c5cff' : (isLight ? '#fff6b0' : (isWind ? '#c9b088' : '#4fd4ff'))));
+  const theme2 = isFire ? '#ffcc66' : (isIce ? '#aaffff' : (isCtrl ? '#c8b0ff' : (isLight ? '#ffffff' : (isWind ? '#f5e6c8' : '#aaddff'))));
+  const theme = isFire ? 'rgba(255,102,0,0.35)' : (isIce ? 'rgba(0,200,255,0.35)' : (isCtrl ? 'rgba(124,92,255,0.4)' : (isLight ? 'rgba(255,246,176,0.5)' : (isWind ? 'rgba(200,160,80,0.45)' : 'rgba(80,180,255,0.35)'))));
   ctx.fillStyle = 'rgba(15,10,5,0.22)'; ctx.strokeStyle = theme; ctx.lineWidth = 1.5;
   roundRect(px, py, pw, ph, 12); ctx.fill(); ctx.stroke();
-  const emoji = isFire ? '🔥' : (isIce ? '❄️' : (isCtrl ? '🌀' : (isLight ? '✨' : '🦈')));
+  const emoji = isFire ? '🔥' : (isIce ? '❄️' : (isCtrl ? '🌀' : (isLight ? '✨' : (isWind ? '🌀' : '🦈'))));
   ctx.fillStyle = theme2; ctx.font = 'bold 15px Arial'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
   ctx.fillText(`${emoji} ${abilityGuide.name}`, px + 14, py + 18);
   const power = inventory[abilityGuide.slotIndex];
@@ -4838,11 +5257,11 @@ function drawAbilityGuide() {
   const ratio = Math.min(1, myXp / needXp);
   if (ratio > 0) {
     const g = ctx.createLinearGradient(mx, by, mx, by + mh);
-    g.addColorStop(0, themeSolid); g.addColorStop(1, isFire ? '#aa3300' : (isIce ? '#0066aa' : (isCtrl ? '#3a1a8a' : (isLight ? '#c9a800' : '#0a3a6c'))));
+    g.addColorStop(0, themeSolid); g.addColorStop(1, isFire ? '#aa3300' : (isIce ? '#0066aa' : (isCtrl ? '#3a1a8a' : (isLight ? '#c9a800' : (isWind ? '#5a3a1a' : '#0a3a6c')))));
     ctx.fillStyle = g; roundRect(mx, by, mw * ratio, mh, 3); ctx.fill();
   }
   const divY = py + hh - 4;
-  ctx.strokeStyle = isFire ? 'rgba(255,150,0,0.2)' : (isIce ? 'rgba(0,150,255,0.2)' : (isCtrl ? 'rgba(124,92,255,0.3)' : (isLight ? 'rgba(255,246,176,0.3)' : 'rgba(80,180,255,0.2)'))); ctx.lineWidth = 1;
+  ctx.strokeStyle = isFire ? 'rgba(255,150,0,0.2)' : (isIce ? 'rgba(0,150,255,0.2)' : (isCtrl ? 'rgba(124,92,255,0.3)' : (isLight ? 'rgba(255,246,176,0.3)' : (isWind ? 'rgba(200,160,80,0.3)' : 'rgba(80,180,255,0.2)')))); ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(px + 10, divY); ctx.lineTo(px + pw - 10, divY); ctx.stroke();
   const inZone = isInControlZone(player.x, player.y);
   for (let i = 0; i < abilities.length; i++) {
@@ -4872,6 +5291,10 @@ function drawAbilityGuide() {
     if (ab.holdKey) {
       statusText = '✋ Зажми клавишу · кд ' + ab.cooldown + 'с';
       statusColor = '#ffe066';
+    }
+    if (ab.isWindmill) {
+      if (player.windmillActive) { statusText = '🌀 АКТИВНО — нажми Z чтобы отменить'; statusColor = '#ffcc66'; }
+      else { statusText = '✓ Готово (Z чтобы стать мельницей)'; statusColor = '#88ff88'; }
     }
     ctx.fillStyle = statusColor; ctx.font = 'bold 10px Arial';
     ctx.fillText(statusText, ix + ir + 8, abY + rh - 14);
@@ -4977,13 +5400,19 @@ function drawPlayerStats() {
     ctx.strokeText(wt2, x + bw / 2, nextY + bh / 2); ctx.fillText(wt2, x + bw / 2, nextY + bh / 2);
     nextY += bh + 10;
   }
+  if (player.windmillActive) {
+    ctx.fillStyle = 'rgba(0,0,0,0.6)'; roundRect(x - 4, nextY - 4, bw + 8, 24, 6); ctx.fill();
+    ctx.fillStyle = '#c9b088'; ctx.font = 'bold 13px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('🌀 МЕЛЬНИЦА (Z — отмена)', x + bw / 2, nextY + 8);
+    nextY += 30;
+  }
   if (player.flying) {
     ctx.fillStyle = 'rgba(0,0,0,0.6)'; roundRect(x - 4, nextY - 4, bw + 8, 24, 6); ctx.fill();
     ctx.fillStyle = '#fff6b0'; ctx.font = 'bold 13px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText('✨ ПОЛЁТ!', x + bw / 2, nextY + 8);
     nextY += 30;
   }
-  if (!isOnAnyLand(player.x, player.y) && !isInWaterForm() && !player.flying) {
+  if (!isOnAnyLand(player.x, player.y) && !isInWaterForm() && !player.flying && !player.windmillActive) {
     const pulse = 0.6 + Math.sin(performance.now() * 0.01) * 0.4;
     ctx.fillStyle = `rgba(80,180,255,${pulse})`; ctx.font = 'bold 16px Arial'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
     const wt3 = '🌊 ТОНЕШЬ! -30 HP/сек';
@@ -5512,12 +5941,14 @@ function drawAdminConsole() {
     ctx.fillText('g [фрукт]                    · пример: g свет', px + 20, py + 50);
     ctx.fillText('g level X имя                · пример: g level 4 Test1', px + 20, py + 68);
     ctx.fillText('g mastery N фрукт имя        · пример: g mastery 5 свет Test1', px + 20, py + 86);
+    ctx.fillStyle = 'rgba(200, 160, 80, 0.75)';
+    ctx.fillText('⚙ Админский фрукт: g ветряная мельница', px + 20, py + 104);
   } else {
     ctx.fillText('Введи пароль администратора и нажми Enter', px + 20, py + 50);
     ctx.fillText('(работает на любой раскладке)', px + 20, py + 68);
   }
-  const logY = py + 120;
-  const logH = ph - 200;
+  const logY = py + 130;
+  const logH = ph - 210;
   ctx.fillStyle = 'rgba(0,0,0,0.6)';
   roundRect(px + 20, logY, pw - 40, logH, 6); ctx.fill();
   ctx.strokeStyle = 'rgba(100,100,100,0.4)';
@@ -5586,6 +6017,7 @@ function render() {
     drawPirates();
     drawDuneWarriors();
     drawBoss();
+    drawRemoteWindmills();
     drawRemotePlayers();
     drawMeteors();
     drawSharkBites();
