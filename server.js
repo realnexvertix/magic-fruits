@@ -139,6 +139,19 @@ function windmillSnapshotExcept(exceptUsername) {
   }
   return list;
 }
+function shipSnapshotExcept(exceptUsername) {
+  const list = [];
+  for (const [u, p] of players) {
+    if (u === exceptUsername) continue;
+    if (!p.onShip) continue;
+    list.push({
+      u, x: Math.round(p.x), y: Math.round(p.y),
+      angle: +(p.shipAngle || 0).toFixed(3),
+      color: p.color
+    });
+  }
+  return list;
+}
 
 wss.on('connection', (ws) => {
   let username = null;
@@ -187,7 +200,9 @@ wss.on('connection', (ws) => {
         hitCount: 0, hitResetAt: 0,
         windmillActive: false,
         windmillX: 0, windmillY: 0,
-        windmillAngle: 0
+        windmillAngle: 0,
+        onShip: false,
+        shipAngle: 0
       };
       players.set(username, me);
 
@@ -195,7 +210,8 @@ wss.on('connection', (ws) => {
         type: 'hello_ok',
         you: { u: username, c: me.color },
         players: snapshotExcept(username),
-        windmills: windmillSnapshotExcept(username)
+        windmills: windmillSnapshotExcept(username),
+        ships: shipSnapshotExcept(username)
       }));
 
       broadcastExcept({
@@ -209,6 +225,14 @@ wss.on('connection', (ws) => {
         broadcastExcept({
           type: 'windmill_enter', u: username,
           x: Math.round(me.windmillX), y: Math.round(me.windmillY),
+          color: me.color
+        }, username);
+      }
+      if (me.onShip) {
+        broadcastExcept({
+          type: 'ship_enter', u: username,
+          x: Math.round(me.x), y: Math.round(me.y),
+          angle: me.shipAngle || 0,
           color: me.color
         }, username);
       }
@@ -405,7 +429,7 @@ wss.on('connection', (ws) => {
       return;
     }
 
-    // -------- МЕЛЬНИЦА: ВХОД В ТРАНСФОРМАЦИЮ --------
+    // -------- МЕЛЬНИЦА: ВХОД --------
     if (msg.type === 'windmill_enter') {
       const wx = Number(msg.x);
       const wy = Number(msg.y);
@@ -434,6 +458,68 @@ wss.on('connection', (ws) => {
         u: username,
         x: Math.round(me.x),
         y: Math.round(me.y)
+      }, username);
+      return;
+    }
+
+    // -------- КОРАБЛЬ: ВХОД --------
+    if (msg.type === 'ship_enter') {
+      const sx = Number(msg.x);
+      const sy = Number(msg.y);
+      if (!Number.isFinite(sx) || !Number.isFinite(sy)) return;
+      me.onShip = true;
+      me.x = sx;
+      me.y = sy;
+      me.shipAngle = Number(msg.angle) || 0;
+      broadcastExcept({
+        type: 'ship_enter',
+        u: username,
+        x: Math.round(sx),
+        y: Math.round(sy),
+        angle: me.shipAngle,
+        color: me.color
+      }, username);
+      return;
+    }
+
+    // -------- КОРАБЛЬ: ВЫХОД --------
+    if (msg.type === 'ship_exit') {
+      me.onShip = false;
+      broadcastExcept({
+        type: 'ship_exit',
+        u: username,
+        x: Math.round(me.x),
+        y: Math.round(me.y)
+      }, username);
+      return;
+    }
+
+    // -------- КОРАБЛЬ: ДВИЖЕНИЕ --------
+    if (msg.type === 'ship_move') {
+      if (!me.onShip) return;
+      const nx = Number(msg.x);
+      const ny = Number(msg.y);
+      if (!Number.isFinite(nx) || !Number.isFinite(ny)) return;
+      const now = Date.now();
+      const dt = Math.max(0.01, (now - me.lastMoveTime) / 1000);
+      me.lastMoveTime = now;
+      const dx = nx - me.x, dy = ny - me.y;
+      const dist = Math.hypot(dx, dy);
+      const maxDist = 1500 * dt + 120;
+      if (dist > maxDist && dist > 0) {
+        const f = maxDist / dist;
+        me.x = me.x + dx * f;
+        me.y = me.y + dy * f;
+      } else {
+        me.x = nx; me.y = ny;
+      }
+      if (typeof msg.angle === 'number' && Number.isFinite(msg.angle)) me.shipAngle = msg.angle;
+      broadcastExcept({
+        type: 'ship_move',
+        u: username,
+        x: Math.round(me.x),
+        y: Math.round(me.y),
+        angle: me.shipAngle
       }, username);
       return;
     }
@@ -490,6 +576,10 @@ wss.on('connection', (ws) => {
           target.windmillActive = false;
           broadcastAll({ type: 'windmill_exit', u: target.username, x: 0, y: 0 });
         }
+        if (target.onShip) {
+          target.onShip = false;
+          broadcastAll({ type: 'ship_exit', u: target.username, x: 0, y: 0 });
+        }
         if (target.ws.readyState === 1) {
           try {
             target.ws.send(JSON.stringify({
@@ -512,6 +602,9 @@ wss.on('connection', (ws) => {
         if (p.windmillActive) {
           broadcastAll({ type: 'windmill_exit', u: username });
         }
+        if (p.onShip) {
+          broadcastAll({ type: 'ship_exit', u: username });
+        }
         console.log(`[ws] - ${username} (online ${players.size})`);
       }
     }
@@ -528,12 +621,11 @@ setInterval(() => {
   }
 }, 30000);
 
-// ==================== ОБНОВЛЕНИЕ ПОЗИЦИЙ МЕЛЬНИЦ + УГОЛ --------
-// Раз в секунду рассылаем позиции мельниц (на случай если игрок вошёл в трансформацию до коннекта)
+// Мельницы — крутим лопасти сервер-сайд и рассылаем позиции
 setInterval(() => {
   for (const [u, p] of players) {
     if (!p.windmillActive) continue;
-    p.windmillAngle += 0.02 * 5; // 0.1 радиан/сек примерно
+    p.windmillAngle += 0.1;
     if (p.windmillAngle > Math.PI * 2) p.windmillAngle -= Math.PI * 2;
     broadcastExcept({
       type: 'windmill_move',
