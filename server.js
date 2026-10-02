@@ -126,6 +126,19 @@ function snapshotExcept(exceptUsername) {
   }
   return list;
 }
+function windmillSnapshotExcept(exceptUsername) {
+  const list = [];
+  for (const [u, p] of players) {
+    if (u === exceptUsername) continue;
+    if (!p.windmillActive) continue;
+    list.push({
+      u, x: Math.round(p.windmillX), y: Math.round(p.windmillY),
+      angle: +p.windmillAngle.toFixed(3),
+      color: p.color
+    });
+  }
+  return list;
+}
 
 wss.on('connection', (ws) => {
   let username = null;
@@ -171,14 +184,18 @@ wss.on('connection', (ws) => {
         invulnUntil: 0,
         lastMoveTime: Date.now(),
         kills: 0, deaths: 0,
-        hitCount: 0, hitResetAt: 0
+        hitCount: 0, hitResetAt: 0,
+        windmillActive: false,
+        windmillX: 0, windmillY: 0,
+        windmillAngle: 0
       };
       players.set(username, me);
 
       ws.send(JSON.stringify({
         type: 'hello_ok',
         you: { u: username, c: me.color },
-        players: snapshotExcept(username)
+        players: snapshotExcept(username),
+        windmills: windmillSnapshotExcept(username)
       }));
 
       broadcastExcept({
@@ -187,6 +204,14 @@ wss.on('connection', (ws) => {
         hp: me.hp, mhp: me.mhp, c: me.color, wf: me.waterForm,
         held: me.held
       }, username);
+
+      if (me.windmillActive) {
+        broadcastExcept({
+          type: 'windmill_enter', u: username,
+          x: Math.round(me.windmillX), y: Math.round(me.windmillY),
+          color: me.color
+        }, username);
+      }
 
       console.log(`[ws] + ${username} (online ${players.size})`);
       return;
@@ -240,8 +265,6 @@ wss.on('connection', (ws) => {
     }
 
     // -------- АДМИН: SET MASTERY --------
-    // Формат: { type: 'admin_setmastery', password, target, fruit, mastery }
-    // Пример: g mastery 5 акула Test1  →  target=Test1, fruit='Акула', mastery=5
     if (msg.type === 'admin_setmastery') {
       if (msg.password !== ADMIN_PASSWORD) {
         ws.send(JSON.stringify({ type: 'admin_setmastery_err', error: 'Неверный пароль' }));
@@ -330,7 +353,7 @@ wss.on('connection', (ws) => {
       return;
     }
 
-    // -------- ВИЗУАЛ АТАКИ (рассылаем всем) --------
+    // -------- ВИЗУАЛ АТАКИ --------
     if (msg.type === 'attack_use') {
       broadcastExcept({
         type: 'remote_attack',
@@ -372,13 +395,46 @@ wss.on('connection', (ws) => {
       return;
     }
 
-    // -------- ПОДБОР ФРУКТА (сообщаем всем, чтобы убрали у себя) --------
+    // -------- ПОДБОР ФРУКТА --------
     if (msg.type === 'fruit_picked') {
       broadcastAll({
         type: 'fruit_picked',
         from: username,
         fruitId: String(msg.fruitId || '')
       });
+      return;
+    }
+
+    // -------- МЕЛЬНИЦА: ВХОД В ТРАНСФОРМАЦИЮ --------
+    if (msg.type === 'windmill_enter') {
+      const wx = Number(msg.x);
+      const wy = Number(msg.y);
+      if (!Number.isFinite(wx) || !Number.isFinite(wy)) return;
+      me.windmillActive = true;
+      me.windmillX = wx;
+      me.windmillY = wy;
+      me.windmillAngle = 0;
+      me.x = wx;
+      me.y = wy;
+      broadcastExcept({
+        type: 'windmill_enter',
+        u: username,
+        x: Math.round(wx),
+        y: Math.round(wy),
+        color: me.color
+      }, username);
+      return;
+    }
+
+    // -------- МЕЛЬНИЦА: ВЫХОД --------
+    if (msg.type === 'windmill_exit') {
+      me.windmillActive = false;
+      broadcastExcept({
+        type: 'windmill_exit',
+        u: username,
+        x: Math.round(me.x),
+        y: Math.round(me.y)
+      }, username);
       return;
     }
 
@@ -430,6 +486,10 @@ wss.on('connection', (ws) => {
         target.hp = target.mhp;
         target.x = 0; target.y = 0;
         target.invulnUntil = now + 2000;
+        if (target.windmillActive) {
+          target.windmillActive = false;
+          broadcastAll({ type: 'windmill_exit', u: target.username, x: 0, y: 0 });
+        }
         if (target.ws.readyState === 1) {
           try {
             target.ws.send(JSON.stringify({
@@ -449,6 +509,9 @@ wss.on('connection', (ws) => {
       if (p && p.ws === ws) {
         players.delete(username);
         broadcastAll({ type: 'leave', u: username });
+        if (p.windmillActive) {
+          broadcastAll({ type: 'windmill_exit', u: username });
+        }
         console.log(`[ws] - ${username} (online ${players.size})`);
       }
     }
@@ -464,6 +527,22 @@ setInterval(() => {
     try { ws.ping(); } catch (e) {}
   }
 }, 30000);
+
+// ==================== ОБНОВЛЕНИЕ ПОЗИЦИЙ МЕЛЬНИЦ + УГОЛ --------
+// Раз в секунду рассылаем позиции мельниц (на случай если игрок вошёл в трансформацию до коннекта)
+setInterval(() => {
+  for (const [u, p] of players) {
+    if (!p.windmillActive) continue;
+    p.windmillAngle += 0.02 * 5; // 0.1 радиан/сек примерно
+    if (p.windmillAngle > Math.PI * 2) p.windmillAngle -= Math.PI * 2;
+    broadcastExcept({
+      type: 'windmill_move',
+      u,
+      x: Math.round(p.windmillX),
+      y: Math.round(p.windmillY)
+    }, u);
+  }
+}, 200);
 
 initDb().then(() => {
   server.listen(PORT, () => {
