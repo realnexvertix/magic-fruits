@@ -34,7 +34,23 @@
   #authError { color: #ff5555; text-align: center; font-size: 13px; min-height: 18px; margin-top: 10px; font-weight: bold; }
   #authHint { color: rgba(255,255,255,0.4); text-align: center; font-size: 11px; margin-top: 18px; }
 
-  /* ==================== ВЫБОР УСТРОЙСТВА ==================== */
+  /* ==================== ЗАСТАВКА (синий фон при регистрации) ==================== */
+  #splashOverlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: linear-gradient(135deg, #1a2a4a, #0a1a3a); display: flex; align-items: center; justify-content: center; z-index: 1100; padding: 20px; }
+  #splashOverlay.hidden { display: none; }
+  #splashPanel { width: 100%; max-width: 480px; text-align: center; }
+  #splashPanel .bigIcon { font-size: 80px; margin-bottom: 20px; animation: pulseIcon 2s ease-in-out infinite; }
+  #splashPanel h2 { color: #ffd700; margin: 0 0 12px; font-size: 28px; }
+  #splashPanel .subtitle { color: rgba(255,255,255,0.8); font-size: 15px; margin-bottom: 24px; line-height: 1.5; }
+  #splashPanel .hint { color: rgba(255,255,255,0.5); font-size: 12px; margin-top: 20px; }
+  @keyframes pulseIcon {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.15); }
+  }
+  #splashStart { display: inline-block; padding: 14px 40px; background: linear-gradient(180deg, #4caf50, #2e7d32); border: none; border-radius: 10px; color: white; font-size: 18px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 0 #1b5e20; }
+  #splashStart:active { transform: translateY(2px); box-shadow: 0 2px 0 #1b5e20; }
+  #splashCountdown { color: #ffd700; font-size: 14px; margin-top: 16px; font-weight: bold; }
+
+  /* ==================== ВЫБОР УСТРОЙСТВА (оставлен для совместимости) ==================== */
   #deviceOverlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: linear-gradient(135deg, #1a2a4a, #0a1a3a); display: flex; align-items: center; justify-content: center; z-index: 1100; padding: 20px; }
   #deviceOverlay.hidden { display: none; }
   #devicePanel { width: 100%; max-width: 480px; background: rgba(20,25,40,0.96); border: 3px solid rgba(255,215,0,0.7); border-radius: 16px; padding: 28px 30px; box-shadow: 0 20px 60px rgba(0,0,0,0.7); text-align: center; }
@@ -53,25 +69,37 @@
   #logoutBtn:hover { background: rgba(255,60,60,0.95); }
   #playerName { position: absolute; bottom: 10px; left: 110px; padding: 8px 16px; background: rgba(0,0,0,0.55); border: 2px solid rgba(255,215,0,0.6); border-radius: 8px; color: #ffd700; font-size: 14px; font-weight: bold; z-index: 50; display: none; }
 
+  /* ==================== КАРТА (под компасом) ==================== */
+  #miniMapBtn { position: fixed; left: 15px; top: 195px; width: 80px; height: 80px; background: rgba(20, 40, 70, 0.85); border: 2px solid rgba(255,215,0,0.7); border-radius: 10px; z-index: 200; cursor: pointer; display: none; padding: 4px; }
+  #miniMapBtn.active { border-color: #ffd700; box-shadow: 0 0 12px #ffd700; }
+  body:not(.mobile) #miniMapBtn { left: 15px; top: 195px; }
+  body.mobile #miniMapBtn { left: 15px; top: 235px; width: 70px; height: 70px; }
+
+  #mapOverlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.75); z-index: 500; display: flex; align-items: center; justify-content: center; padding: 20px; }
+  #mapOverlay.hidden { display: none; }
+  #mapPanel { width: 100%; max-width: 520px; background: rgba(15, 25, 45, 0.97); border: 3px solid rgba(255,215,0,0.7); border-radius: 16px; padding: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.7); }
+  #mapPanel h2 { color: #ffd700; margin: 0 0 6px; font-size: 22px; text-align: center; }
+  #mapPanel .subtitle { color: rgba(255,255,255,0.6); font-size: 12px; text-align: center; margin-bottom: 16px; }
+  #mapCanvas { width: 100%; height: 320px; background: #0a1a3a; border: 2px solid rgba(255,255,255,0.25); border-radius: 10px; display: block; touch-action: manipulation; cursor: pointer; }
+  #mapSelectedInfo { color: #aaddff; text-align: center; font-size: 14px; margin-top: 14px; min-height: 20px; font-weight: bold; }
+  #mapCloseBtn { width: 100%; padding: 12px; background: linear-gradient(180deg, #ff5555, #aa0000); border: none; border-radius: 10px; color: white; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 12px; box-shadow: 0 4px 0 #660000; }
+  #mapCloseBtn:active { transform: translateY(2px); box-shadow: 0 2px 0 #660000; }
+
   /* ==================== МОБИЛЬНЫЙ UI ==================== */
   #mobileUi { display: none; }
   body.mobile #mobileUi { display: block; }
   body.mobile #fsBtn { display: none; }
 
-  /* Левый верх — фуллскрин и компас (canvas рисует компас) */
   #mFullscreen { position: fixed; top: 10px; left: 10px; width: 46px; height: 46px; background: rgba(0,0,0,0.55); border: 2px solid rgba(255,255,255,0.6); border-radius: 10px; color: white; font-size: 22px; display: flex; align-items: center; justify-content: center; z-index: 200; touch-action: manipulation; user-select: none; }
   #mFullscreen:active { background: rgba(255,215,0,0.5); }
 
-  /* Левый центр — счётчик монет */
   #mMoneyBox { position: fixed; left: 20px; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.55); border: 2px solid rgba(255,215,0,0.7); border-radius: 12px; padding: 10px 16px; color: #ffd700; font-size: 20px; font-weight: bold; z-index: 200; pointer-events: none; display: flex; align-items: center; gap: 8px; }
   #mMoneyBox .sign { font-size: 24px; color: #ffdd44; }
 
-  /* Джойстик */
   #joystickBase { position: fixed; left: 30px; bottom: 100px; width: 170px; height: 170px; border-radius: 50%; background: rgba(0,0,0,0.4); border: 3px solid rgba(255,255,255,0.35); z-index: 200; touch-action: none; user-select: none; }
   #joystickBase::after { content: ''; position: absolute; inset: 15px; border-radius: 50%; border: 2px dashed rgba(255,255,255,0.2); pointer-events: none; }
   #joystickKnob { position: fixed; width: 75px; height: 75px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #ffe680, #ffb300); border: 3px solid rgba(255,255,255,0.8); z-index: 201; pointer-events: none; transform: translate(-50%, -50%); box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
 
-  /* Слоты внизу по центру */
   #mobileSlots { position: fixed; left: 50%; transform: translateX(-50%); bottom: 20px; display: flex; gap: 8px; z-index: 200; }
   .mSlot { width: 56px; height: 56px; border-radius: 10px; background: rgba(0,0,0,0.55); border: 3px solid rgba(255,255,255,0.5); display: flex; align-items: center; justify-content: center; position: relative; touch-action: manipulation; user-select: none; }
   .mSlot:active { transform: scale(0.95); }
@@ -79,12 +107,10 @@
   .mSlot .num { position: absolute; top: 2px; left: 5px; font-size: 11px; color: rgba(255,255,255,0.85); font-weight: bold; }
   .mSlot canvas { border-radius: 6px; }
 
-  /* Правый верх — INV / STATS кнопки */
   #mTopBtns { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; z-index: 200; }
   #mTopBtns .mBtn { padding: 10px 16px; border-radius: 10px; background: rgba(0,0,0,0.6); border: 2px solid rgba(255,255,255,0.55); color: white; font-size: 14px; font-weight: bold; letter-spacing: 1px; touch-action: manipulation; user-select: none; }
   #mTopBtns .mBtn:active { background: rgba(255,215,0,0.55); border-color: #ffd700; }
 
-  /* Правый верх — полосы HP / St / LVL */
   #mStats { position: fixed; top: 60px; right: 10px; display: flex; flex-direction: column; gap: 6px; z-index: 200; width: 210px; pointer-events: none; }
   .mBar { height: 26px; border-radius: 8px; background: rgba(0,0,0,0.65); overflow: hidden; position: relative; font-size: 13px; font-weight: bold; color: white; text-shadow: 1px 1px 2px black; display: flex; align-items: center; padding-left: 10px; border: 2px solid rgba(255,255,255,0.3); }
   .mBar .fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0%; transition: width 0.15s; }
@@ -94,13 +120,12 @@
   .mBarSt .fill { background: linear-gradient(180deg, #66ddff, #0099cc); }
   .mBarLvl { background: linear-gradient(180deg, #ffe680, #cc9900); color: #3a2a00; text-shadow: none; }
   .mBarMastery .fill { background: linear-gradient(180deg, #c8b0ff, #7c5cff); }
-  .mBarWater .fill { background: linear-gradient(180deg, #aaffff, #0a5c9c); }
-
-  /* Кнопки способностей на мобилке */
+  .mBarWater .fill { background: linear-gradient(180deg, #aaffff, #0a5c9c); }  /* Кнопки способностей на мобилке */
   #abilityBtns { position: fixed; right: 15px; bottom: 200px; display: flex; flex-direction: column-reverse; gap: 10px; z-index: 200; align-items: flex-end; }
   .abBtn { position: relative; width: 68px; height: 68px; border-radius: 50%; background: rgba(0,0,0,0.6); border: 3px solid rgba(255,255,255,0.6); color: white; font-size: 24px; font-weight: bold; display: flex; align-items: center; justify-content: center; z-index: 200; touch-action: manipulation; user-select: none; box-shadow: 0 4px 10px rgba(0,0,0,0.4); transition: transform 0.08s; }
   .abBtn:active { background: rgba(255,215,0,0.7); border-color: #ffd700; transform: scale(0.92); }
-  .abBtn.locked { opacity: 0.35; }
+  .abBtn.locked { opacity: 0.45; background: rgba(60, 60, 60, 0.7); border-color: rgba(120, 120, 120, 0.7); filter: grayscale(0.9); }
+  .abBtn.locked .lockLabel { position: absolute; top: -22px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.85); color: #ffaa44; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 6px; white-space: nowrap; pointer-events: none; border: 1px solid rgba(255,170,68,0.6); }
   .abBtn .cdOverlay { position: absolute; inset: 0; border-radius: 50%; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; font-size: 16px; color: #ffcc66; font-weight: bold; }
 
   /* Кнопка атаки */
@@ -123,7 +148,54 @@
   /* Скрытие/показ по классу */
   body.mobile #pcUi, body.mobile #pchint, body.mobile #logoutBtn, body.mobile #playerName { display: none !important; }
   body:not(.mobile) #mobileUi { display: none !important; }
-</style>
+
+  /* ==================== UI ПОРТАЛА (скилл C) ==================== */
+  #portalUiOverlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.8); z-index: 600; display: flex; align-items: center; justify-content: center; padding: 20px; }
+  #portalUiOverlay.hidden { display: none; }
+  #portalUiPanel { width: 100%; max-width: 560px; background: linear-gradient(135deg, rgba(20, 10, 40, 0.98), rgba(40, 20, 70, 0.98)); border: 3px solid rgba(180, 120, 255, 0.8); border-radius: 16px; padding: 22px; box-shadow: 0 20px 60px rgba(80, 40, 160, 0.6); }
+  #portalUiPanel h2 { color: #c8b0ff; margin: 0 0 6px; font-size: 24px; text-align: center; text-shadow: 0 0 12px rgba(180, 120, 255, 0.8); }
+  #portalUiPanel .subtitle { color: rgba(255,255,255,0.65); font-size: 13px; text-align: center; margin-bottom: 18px; }
+  #portalIslandList { display: flex; flex-direction: column; gap: 10px; max-height: 340px; overflow-y: auto; padding-right: 4px; }
+  .portalIslandBtn { display: flex; align-items: center; gap: 14px; width: 100%; padding: 14px 18px; background: linear-gradient(135deg, rgba(80, 40, 140, 0.55), rgba(40, 20, 80, 0.7)); border: 2px solid rgba(180, 120, 255, 0.5); border-radius: 12px; color: white; font-size: 16px; font-weight: bold; cursor: pointer; transition: all 0.15s; text-align: left; }
+  .portalIslandBtn:hover { background: linear-gradient(135deg, rgba(120, 60, 200, 0.75), rgba(60, 30, 120, 0.85)); border-color: #c8b0ff; transform: scale(1.02); box-shadow: 0 0 20px rgba(180, 120, 255, 0.5); }
+  .portalIslandBtn:active { transform: scale(0.98); }
+  .portalIslandBtn .ico { font-size: 32px; flex-shrink: 0; }
+  .portalIslandBtn .info { flex: 1; }
+  .portalIslandBtn .info small { display: block; font-size: 11px; color: rgba(255,255,255,0.6); font-weight: normal; margin-top: 3px; }
+  .portalIslandBtn.current { opacity: 0.45; cursor: not-allowed; }
+  .portalIslandBtn.current::after { content: '📍 здесь'; color: #ffaa44; font-size: 11px; margin-left: auto; }
+  #portalUiClose { width: 100%; padding: 12px; background: linear-gradient(180deg, #aa3333, #661111); border: none; border-radius: 10px; color: white; font-size: 15px; font-weight: bold; cursor: pointer; margin-top: 14px; box-shadow: 0 4px 0 #440000; }
+  #portalUiClose:active { transform: translateY(2px); box-shadow: 0 2px 0 #440000; }
+  #portalCountdown { color: #c8b0ff; text-align: center; font-size: 14px; margin-top: 10px; font-weight: bold; min-height: 18px; }
+
+  /* ==================== UI ВЛАДЕНИЙ (скилл V) ==================== */
+  #domainHud { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); padding: 10px 22px; background: linear-gradient(135deg, rgba(30, 0, 50, 0.95), rgba(60, 0, 90, 0.95)); border: 3px solid rgba(200, 80, 255, 0.85); border-radius: 14px; color: #ffccff; font-size: 15px; font-weight: bold; z-index: 300; box-shadow: 0 0 30px rgba(200, 80, 255, 0.7); display: none; text-shadow: 0 0 8px rgba(255, 100, 255, 0.9); pointer-events: none; }
+  #domainHud.active { display: block; }
+  #domainHud .timer { color: #ff8888; font-size: 18px; margin-left: 10px; }
+  #domainHud .buffs { font-size: 12px; color: #ffaaff; margin-top: 4px; display: block; }
+
+  /* ==================== UI ИЗМЕРЕНИЯ (скилл X) ==================== */
+  #dimensionHud { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); padding: 10px 22px; background: linear-gradient(135deg, rgba(0, 40, 80, 0.95), rgba(0, 80, 140, 0.95)); border: 3px solid rgba(120, 220, 255, 0.85); border-radius: 14px; color: #ccf0ff; font-size: 15px; font-weight: bold; z-index: 300; box-shadow: 0 0 30px rgba(120, 220, 255, 0.7); display: none; text-shadow: 0 0 8px rgba(120, 220, 255, 0.9); pointer-events: none; }
+  #dimensionHud.active { display: block; }
+  #dimensionHud .timer { color: #88ddff; font-size: 18px; margin-left: 10px; }
+
+  /* Экранный оверлей измерения (голубая дымка) */
+  #dimensionVeil { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 150; display: none; background: radial-gradient(circle at center, rgba(150, 220, 255, 0.08) 0%, rgba(60, 150, 255, 0.25) 60%, rgba(30, 80, 180, 0.45) 100%); }
+  #dimensionVeil.active { display: block; }
+  #dimensionVeil::after { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(45deg, rgba(180, 240, 255, 0.03) 0px, rgba(180, 240, 255, 0.03) 2px, transparent 2px, transparent 6px); animation: dimVeilShift 3s linear infinite; }
+  @keyframes dimVeilShift {
+    0% { background-position: 0 0; }
+    100% { background-position: 40px 40px; }
+  }
+
+  /* Оверлей владений (красная дымка) */
+  #domainVeil { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 151; display: none; background: radial-gradient(circle at center, rgba(120, 0, 60, 0.15) 0%, rgba(80, 0, 100, 0.35) 60%, rgba(20, 0, 40, 0.6) 100%); }
+  #domainVeil.active { display: block; }
+  #domainVeil::after { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(-45deg, rgba(255, 100, 255, 0.04) 0px, rgba(255, 100, 255, 0.04) 3px, transparent 3px, transparent 8px); animation: domainVeilShift 2s linear infinite; }
+  @keyframes domainVeilShift {
+    0% { background-position: 0 0; }
+    100% { background-position: -50px 50px; }
+  }</style>
 </head>
 <body>
 <canvas id="game"></canvas>
@@ -133,6 +205,46 @@
 <div id="pchint">WASD — движение | 1-5 — слоты | I — мешок | E — NPC | Tab — статистика | N N — админ<br><b>ЛКМ</b> — кулак / разрез | <b>Z / X / C / R / V</b> — способности | <b>F (зажать)</b> — полёт Света | <b>Пробел</b> — корабль</div>
 <div id="playerName"></div>
 <button id="logoutBtn">🚪 Выйти</button>
+
+<!-- ============ КАРТА (кнопка под компасом) ============ -->
+<canvas id="miniMapBtn" width="80" height="80"></canvas>
+
+<!-- ============ Всплывающая большая карта ============ -->
+<div id="mapOverlay" class="hidden">
+  <div id="mapPanel">
+    <h2>🗺️ Карта мира</h2>
+    <div class="subtitle">Нажми на остров, чтобы проложить маршрут</div>
+    <canvas id="mapCanvas" width="480" height="320"></canvas>
+    <div id="mapSelectedInfo">Остров не выбран</div>
+    <button id="mapCloseBtn">Закрыть</button>
+  </div>
+</div>
+
+<!-- ============ UI ПОРТАЛА (скилл C) ============ -->
+<div id="portalUiOverlay" class="hidden">
+  <div id="portalUiPanel">
+    <h2>🌀 Телепортация</h2>
+    <div class="subtitle">Выбери остров для перемещения</div>
+    <div id="portalIslandList"></div>
+    <div id="portalCountdown"></div>
+    <button id="portalUiClose">Отмена</button>
+  </div>
+</div>
+
+<!-- ============ HUD ИЗМЕРЕНИЯ (скилл X) ============ -->
+<div id="dimensionVeil"></div>
+<div id="dimensionHud">
+  ✨ Ты в своём измерении
+  <span class="timer" id="dimensionTimer">15.0</span>
+</div>
+
+<!-- ============ HUD ВЛАДЕНИЙ (скилл V) ============ -->
+<div id="domainVeil"></div>
+<div id="domainHud">
+  👑 Твои владения
+  <span class="timer" id="domainTimer">40.0</span>
+  <span class="buffs">×2 урон · ×3 скорость</span>
+</div>
 
 <!-- ============ Мобильный UI ============ -->
 <div id="mobileUi">
@@ -191,11 +303,23 @@
   </div>
 </div>
 
-<!-- ============ ВЫБОР УСТРОЙСТВА ============ -->
+<!-- ============ ЗАСТАВКА ПОСЛЕ РЕГИСТРАЦИИ ============ -->
+<div id="splashOverlay" class="hidden">
+  <div id="splashPanel">
+    <div class="bigIcon">🍎</div>
+    <h2>Добро пожаловать в Magic Fruits!</h2>
+    <div class="subtitle">Твой аккаунт создан.<br>Сейчас начнётся твоё приключение!</div>
+    <button id="splashStart">▶ Начать игру</button>
+    <div id="splashCountdown"></div>
+    <div class="hint">Если не нажмёшь — начнётся автоматически через 3 секунды</div>
+  </div>
+</div>
+
+<!-- ============ ВЫБОР УСТРОЙСТВА (старый, скрыт) ============ -->
 <div id="deviceOverlay" class="hidden">
   <div id="devicePanel">
     <h2>🎮 На чём будешь играть?</h2>
-    <div class="subtitle">Это нужно один раз. Потом игра запомнит и будет сразу подстраивать интерфейс.</div>
+    <div class="subtitle">Это нужно один раз.</div>
     <div class="deviceBtn" data-device="phone">
       <div class="ico">📱</div>
       <div class="info">Телефон<small>Виртуальный джойстик, тач-кнопки</small></div>
@@ -211,10 +335,17 @@
   </div>
 </div>
 
-<script>
-// ==================== УСТРОЙСТВО ====================
+<script>// ==================== УСТРОЙСТВО ====================
 let DEVICE_TYPE = 'pc';
 function isMobile() { return DEVICE_TYPE === 'phone' || DEVICE_TYPE === 'tablet'; }
+function autoDetectDevice() {
+  const ua = navigator.userAgent || '';
+  const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+  const isSmall = Math.min(window.innerWidth, window.innerHeight) < 820;
+  if (isTouch && isSmall) return 'phone';
+  if (isTouch && !isSmall) return 'tablet';
+  return 'pc';
+}
 
 // ВСЕ переменные диалогов — объявлены ЗДЕСЬ, чтобы не крашилось
 let questDialogOpen = false;
@@ -234,6 +365,32 @@ let adminHistory = [];
 let lastNPressTime = 0;
 const ADMIN_N_DOUBLE_PRESS_MS = 450;
 const ADMIN_PASSWORD = 'wertik3636';
+
+// ---- Новые состояния для Портала ----
+let mapOpen = false;
+let portalUiOpen = false;
+let portalUiCountdownTimer = 0;
+let portalTargetIsland = null;
+let portalPendingTp = null;   // { x, y, islandName }
+let bigPortalActive = null;   // { x, y, islandName, until }  — визуальный портал после C
+let activePortalRifts = [];   // список порталов (Z-скилл: на врага; C-скилл: телепорт)
+let thrownKnives = [];        // ножи (F-скилл)
+let aimingKnife = false;
+let aimingPortalZ = false;
+let aimingPortalZCursor = { x: 0, y: 0 };
+let blackHole = null;         // { x, y, radius, maxRadius, life, maxLife, caster, sucked: Set }
+let myDimension = null;       // { startedAt, until, returnX, returnY } — X-скилл
+let myDomain = null;          // { startedAt, until, returnX, returnY, victims: [] } — V-скилл
+let iAmInSomeoneDimension = null; // { hostName, until } — если меня засосало в X или V
+
+const ISLANDS = [
+  { id: 'pirate_start', name: 'Пиратский берег', icon: '🏴‍☠️',
+    worldX: -1200, worldY: -900, worldW: 2400, worldH: 1800,
+    centerX: 0, centerY: 0 },
+  { id: 'desert', name: 'Пустыня', icon: '🏜️',
+    worldX: 7200, worldY: -5600, worldW: 1800, worldH: 1400,
+    centerX: 8100, centerY: -4900 }
+];
 
 function normalizeLayout(str) {
   const map = {
@@ -284,6 +441,10 @@ const remoteLightTrails = [];
 const remoteWindmills = new Map();
 const remoteShips = new Map();
 const sharedDroppedFruits = new Map();
+const remotePortalRifts = [];        // порталы других игроков (Z)
+const remoteBigPortals = [];         // порталы телепортации (C)
+const remoteKnives = [];             // ножи других (F)
+const remoteBlackHoles = [];         // чёрные дыры других (V)
 
 function updateMoneyUi() {
   const el = document.getElementById('moneyCount');
@@ -323,6 +484,42 @@ function showAuthError(m) {
   }, 3500);
 }
 
+// ---- ЗАСТАВКА (синий фон после регистрации) ----
+function showSplash() {
+  const overlay = document.getElementById('splashOverlay');
+  const countdownEl = document.getElementById('splashCountdown');
+  overlay.classList.remove('hidden');
+  let seconds = 3;
+  countdownEl.textContent = 'Автозапуск через ' + seconds + ' сек...';
+  const tick = setInterval(() => {
+    seconds--;
+    if (seconds <= 0) {
+      clearInterval(tick);
+      countdownEl.textContent = '';
+      finishSplash();
+    } else {
+      countdownEl.textContent = 'Автозапуск через ' + seconds + ' сек...';
+    }
+  }, 1000);
+  window._splashTick = tick;
+  document.getElementById('splashStart').onclick = () => {
+    clearInterval(tick);
+    finishSplash();
+  };
+}
+function finishSplash() {
+  document.getElementById('splashOverlay').classList.add('hidden');
+  if (window._pendingUser) {
+    const u = window._pendingUser.username;
+    const p = window._pendingUser.password;
+    const d = window._pendingUser.data || {};
+    const device = autoDetectDevice();
+    d.device = device;
+    window._pendingUser = null;
+    loginAs(u, p, d, device);
+  }
+}
+
 let authTab = 'login';
 document.querySelectorAll('.authTab').forEach(t => {
   t.addEventListener('click', () => {
@@ -355,12 +552,16 @@ document.getElementById('authBtn').addEventListener('click', async () => {
     const res = await r.json();
     if (!res.ok) { showAuthError(res.error); return; }
     const data = res.data || {};
-    if (!data.device) {
+    const device = autoDetectDevice();
+    if (authTab === 'register') {
+      // Новая регистрация → синяя заставка
+      data.device = device;
       window._pendingUser = { username: u, password: p, data };
       hideAuth();
-      showDeviceChooser();
+      showSplash();
     } else {
-      loginAs(u, p, data, data.device);
+      // Логин — сразу в игру
+      loginAs(u, p, data, data.device || device);
     }
   } catch (e) {
     showAuthError('Сервер не отвечает. Подожди 30 сек и попробуй снова');
@@ -392,7 +593,7 @@ document.querySelectorAll('.deviceBtn').forEach(btn => {
 });
 
 async function loginAs(username, password, data, device) {
-  DEVICE_TYPE = device || 'pc';
+  DEVICE_TYPE = device || autoDetectDevice();
   document.body.classList.toggle('mobile', isMobile());
   currentUser = { username, password, data };
   try { localStorage.setItem('mf_session', JSON.stringify({ username, password })); } catch(e) {}
@@ -583,18 +784,16 @@ window.addEventListener('beforeunload', saveNow);
       const res = await r.json();
       if (res.ok) {
         const data = res.data || {};
-        if (!data.device) {
-          window._pendingUser = { username, password, data };
-          showDeviceChooser();
-        } else {
-          loginAs(username, password, data, data.device);
-        }
+        const device = data.device || autoDetectDevice();
+        loginAs(username, password, data, device);
         return;
       }
     }
   } catch(e) {}
   showAuth();
-})();// ==================== СЕТЬ ====================
+})();
+
+// ==================== СЕТЬ ====================
 function connectWebSocket() {
   if (ws && (ws.readyState === 0 || ws.readyState === 1)) return;
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -630,7 +829,8 @@ function mkRemote(p) {
     color: p.c || '#ffb300',
     waterForm: !!p.wf,
     held: (p.held || null),
-    hitFlash: 0, punchAnim: 0, onShip: false
+    hitFlash: 0, punchAnim: 0, onShip: false,
+    dimensionId: (typeof p.dim === 'number' ? p.dim : 0)
   };
 }
 
@@ -656,8 +856,9 @@ function handleWsMessage(msg) {
       rp.hp = msg.hp; rp.mhp = msg.mhp;
       rp.waterForm = !!msg.wf;
       if (typeof msg.held !== 'undefined') rp.held = msg.held;
+      if (typeof msg.dim === 'number') rp.dimensionId = msg.dim;
     } else {
-      remotePlayers.set(msg.u, mkRemote({ u: msg.u, x: msg.x, y: msg.y, lx: msg.lx, ly: msg.ly, hp: msg.hp, mhp: msg.mhp, c: msg.c, wf: msg.wf, held: msg.held }));
+      remotePlayers.set(msg.u, mkRemote({ u: msg.u, x: msg.x, y: msg.y, lx: msg.lx, ly: msg.ly, hp: msg.hp, mhp: msg.mhp, c: msg.c, wf: msg.wf, held: msg.held, dim: msg.dim }));
     }
     return;
   }
@@ -669,11 +870,12 @@ function handleWsMessage(msg) {
   if (msg.type === 'ship_exit') { remoteShips.delete(msg.u); const rp = remotePlayers.get(msg.u); if (rp) rp.onShip = false; return; }
   if (msg.type === 'ship_move') { const rs = remoteShips.get(msg.u); if (rs) { rs.targetX = msg.x; rs.targetY = msg.y; rs.angle = msg.angle || 0; } return; }
   if (msg.type === 'fruit_dropped') {
-    sharedDroppedFruits.set(msg.fruitId, { id: msg.fruitId, x: msg.x, y: msg.y, name: msg.name, color: msg.color, bobPhase: Math.random() * 6, glow: msg.name === 'Акула' || msg.name === 'Контроль' || msg.name === 'Свет' || msg.name === 'Ветряная мельница', radius: 20, from: msg.from });
+    sharedDroppedFruits.set(msg.fruitId, { id: msg.fruitId, x: msg.x, y: msg.y, name: msg.name, color: msg.color, bobPhase: Math.random() * 6, glow: msg.name === 'Акула' || msg.name === 'Контроль' || msg.name === 'Свет' || msg.name === 'Ветряная мельница' || msg.name === 'Портал', radius: 20, from: msg.from });
     return;
   }
   if (msg.type === 'fruit_picked') { sharedDroppedFruits.delete(msg.fruitId); return; }
   if (msg.type === 'hurt') {
+    if (iAmInSomeoneDimension || myDimension || myDomain) return;
     player.hp = Math.max(0, msg.hp);
     player.hitFlash = 12;
     player.lastDamageTime = performance.now();
@@ -695,6 +897,9 @@ function handleWsMessage(msg) {
     player.windmillActive = false;
     player.radius = player.windmillSavedRadius || 25;
     if (player.onShip) leaveShip();
+    // сброс измерений/владений при смерти
+    exitMyDimension();
+    exitMyDomain();
     return;
   }
   if (msg.type === 'admin_setlevel_ok') { adminLog('✅ ' + msg.target + ' → уровень ' + msg.level, '#66ff66'); return; }
@@ -708,6 +913,63 @@ function handleWsMessage(msg) {
     if (inventory[POWER_SLOT_INDEX] && inventory[POWER_SLOT_INDEX].name === msg.fruit) {
       inventory[POWER_SLOT_INDEX].masteryLevel = msg.mastery;
       inventory[POWER_SLOT_INDEX].masteryXp = 0;
+    }
+    return;
+  }
+
+  // ---- Портал: чужие порталы ----
+  if (msg.type === 'portal_rift_open') {
+    remotePortalRifts.push({ x: msg.x, y: msg.y, radius: 0, maxRadius: 70, life: 90, maxLife: 90, from: msg.from, hitDone: false, damage: msg.dmg || 0 });
+    return;
+  }
+  if (msg.type === 'big_portal_open') {
+    remoteBigPortals.push({ x: msg.x, y: msg.y, islandName: msg.islandName, life: 300, maxLife: 300, from: msg.from });
+    return;
+  }
+  if (msg.type === 'big_portal_close') {
+    for (let i = remoteBigPortals.length - 1; i >= 0; i--) if (remoteBigPortals[i].from === msg.from) remoteBigPortals.splice(i, 1);
+    return;
+  }
+  if (msg.type === 'knife_thrown') {
+    remoteKnives.push({ kind: 'knife', x: msg.x, y: msg.y, vx: msg.vx, vy: msg.vy, angle: Math.atan2(msg.vy, msg.vx), radius: 10, life: 90, trail: [], from: msg.from, pierced: new Set() });
+    return;
+  }
+  if (msg.type === 'black_hole_open') {
+    remoteBlackHoles.push({ x: msg.x, y: msg.y, radius: 0, maxRadius: 260, life: 180, maxLife: 180, from: msg.from, rotation: 0, pullStarted: true });
+    return;
+  }
+  if (msg.type === 'dimension_enter') {
+    const rp = remotePlayers.get(msg.u);
+    if (rp) rp.dimensionId = -1; // в своём измерении
+    return;
+  }
+  if (msg.type === 'dimension_exit') {
+    const rp = remotePlayers.get(msg.u);
+    if (rp) rp.dimensionId = 0;
+    if (msg.u === currentUser.username) {
+      player.x = msg.x; player.y = msg.y;
+    }
+    return;
+  }
+  if (msg.type === 'domain_enter') {
+    const rp = remotePlayers.get(msg.u);
+    if (rp) rp.dimensionId = -2;
+    if (msg.victims && Array.isArray(msg.victims)) {
+      for (const v of msg.victims) {
+        if (v === currentUser.username) {
+          iAmInSomeoneDimension = { hostName: msg.hostName, until: performance.now() + msg.duration };
+        }
+      }
+    }
+    return;
+  }
+  if (msg.type === 'domain_exit') {
+    const rp = remotePlayers.get(msg.u);
+    if (rp) rp.dimensionId = 0;
+    if (msg.victims && Array.isArray(msg.victims)) {
+      for (const v of msg.victims) {
+        if (v === currentUser.username) iAmInSomeoneDimension = null;
+      }
     }
     return;
   }
@@ -742,7 +1004,15 @@ function syncPositionNow() {
   if (!ws || ws.readyState !== 1 || !currentUser) return;
   try {
     const held = getHeldPower();
-    ws.send(JSON.stringify({ type: 'move', x: Math.round(player.x), y: Math.round(player.y), lx: +player.lookX.toFixed(2), ly: +player.lookY.toFixed(2), hp: Math.round(player.hp), mhp: getMaxHp(), wf: isInWaterForm(), held: held ? held.power.name : null }));
+    ws.send(JSON.stringify({
+      type: 'move',
+      x: Math.round(player.x), y: Math.round(player.y),
+      lx: +player.lookX.toFixed(2), ly: +player.lookY.toFixed(2),
+      hp: Math.round(player.hp), mhp: getMaxHp(),
+      wf: isInWaterForm(),
+      held: held ? held.power.name : null,
+      dim: myDimension ? -1 : (myDomain ? -2 : (iAmInSomeoneDimension ? -3 : 0))
+    }));
   } catch (e) {}
 }
 setInterval(syncPositionNow, 50);
@@ -759,7 +1029,16 @@ function sendWindmillExit() { if (!ws || ws.readyState !== 1) return; try { ws.s
 function sendShipEnter(x, y, angle, color) { if (!ws || ws.readyState !== 1) return; try { ws.send(JSON.stringify({ type: 'ship_enter', x: Math.round(x), y: Math.round(y), angle, color })); } catch (e) {} }
 function sendShipExit() { if (!ws || ws.readyState !== 1) return; try { ws.send(JSON.stringify({ type: 'ship_exit' })); } catch (e) {} }
 
-// ==================== МИР ====================
+// ---- Отправки для Портала ----
+function sendPortalRiftOpen(x, y, dmg) { if (!ws || ws.readyState !== 1) return; try { ws.send(JSON.stringify({ type: 'portal_rift_open', x: Math.round(x), y: Math.round(y), dmg })); } catch (e) {} }
+function sendBigPortalOpen(x, y, islandName) { if (!ws || ws.readyState !== 1) return; try { ws.send(JSON.stringify({ type: 'big_portal_open', x: Math.round(x), y: Math.round(y), islandName })); } catch (e) {} }
+function sendBigPortalClose() { if (!ws || ws.readyState !== 1) return; try { ws.send(JSON.stringify({ type: 'big_portal_close' })); } catch (e) {} }
+function sendKnifeThrown(x, y, vx, vy) { if (!ws || ws.readyState !== 1) return; try { ws.send(JSON.stringify({ type: 'knife_thrown', x: Math.round(x), y: Math.round(y), vx, vy })); } catch (e) {} }
+function sendBlackHoleOpen(x, y) { if (!ws || ws.readyState !== 1) return; try { ws.send(JSON.stringify({ type: 'black_hole_open', x: Math.round(x), y: Math.round(y) })); } catch (e) {} }
+function sendDimensionEnter() { if (!ws || ws.readyState !== 1) return; try { ws.send(JSON.stringify({ type: 'dimension_enter' })); } catch (e) {} }
+function sendDimensionExit(x, y) { if (!ws || ws.readyState !== 1) return; try { ws.send(JSON.stringify({ type: 'dimension_exit', x: Math.round(x), y: Math.round(y) })); } catch (e) {} }
+function sendDomainEnter(hostName, victims, duration) { if (!ws || ws.readyState !== 1) return; try { ws.send(JSON.stringify({ type: 'domain_enter', hostName, victims, duration })); } catch (e) {} }
+function sendDomainExit(victims) { if (!ws || ws.readyState !== 1) return; try { ws.send(JSON.stringify({ type: 'domain_exit', victims })); } catch (e) {} }// ==================== МИР ====================
 const camera = { x: 0, y: 0 };
 const ISLAND = { x: -1200, y: -900, width: 2400, height: 1800 };
 const BEACH_WIDTH = 120;
@@ -853,6 +1132,16 @@ const LIGHT_ABILITIES = [
 const WINDMILL_ABILITIES = [
   { id: 'windmill_transform', name: 'Трансформация мельницы', key: 'Z', requiredMasteryLevel: 0, cooldown: 0, stamina: 0, damage: 0, description: 'Стань мельницей · Z — отмена', isWindmill: true }
 ];
+
+// ---- НОВЫЙ ФРУКТ: ПОРТАЛ ----
+const PORTAL_ABILITIES = [
+  { id: 'portal_rift', name: 'Портал-ловушка', key: 'Z', requiredMasteryLevel: 0, cooldown: 8, stamina: 25, damage: 21, description: 'Портал под врага · 21 урона · кд 8с', aiming: 'portalZ' },
+  { id: 'portal_dimension', name: 'Своё измерение', key: 'X', requiredMasteryLevel: 0, cooldown: 30, stamina: 30, damage: 0, description: 'Уйти в своё измерение на 15с · кд 30с' },
+  { id: 'portal_teleport', name: 'Телепорт на остров', key: 'C', requiredMasteryLevel: 0, cooldown: 15, stamina: 20, damage: 0, description: 'Телепорт на любой остров · кд 15с' },
+  { id: 'portal_knife', name: 'Портальный нож', key: 'F', requiredMasteryLevel: 0, cooldown: 20, stamina: 35, damage: 35, description: 'Нож · 35 урона · кд 20с', aiming: 'knife' },
+  { id: 'portal_domain', name: 'Чёрная дыра', key: 'V', requiredMasteryLevel: 0, cooldown: 60, stamina: 70, damage: 0, description: 'Засосать врагов в свои владения · 40с · кд 60с' }
+];
+
 function getAbilitiesFor(name) {
   if (name === 'Огонь') return FIRE_ABILITIES;
   if (name === 'Лёд') return ICE_ABILITIES;
@@ -860,9 +1149,10 @@ function getAbilitiesFor(name) {
   if (name === 'Контроль') return CONTROL_ABILITIES;
   if (name === 'Свет') return LIGHT_ABILITIES;
   if (name === 'Ветряная мельница') return WINDMILL_ABILITIES;
+  if (name === 'Портал') return PORTAL_ABILITIES;
   return [];
 }
-const FRUIT_RARITY = { 'Огонь': 'common', 'Лёд': 'uncommon', 'Акула': 'legendary', 'Контроль': 'mythic', 'Свет': 'legendary', 'Ветряная мельница': 'admin' };
+const FRUIT_RARITY = { 'Огонь': 'common', 'Лёд': 'uncommon', 'Акула': 'legendary', 'Контроль': 'mythic', 'Свет': 'legendary', 'Ветряная мельница': 'admin', 'Портал': 'mythic' };
 function getFruitRarity(name) { return FRUIT_RARITY[name] || 'common'; }
 function getRarityLabel(rar) {
   if (rar === 'common') return '⚪ Обычный';
@@ -944,7 +1234,10 @@ const player = {
   waterFormUntil: 0, seaDamageTimer: 0, controlLmbCooldown: 0,
   flying: false, flightDir: { x: 1, y: 0 }, flightKeyDown: false,
   windmillActive: false, windmillAngle: 0, windmillSavedRadius: 25,
-  hasShip: false, onShip: false, shipAngle: 0, shipSavedRadius: 25
+  hasShip: false, onShip: false, shipAngle: 0, shipSavedRadius: 25,
+  // Портальные состояния
+  inDimensionUntil: 0,
+  inDomainUntil: 0
 };
 const TRANSFORM_DURATION = 90000;
 const HP_REGEN_PER_TICK = 0.02 / 1.7;
@@ -972,6 +1265,19 @@ const SHIP_RADIUS = 45;
 const SHIP_SPEED_MULT = 2.3;
 const SHIP_SAIL_LENGTH = 55;
 const SHIP_HULL_WIDTH = 70;
+
+// Портальные константы
+const PORTAL_RIFT_RADIUS = 70;
+const PORTAL_RIFT_DURATION = 90;
+const PORTAL_RIFT_DAMAGE = 21;
+const PORTAL_DIMENSION_DURATION_MS = 15000;
+const PORTAL_TELEPORT_PORTAL_LIFETIME_MS = 5000;
+const PORTAL_KNIFE_DAMAGE = 35;
+const PORTAL_DOMAIN_DURATION_MS = 40000;
+const PORTAL_DOMAIN_RADIUS = 260;
+const PORTAL_DOMAIN_PULL_RADIUS = 400;
+const PORTAL_DOMAIN_DAMAGE_MULT = 2.0;
+const PORTAL_DOMAIN_SPEED_MULT = 3.0;
 
 let controlZone = null;
 let zoneClosedAt = 0;
@@ -1002,6 +1308,9 @@ function isInControlZone(x, y) {
   return Math.hypot(x - controlZone.x, y - controlZone.y) <= controlZone.radius;
 }
 function isFlying() { return player.flying; }
+function isInMyDimension() { return myDimension && performance.now() < myDimension.until; }
+function isInMyDomain() { return myDomain && performance.now() < myDomain.until; }
+function isHiddenFromOthers() { return isInMyDimension() || (iAmInSomeoneDimension !== null); }
 
 const npc = { x: 400, y: 200, radius: 30, maxHp: 1000, hp: 1000, color: '#d4a373', hitFlash: 0, shakeUntil: 0, shakeOffset: { x: 0, y: 0 }, slowUntil: 0 };
 
@@ -1080,77 +1389,7 @@ const menuButtons = [
   { label: 'Взять в руки', action: 'take', color: '#ff9800' },
   { label: 'Выбросить', action: 'drop', color: '#f44336' },
   { label: 'Сохранить', action: 'save', color: '#2196f3' }
-];// ==================== АДМИН-КОНСОЛЬ ====================
-function openAdminConsole() { adminOpen = true; adminInput = ''; }
-function closeAdminConsole() { adminOpen = false; adminInput = ''; }
-function adminLog(text, color) {
-  adminHistory.push({ text, color: color || '#aaffaa', until: performance.now() + 4000 });
-  if (adminHistory.length > 8) adminHistory.shift();
-}
-
-function giveFruitToSlot5(name, color) {
-  const slotIdx = FRUIT_GIVE_SLOT;
-  const existing = inventory[slotIdx];
-  if (existing && existing.type === 'fruit') {
-    bag.push({ type: 'fruit', name: existing.name, color: existing.color });
-    player.fruitCount = Math.max(0, player.fruitCount - 1);
-  }
-  inventory[slotIdx] = { type: 'fruit', name, color };
-  player.fruitCount++;
-  updateFruitUi();
-  saveNow();
-}
-
-function adminSubmit() {
-  const cmd = adminInput.trim();
-  adminInput = '';
-  if (!cmd) return;
-  if (!adminUnlocked) {
-    if (passwordMatches(cmd, ADMIN_PASSWORD)) { adminUnlocked = true; adminLog('✅ Админ-доступ разрешён', '#66ff66'); }
-    else adminLog('❌ Неверный пароль', '#ff5555');
-    return;
-  }
-  const parts = cmd.split(/\s+/);
-  const command = parts[0].toLowerCase();
-  if (command === 'g' && parts.length >= 2) {
-    if (parts[1].toLowerCase() === 'level' && parts.length >= 4) {
-      const lvl = parseInt(parts[2], 10);
-      const targetName = parts.slice(3).join(' ');
-      if (!Number.isFinite(lvl) || lvl < 1 || lvl > 20) { adminLog('❌ Уровень 1-20', '#ff5555'); return; }
-      sendAdminSetLevel(targetName, lvl);
-      adminLog('📤 ' + targetName + ' → уровень ' + lvl, '#aaddff');
-      return;
-    }
-    if (parts[1].toLowerCase() === 'mastery' && parts.length >= 5) {
-      const masteryLvl = parseInt(parts[2], 10);
-      const fruitArg = parts[3].toLowerCase();
-      const targetName = parts.slice(4).join(' ');
-      if (!Number.isFinite(masteryLvl) || masteryLvl < 0 || masteryLvl > 100) { adminLog('❌ Mastery 0-100', '#ff5555'); return; }
-      const fruitMap = { 'огонь': 'Огонь', 'огня': 'Огонь', 'fire': 'Огонь', 'лёд': 'Лёд', 'лед': 'Лёд', 'льда': 'Лёд', 'ice': 'Лёд', 'акула': 'Акула', 'акулы': 'Акула', 'shark': 'Акула', 'контроль': 'Контроль', 'контроля': 'Контроль', 'control': 'Контроль', 'свет': 'Свет', 'света': 'Свет', 'light': 'Свет', 'мельница': 'Ветряная мельница', 'мельницы': 'Ветряная мельница', 'windmill': 'Ветряная мельница' };
-      const fruitName = fruitMap[fruitArg];
-      if (!fruitName) { adminLog('❌ Фрукт: ' + fruitArg, '#ff5555'); return; }
-      sendAdminSetMastery(targetName, fruitName, masteryLvl);
-      adminLog('📤 ' + targetName + ' ' + fruitName + ' → ' + masteryLvl, '#aaddff');
-      return;
-    }
-    const argAll = parts.slice(1).join(' ').toLowerCase();
-    const fruitMap = {
-      'огонь': { name: 'Огонь', color: '#ff6600' }, 'огня': { name: 'Огонь', color: '#ff6600' }, 'fire': { name: 'Огонь', color: '#ff6600' },
-      'лёд': { name: 'Лёд', color: '#00c8ff' }, 'лед': { name: 'Лёд', color: '#00c8ff' }, 'льда': { name: 'Лёд', color: '#00c8ff' }, 'ice': { name: 'Лёд', color: '#00c8ff' },
-      'акула': { name: 'Акула', color: '#1a4f8c' }, 'акулы': { name: 'Акула', color: '#1a4f8c' }, 'shark': { name: 'Акула', color: '#1a4f8c' },
-      'контроль': { name: 'Контроль', color: '#7c5cff' }, 'контроля': { name: 'Контроль', color: '#7c5cff' }, 'control': { name: 'Контроль', color: '#7c5cff' },
-      'свет': { name: 'Свет', color: '#fff6b0' }, 'света': { name: 'Свет', color: '#fff6b0' }, 'light': { name: 'Свет', color: '#fff6b0' },
-      'ветряная мельница': { name: 'Ветряная мельница', color: '#8a6a4a' }, 'ветряной мельницы': { name: 'Ветряная мельница', color: '#8a6a4a' }, 'мельница': { name: 'Ветряная мельница', color: '#8a6a4a' }, 'мельницы': { name: 'Ветряная мельница', color: '#8a6a4a' }, 'windmill': { name: 'Ветряная мельница', color: '#8a6a4a' }
-    };
-    const fruit = fruitMap[argAll];
-    if (!fruit) { adminLog('❌ Фрукт: ' + argAll, '#ff5555'); adminLog('огонь / лёд / акула / контроль / свет / ветряная мельница', '#ffdd66'); return; }
-    giveFruitToSlot5(fruit.name, fruit.color);
-    adminLog('🍎 Выдан: ' + fruit.name + ' (слот 5)', '#66ff66');
-    return;
-  }
-  adminLog('❌ Неизвестно: ' + command, '#ff5555');
-  adminLog('g [фрукт] | g level X имя | g mastery N фрукт имя', '#ffdd66');
-}
+];
 
 // ==================== КОЛЛИЗИИ ====================
 function isOnIsland(x, y) { return x >= ISLAND.x && x <= ISLAND.x + ISLAND.width && y >= ISLAND.y && y <= ISLAND.y + ISLAND.height; }
@@ -1201,7 +1440,7 @@ function tryMoveDesert(ent, dx, dy) {
 
 // ==================== СЪЕСТЬ ФРУКТ ====================
 function consumeFruit(item) {
-  const powers = ['Огонь', 'Лёд', 'Акула', 'Контроль', 'Свет', 'Ветряная мельница'];
+  const powers = ['Огонь', 'Лёд', 'Акула', 'Контроль', 'Свет', 'Ветряная мельница', 'Портал'];
   if (powers.includes(item.name)) {
     const oldPower = inventory[POWER_SLOT_INDEX];
     if (oldPower && oldPower.type === 'power') {
@@ -1220,6 +1459,9 @@ function consumeFruit(item) {
     if (player.windmillActive) { player.windmillActive = false; player.radius = player.windmillSavedRadius || 25; sendWindmillExit(); }
     if (player.onShip) leaveShip();
     if (aimingAbility) aimingAbility = null;
+    // сброс измерений при смене фрукта
+    exitMyDimension();
+    exitMyDomain();
     saveNow();
     if (isMobile()) refreshMobileHud();
     return true;
@@ -1268,12 +1510,13 @@ function punchFist() {
   const hr = 40;
   let dm = getDamageMultiplier();
   if (isInWaterForm()) dm *= 1.2;
+  if (isInMyDomain()) dm *= PORTAL_DOMAIN_DAMAGE_MULT;
   const f = Math.max(1, Math.round(5 * dm));
   for (const pir of pirates) { if (pir.dead) continue; if (Math.hypot(pir.x - px, pir.y - py) < hr) { damagePirate(pir, f); pir.chasing = true; } }
   for (const dw of duneWarriors) { if (dw.dead) continue; if (Math.hypot(dw.x - px, dw.y - py) < hr) { damageDuneWarrior(dw, f); dw.chasing = true; } }
   if (boss.active && !boss.dead) { if (Math.hypot(boss.x - px, boss.y - py) < hr + boss.radius * 0.5) damageBoss(f); }
   if (Math.hypot(npc.x - px, npc.y - py) < hr) damageNpc(f);
-  for (const rp of remotePlayers.values()) { if (Math.hypot(rp.x - px, rp.y - py) < hr + player.radius) { sendHit(rp.u, f, 'melee'); spawnImpactEffect(rp.x, rp.y); } }
+  for (const rp of remotePlayers.values()) { if (isHiddenFromOthers() || rp.dimensionId !== 0) continue; if (Math.hypot(rp.x - px, rp.y - py) < hr + player.radius) { sendHit(rp.u, f, 'melee'); spawnImpactEffect(rp.x, rp.y); } }
   sendAttackUse('punch', player.x, player.y, dx, dy);
   for (let i = 0; i < 8; i++) {
     const a = Math.atan2(dy, dx) + (Math.random() - 0.5) * 1.2;
@@ -1297,12 +1540,13 @@ function controlLmbAttack() {
   controlSlashes.push({ x: player.x, y: player.y, angle, length: CONTROL_LMB_RANGE, life: CONTROL_LMB_SLASH_DURATION, maxLife: CONTROL_LMB_SLASH_DURATION });
   let dm = getFruitDamageMultiplier();
   if (isInWaterForm()) dm *= 1.2;
+  if (isInMyDomain()) dm *= PORTAL_DOMAIN_DAMAGE_MULT;
   const dmg = Math.max(1, Math.round(CONTROL_LMB_DAMAGE * dm));
   for (const pir of pirates) { if (pir.dead) continue; const hit = distToSegment(pir.x, pir.y, player.x, player.y, player.x + dx * CONTROL_LMB_RANGE, player.y + dy * CONTROL_LMB_RANGE); if (hit < CONTROL_LMB_HIT_RADIUS) { damagePirate(pir, dmg); pir.chasing = true; } }
   for (const dw of duneWarriors) { if (dw.dead) continue; const hit = distToSegment(dw.x, dw.y, player.x, player.y, player.x + dx * CONTROL_LMB_RANGE, player.y + dy * CONTROL_LMB_RANGE); if (hit < CONTROL_LMB_HIT_RADIUS) { damageDuneWarrior(dw, dmg); dw.chasing = true; } }
   if (boss.active && !boss.dead) { const hit = distToSegment(boss.x, boss.y, player.x, player.y, player.x + dx * CONTROL_LMB_RANGE, player.y + dy * CONTROL_LMB_RANGE); if (hit < CONTROL_LMB_HIT_RADIUS + boss.radius * 0.6) damageBoss(dmg); }
   { const hit = distToSegment(npc.x, npc.y, player.x, player.y, player.x + dx * CONTROL_LMB_RANGE, player.y + dy * CONTROL_LMB_RANGE); if (hit < CONTROL_LMB_HIT_RADIUS) damageNpc(dmg); }
-  for (const rp of remotePlayers.values()) { const hit = distToSegment(rp.x, rp.y, player.x, player.y, player.x + dx * CONTROL_LMB_RANGE, player.y + dy * CONTROL_LMB_RANGE); if (hit < CONTROL_LMB_HIT_RADIUS + player.radius) { sendHit(rp.u, dmg, 'melee'); spawnImpactEffect(rp.x, rp.y); } }
+  for (const rp of remotePlayers.values()) { if (isHiddenFromOthers() || rp.dimensionId !== 0) continue; const hit = distToSegment(rp.x, rp.y, player.x, player.y, player.x + dx * CONTROL_LMB_RANGE, player.y + dy * CONTROL_LMB_RANGE); if (hit < CONTROL_LMB_HIT_RADIUS + player.radius) { sendHit(rp.u, dmg, 'melee'); spawnImpactEffect(rp.x, rp.y); } }
   sendAttackUse('control_lmb', player.x, player.y, dx, dy);
 }
 function distToSegment(px, py, x1, y1, x2, y2) {
@@ -1396,6 +1640,232 @@ function leaveShip() {
   }
 }
 
+// ==================== ПОРТАЛ: ФУНКЦИИ СКИЛЛОВ ====================
+function activatePortalRiftAt(tx, ty) {
+  if (player.cooldowns['portal_rift'] > 0) return;
+  if (player.stamina < 25) return;
+  player.cooldowns['portal_rift'] = 8;
+  player.stamina = Math.max(0, player.stamina - 25);
+  let fm = getFruitDamageMultiplier();
+  if (isInWaterForm()) fm *= 1.2;
+  if (isInMyDomain()) fm *= PORTAL_DOMAIN_DAMAGE_MULT;
+  const dmg = PORTAL_RIFT_DAMAGE * fm;
+  activePortalRifts.push({ x: tx, y: ty, radius: 0, maxRadius: PORTAL_RIFT_RADIUS, life: PORTAL_RIFT_DURATION, maxLife: PORTAL_RIFT_DURATION, damage: dmg, hitDone: false, rot: 0 });
+  // урон по врагам в радиусе
+  for (const pir of pirates) { if (pir.dead) continue; if (Math.hypot(pir.x - tx, pir.y - ty) < PORTAL_RIFT_RADIUS) damagePirate(pir, dmg); }
+  for (const dw of duneWarriors) { if (dw.dead) continue; if (Math.hypot(dw.x - tx, dw.y - ty) < PORTAL_RIFT_RADIUS) damageDuneWarrior(dw, dmg); }
+  if (boss.active && !boss.dead && Math.hypot(boss.x - tx, boss.y - ty) < PORTAL_RIFT_RADIUS + boss.radius * 0.5) damageBoss(dmg);
+  for (const rp of remotePlayers.values()) {
+    if (rp.dimensionId !== 0) continue;
+    if (Math.hypot(rp.x - tx, rp.y - ty) < PORTAL_RIFT_RADIUS + player.radius) sendHit(rp.u, dmg, 'ranged');
+  }
+  sendAttackUse('portal_rift', tx, ty, 0, 0);
+  sendPortalRiftOpen(tx, ty, dmg);
+}
+
+function activatePortalDimension() {
+  if (player.cooldowns['portal_dimension'] > 0) return;
+  if (isInMyDimension()) return;
+  if (player.stamina < 30) return;
+  player.stamina = Math.max(0, player.stamina - 30);
+  const now = performance.now();
+  myDimension = { startedAt: now, until: now + PORTAL_DIMENSION_DURATION_MS, returnX: player.x, returnY: player.y };
+  sendDimensionEnter();
+  for (let i = 0; i < 100; i++) {
+    const a = Math.random() * Math.PI * 2, s = 4 + Math.random() * 9;
+    particles.push({ x: player.x, y: player.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 70 + Math.random() * 40, maxLife: 110, radius: 4 + Math.random() * 7, color: Math.random() < 0.3 ? '#000000' : (Math.random() < 0.6 ? '#7c5cff' : '#c8b0ff') });
+  }
+  particles.push({ isShockwave: true, x: player.x, y: player.y, radius: 10, maxRadius: 240, life: 45, maxLife: 45, color: '#7c5cff' });
+}
+
+function exitMyDimension() {
+  if (!myDimension) return;
+  const now = performance.now();
+  if (now < myDimension.until) {
+    // досрочный выход — не ставим кд? По описанию кд начинается после выхода
+  }
+  myDimension = null;
+  player.cooldowns['portal_dimension'] = 30;
+  sendDimensionExit(player.x, player.y);
+  for (let i = 0; i < 80; i++) {
+    const a = Math.random() * Math.PI * 2, s = 3 + Math.random() * 8;
+    particles.push({ x: player.x, y: player.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 60 + Math.random() * 30, maxLife: 90, radius: 4 + Math.random() * 6, color: Math.random() < 0.4 ? '#000000' : (Math.random() < 0.7 ? '#7c5cff' : '#ffffff') });
+  }
+}
+
+function openPortalTeleportUi() {
+  if (player.cooldowns['portal_teleport'] > 0) return;
+  if (player.stamina < 20) return;
+  if (isInMyDimension() || isInMyDomain()) return;
+  portalUiOpen = true;
+  portalUiCountdownTimer = 5000;
+  portalTargetIsland = null;
+  portalPendingTp = null;
+  buildPortalUiList();
+  document.getElementById('portalUiOverlay').classList.remove('hidden');
+  document.getElementById('portalCountdown').textContent = 'Осталось: 5.0с';
+}
+
+function buildPortalUiList() {
+  const list = document.getElementById('portalIslandList');
+  if (!list) return;
+  list.innerHTML = '';
+  for (const isl of ISLANDS) {
+    const btn = document.createElement('button');
+    btn.className = 'portalIslandBtn';
+    const inThis = isOnIsland(player.x, player.y) && isl.id === 'pirate_start' || isOnDesert(player.x, player.y) && isl.id === 'desert';
+    if (inThis) btn.classList.add('current');
+    btn.innerHTML = `<span class="ico">${isl.icon}</span><span class="info">${isl.name}<small>${isl.id === 'pirate_start' ? 'Начало игры' : 'Дальние земли'}</small></span>`;
+    if (!inThis) btn.addEventListener('click', () => selectPortalIsland(isl));
+    list.appendChild(btn);
+  }
+}
+
+function selectPortalIsland(isl) {
+  portalTargetIsland = isl;
+  // создать портал в точке игрока, портал ведёт на остров
+  const now = performance.now();
+  bigPortalActive = { x: player.x, y: player.y, islandName: isl.name, islandId: isl.id, until: now + PORTAL_TELEPORT_PORTAL_LIFETIME_MS };
+  sendBigPortalOpen(player.x, player.y, isl.name);
+  // цель телепорта — центр острова
+  portalPendingTp = { x: isl.centerX, y: isl.centerY, islandName: isl.name };
+  closePortalUi();
+  for (let i = 0; i < 60; i++) {
+    const a = Math.random() * Math.PI * 2, s = 3 + Math.random() * 7;
+    particles.push({ x: player.x, y: player.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 50 + Math.random() * 30, maxLife: 80, radius: 4 + Math.random() * 6, color: Math.random() < 0.4 ? '#000000' : (Math.random() < 0.7 ? '#7c5cff' : '#aaddff') });
+  }
+}
+
+function closePortalUi() {
+  portalUiOpen = false;
+  document.getElementById('portalUiOverlay').classList.add('hidden');
+  portalUiCountdownTimer = 0;
+}
+
+function useBigPortalIfNear() {
+  if (!bigPortalActive) return false;
+  const now = performance.now();
+  if (now >= bigPortalActive.until) return false;
+  if (Math.hypot(player.x - bigPortalActive.x, player.y - bigPortalActive.y) > 60) return false;
+  if (!portalPendingTp) return false;
+  // телепорт
+  player.x = portalPendingTp.x;
+  player.y = portalPendingTp.y;
+  player.cooldowns['portal_teleport'] = 15;
+  player.stamina = Math.max(0, player.stamina - 20);
+  for (let i = 0; i < 80; i++) {
+    const a = Math.random() * Math.PI * 2, s = 3 + Math.random() * 8;
+    particles.push({ x: player.x, y: player.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 60 + Math.random() * 30, maxLife: 90, radius: 4 + Math.random() * 6, color: Math.random() < 0.5 ? '#7c5cff' : '#c8b0ff' });
+  }
+  particles.push({ isShockwave: true, x: player.x, y: player.y, radius: 10, maxRadius: 200, life: 40, maxLife: 40, color: '#7c5cff' });
+  bigPortalActive = null;
+  portalPendingTp = null;
+  sendBigPortalClose();
+  return true;
+}
+
+function throwPortalKnifeAt(tx, ty) {
+  if (player.cooldowns['portal_knife'] > 0) return;
+  if (player.stamina < 35) return;
+  player.cooldowns['portal_knife'] = 20;
+  player.stamina = Math.max(0, player.stamina - 35);
+  const dx = tx - player.x, dy = ty - player.y;
+  const dist = Math.hypot(dx, dy);
+  if (dist < 1) return;
+  const nx = dx / dist, ny = dy / dist;
+  let fm = getFruitDamageMultiplier();
+  if (isInMyDomain()) fm *= PORTAL_DOMAIN_DAMAGE_MULT;
+  const dmg = PORTAL_KNIFE_DAMAGE * fm;
+  thrownKnives.push({
+    kind: 'knife', x: player.x + nx * (player.radius + 12), y: player.y + ny * (player.radius + 12),
+    vx: nx * 16, vy: ny * 16, angle: Math.atan2(ny, nx), radius: 12, life: 100,
+    damage: dmg, trail: [], pierced: new Set()
+  });
+  sendAttackUse('portal_knife', player.x, player.y, nx, ny);
+  sendKnifeThrown(player.x + nx * (player.radius + 12), player.y + ny * (player.radius + 12), nx * 16, ny * 16);
+}
+
+function activatePortalDomain() {
+  if (player.cooldowns['portal_domain'] > 0) return;
+  if (isInMyDomain()) return;
+  if (player.stamina < 70) return;
+  player.stamina = Math.max(0, player.stamina - 70);
+  blackHole = { x: player.x, y: player.y, radius: 0, maxRadius: PORTAL_DOMAIN_RADIUS, life: 180, maxLife: 180, pullStarted: true, sucked: new Set(), rotation: 0 };
+  sendAttackUse('portal_domain', player.x, player.y, 0, 0);
+  sendBlackHoleOpen(player.x, player.y);
+}
+
+function enterMyDomain(victims) {
+  const now = performance.now();
+  myDomain = { startedAt: now, until: now + PORTAL_DOMAIN_DURATION_MS, returnX: player.x, returnY: player.y, victims: victims.slice() };
+  // телепорт в "арену" — фиксированные координаты далеко
+  player.x = 50000;
+  player.y = 50000;
+  sendDomainEnter(currentUser.username, victims, PORTAL_DOMAIN_DURATION_MS);
+  for (let i = 0; i < 120; i++) {
+    const a = Math.random() * Math.PI * 2, s = 4 + Math.random() * 10;
+    particles.push({ x: player.x, y: player.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 70 + Math.random() * 40, maxLife: 110, radius: 5 + Math.random() * 7, color: Math.random() < 0.3 ? '#000000' : (Math.random() < 0.6 ? '#ff44ff' : '#8800cc') });
+  }
+}
+
+function exitMyDomain() {
+  if (!myDomain) return;
+  const victims = myDomain.victims || [];
+  const returnX = myDomain.returnX;
+  const returnY = myDomain.returnY;
+  player.x = returnX;
+  player.y = returnY;
+  myDomain = null;
+  player.cooldowns['portal_domain'] = 60;
+  sendDomainExit(victims);
+  for (let i = 0; i < 100; i++) {
+    const a = Math.random() * Math.PI * 2, s = 3 + Math.random() * 9;
+    particles.push({ x: player.x, y: player.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 60 + Math.random() * 30, maxLife: 90, radius: 4 + Math.random() * 6, color: Math.random() < 0.4 ? '#000000' : (Math.random() < 0.7 ? '#ff44ff' : '#ffffff') });
+  }
+}
+
+function processBlackHole() {
+  if (!blackHole) return;
+  blackHole.life--;
+  blackHole.rotation += 0.15;
+  const t = Math.min(1, (blackHole.maxLife - blackHole.life) / 30);
+  blackHole.radius = blackHole.maxRadius * t;
+  if (blackHole.life <= 0) {
+    // собрать засосанных
+    const victims = [];
+    for (const u of blackHole.sucked) victims.push(u);
+    // если есть засосанные — открываем владения
+    if (victims.length > 0) {
+      enterMyDomain(victims);
+    } else {
+      // если никто не попал — не входим во владения
+      player.cooldowns['portal_domain'] = 60;
+    }
+    blackHole = null;
+    return;
+  }
+  // засасывание игроков
+  for (const rp of remotePlayers.values()) {
+    if (rp.dimensionId !== 0) continue;
+    if (blackHole.sucked.has(rp.u)) continue;
+    const d = Math.hypot(rp.x - blackHole.x, rp.y - blackHole.y);
+    if (d < PORTAL_DOMAIN_PULL_RADIUS) {
+      const dx = blackHole.x - rp.x, dy = blackHole.y - rp.y;
+      const dl = Math.hypot(dx, dy) || 1;
+      const pull = 6;
+      rp.x += (dx / dl) * pull;
+      rp.y += (dy / dl) * pull;
+      if (d < blackHole.radius) {
+        blackHole.sucked.add(rp.u);
+        // отправим ему сообщение что он засосан
+        if (ws && ws.readyState === 1) {
+          try { ws.send(JSON.stringify({ type: 'domain_enter', hostName: currentUser.username, victims: [rp.u], duration: PORTAL_DOMAIN_DURATION_MS })); } catch (e) {}
+        }
+      }
+    }
+  }
+}
+
 // ==================== ЗАПУСК СПОСОБНОСТИ ====================
 function startAbility(powerName, abilityId) {
   const held = getHeldPower();
@@ -1412,9 +1882,18 @@ function startAbility(powerName, abilityId) {
   if ((player.cooldowns[abilityId] || 0) > 0) return;
   if (player.stamina < ab.stamina) return;
   if (player.windmillActive) return;
+  if (isHiddenFromOthers() && abilityId !== 'portal_dimension' && abilityId !== 'portal_domain') {
+    // в измерении нельзя кастовать ничего, кроме выхода
+    return;
+  }
   if (abilityId === 'control_zone') { activateControlZone(); return; }
   if (abilityId === 'control_lasers') { activateControlLasers(); return; }
   if (abilityId === 'light_beam') { activateLightBeam(); return; }
+  if (abilityId === 'portal_dimension') { activatePortalDimension(); return; }
+  if (abilityId === 'portal_teleport') { openPortalTeleportUi(); return; }
+  if (abilityId === 'portal_domain') { activatePortalDomain(); return; }
+  if (ab.aiming === 'portalZ') { aimingAbility = { powerName, abilityId, ability: ab, type: 'portalZ' }; return; }
+  if (ab.aiming === 'knife') { aimingAbility = { powerName, abilityId, ability: ab, type: 'knife' }; return; }
   if (ab.aiming !== false) { aimingAbility = { powerName, abilityId, ability: ab }; return; }
 }
 
@@ -1441,6 +1920,7 @@ function activateControlLasers() {
   player.stamina = Math.max(0, player.stamina - 40);
   let fruitMult = getFruitDamageMultiplier();
   if (isInWaterForm()) fruitMult *= 1.2;
+  if (isInMyDomain()) fruitMult *= PORTAL_DOMAIN_DAMAGE_MULT;
   const dmgFinal = CONTROL_LASER_DAMAGE * fruitMult;
   const now = performance.now();
   for (let i = 0; i < 8; i++) {
@@ -1457,6 +1937,7 @@ function activateControlMeteorAt(tx, ty) {
   player.stamina = Math.max(0, player.stamina - 50);
   let fruitMult = getFruitDamageMultiplier();
   if (isInWaterForm()) fruitMult *= 1.2;
+  if (isInMyDomain()) fruitMult *= PORTAL_DOMAIN_DAMAGE_MULT;
   controlMeteors.push({ targetX: tx, targetY: ty, x: tx, y: ty - 1200, startY: ty - 1200, progress: 0, duration: 40, radius: 90, damage: CONTROL_METEOR_DAMAGE * fruitMult, impactDone: false });
   sendAttackUse('control_meteor', player.x, player.y, tx - player.x, ty - player.y);
 }
@@ -1468,6 +1949,7 @@ function activateControlBeamAt(tx, ty) {
   player.stamina = Math.max(0, player.stamina - 70);
   let fruitMult = getFruitDamageMultiplier();
   if (isInWaterForm()) fruitMult *= 1.2;
+  if (isInMyDomain()) fruitMult *= PORTAL_DOMAIN_DAMAGE_MULT;
   const now = performance.now();
   controlBeams.push({ x: tx, y: ty, radius: 160, activateAt: now + CONTROL_BEAM_DELAY_MS, until: now + CONTROL_BEAM_DELAY_MS + CONTROL_BEAM_DURATION_MS, damage: CONTROL_BEAM_DAMAGE * fruitMult, damaged: new Set(), done: false });
   sendAttackUse('control_beam', player.x, player.y, tx - player.x, ty - player.y);
@@ -1483,6 +1965,7 @@ function activateLightBeam() {
   dx /= dl; dy /= dl;
   let fruitMult = getFruitDamageMultiplier();
   if (isInWaterForm()) fruitMult *= 1.2;
+  if (isInMyDomain()) fruitMult *= PORTAL_DOMAIN_DAMAGE_MULT;
   const now = performance.now();
   lightBeams.push({ x: player.x, y: player.y, angle: Math.atan2(dy, dx), length: LIGHT_BEAM_LENGTH, width: LIGHT_BEAM_WIDTH, damage: 12 * fruitMult, start: now, until: now + LIGHT_BEAM_DURATION_MS, hit: new Set() });
   sendAttackUse('light_beam', player.x, player.y, dx, dy);
@@ -1490,9 +1973,11 @@ function activateLightBeam() {
 
 function executeAbilityAt(tx, ty) {
   if (!aimingAbility) return;
-  const { powerName, abilityId, ability } = aimingAbility;
+  const { powerName, abilityId, ability, type } = aimingAbility;
   const held = getHeldPower();
   if (!held || held.power.name !== powerName) { aimingAbility = null; return; }
+  if (type === 'portalZ') { activatePortalRiftAt(tx, ty); aimingAbility = null; return; }
+  if (type === 'knife') { throwPortalKnifeAt(tx, ty); aimingAbility = null; return; }
   if (abilityId === 'control_meteor') { activateControlMeteorAt(tx, ty); aimingAbility = null; return; }
   if (abilityId === 'control_beam') { activateControlBeamAt(tx, ty); aimingAbility = null; return; }
   if (abilityId === 'light_spear') { activateLightSpearAt(tx, ty); aimingAbility = null; return; }
@@ -1505,6 +1990,7 @@ function executeAbilityAt(tx, ty) {
   player.stamina = Math.max(0, player.stamina - ability.stamina);
   let powerMult = 1, fruitMult = getFruitDamageMultiplier();
   if (isInWaterForm()) { powerMult = 1.2; fruitMult *= 1.2; }
+  if (isInMyDomain()) fruitMult *= PORTAL_DOMAIN_DAMAGE_MULT;
   const finalDmg = ability.damage * fruitMult;
   if (abilityId === 'fire_charge') {
     projectiles.push({ kind: 'fireball', x: player.x + nx * (player.radius + 10), y: player.y + ny * (player.radius + 10), vx: nx * 12, vy: ny * 12, radius: 14, life: 90, damage: finalDmg, trail: [], pierced: new Set() });
@@ -1565,6 +2051,7 @@ function activateLightSpearAt(tx, ty) {
   const nx = dx / dist, ny = dy / dist;
   let fruitMult = getFruitDamageMultiplier();
   if (isInWaterForm()) fruitMult *= 1.2;
+  if (isInMyDomain()) fruitMult *= PORTAL_DOMAIN_DAMAGE_MULT;
   projectiles.push({ kind: 'light_spear', x: player.x + nx * (player.radius + 12), y: player.y + ny * (player.radius + 12), vx: nx * 18, vy: ny * 18, angle: Math.atan2(ny, nx), radius: 14, life: 90, damage: 15 * fruitMult, trail: [], pierced: new Set() });
   sendAttackUse('light_spear', player.x, player.y, nx, ny);
 }
@@ -1575,6 +2062,7 @@ function activateLightSkyAt(tx, ty) {
   player.stamina = Math.max(0, player.stamina - 65);
   let fruitMult = getFruitDamageMultiplier();
   if (isInWaterForm()) fruitMult *= 1.2;
+  if (isInMyDomain()) fruitMult *= PORTAL_DOMAIN_DAMAGE_MULT;
   const now = performance.now();
   controlBeams.push({ x: tx, y: ty, radius: 130, activateAt: now + 1500, until: now + 1500 + 2000, damage: 25 * fruitMult, damaged: new Set(), done: false, lightBeam: true });
   sendAttackUse('light_sky', player.x, player.y, tx - player.x, ty - player.y);
@@ -1700,10 +2188,14 @@ function damagePlayer(dmg) {
     player.flying = false;
     if (player.windmillActive) { player.windmillActive = false; player.radius = player.windmillSavedRadius || 25; sendWindmillExit(); }
     if (player.onShip) leaveShip();
+    exitMyDimension();
+    exitMyDomain();
   }
 }// ==================== МОРСКОЙ УРОН ====================
 function applySeaDamage() {
   if (!isOnAnyLand(player.x, player.y) && !isInWaterForm() && !isFlying() && !player.windmillActive && !player.onShip) {
+    // не бьём, если мы в своём измерении или владениях
+    if (isInMyDimension() || isInMyDomain() || iAmInSomeoneDimension) return;
     player.hp = Math.max(0, player.hp - 30);
     player.lastDamageTime = performance.now();
     damageNumbers.push({ x: player.x, y: player.y - player.radius, vy: -1.6, life: 60, maxLife: 60, text: '-30 💧', color: '#44aaff' });
@@ -1818,6 +2310,7 @@ function handleSlotClick(si) {
 canvas.addEventListener('click', (e) => {
   if (!currentUser) return;
   if (adminOpen) return;
+  if (portalUiOpen || mapOpen) return;
   const rect = canvas.getBoundingClientRect();
   handleCanvasClick(e.clientX - rect.left, e.clientY - rect.top);
 });
@@ -2008,11 +2501,12 @@ function tryRollFruit() {
   updateMoneyUi();
   const roll = Math.random() * 100;
   let fruitData;
-  if (roll < 48) fruitData = { name: 'Огонь', color: '#ff6600' };
-  else if (roll < 70) fruitData = { name: 'Лёд', color: '#00c8ff' };
-  else if (roll < 88) fruitData = null;
-  else if (roll < 96) fruitData = Math.random() < 0.5 ? { name: 'Акула', color: '#1a4f8c' } : { name: 'Свет', color: '#fff6b0' };
-  else fruitData = { name: 'Контроль', color: '#7c5cff' };
+  if (roll < 40) fruitData = { name: 'Огонь', color: '#ff6600' };
+  else if (roll < 62) fruitData = { name: 'Лёд', color: '#00c8ff' };
+  else if (roll < 78) fruitData = null;
+  else if (roll < 86) fruitData = Math.random() < 0.5 ? { name: 'Акула', color: '#1a4f8c' } : { name: 'Свет', color: '#fff6b0' };
+  else if (roll < 96) fruitData = { name: 'Контроль', color: '#7c5cff' };
+  else fruitData = { name: 'Портал', color: '#7c5cff' };
   if (fruitData) giveFruitToSlot5(fruitData.name, fruitData.color);
   rollCooldownUntil = Date.now() + ROLL_COOLDOWN_MS;
   saveNow();
@@ -2103,7 +2597,7 @@ function executeMenuAction(action) {
     const l = Math.hypot(lx, ly) || 1; lx /= l; ly /= l;
     const fruitId = 'f_' + Date.now() + '_' + Math.floor(Math.random() * 100000) + '_' + (currentUser ? currentUser.username : 'anon');
     const fx = player.x + lx * 70, fy = player.y + ly * 70;
-    sharedDroppedFruits.set(fruitId, { id: fruitId, x: fx, y: fy, name: item.name, color: item.color, bobPhase: Math.random() * 6, glow: item.name === 'Акула' || item.name === 'Контроль' || item.name === 'Свет' || item.name === 'Ветряная мельница', radius: 20, from: currentUser ? currentUser.username : 'me' });
+    sharedDroppedFruits.set(fruitId, { id: fruitId, x: fx, y: fy, name: item.name, color: item.color, bobPhase: Math.random() * 6, glow: item.name === 'Акула' || item.name === 'Контроль' || item.name === 'Свет' || item.name === 'Ветряная мельница' || item.name === 'Портал', radius: 20, from: currentUser ? currentUser.username : 'me' });
     sendFruitDrop(fruitId, item.name, item.color, fx, fy);
     inventory[slotIdx] = null;
     if (heldSlot === slotIdx) heldSlot = -1;
@@ -2198,7 +2692,7 @@ function executeBagMenuAction(action) {
     const l = Math.hypot(lx, ly) || 1; lx /= l; ly /= l;
     const fruitId = 'f_' + Date.now() + '_' + Math.floor(Math.random() * 100000) + '_' + (currentUser ? currentUser.username : 'anon');
     const fx = player.x + lx * 70, fy = player.y + ly * 70;
-    sharedDroppedFruits.set(fruitId, { id: fruitId, x: fx, y: fy, name: item.name, color: item.color, bobPhase: Math.random() * 6, glow: item.name === 'Акула' || item.name === 'Контроль' || item.name === 'Свет' || item.name === 'Ветряная мельница', radius: 20, from: currentUser ? currentUser.username : 'me' });
+    sharedDroppedFruits.set(fruitId, { id: fruitId, x: fx, y: fy, name: item.name, color: item.color, bobPhase: Math.random() * 6, glow: item.name === 'Акула' || item.name === 'Контроль' || item.name === 'Свет' || item.name === 'Ветряная мельница' || item.name === 'Портал', radius: 20, from: currentUser ? currentUser.username : 'me' });
     sendFruitDrop(fruitId, item.name, item.color, fx, fy);
     bag.splice(idx, 1);
     player.fruitCount = Math.max(0, player.fruitCount - 1);
@@ -2236,6 +2730,14 @@ window.addEventListener('keydown', (e) => {
     if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) { adminInput += e.key; e.preventDefault(); return; }
     return;
   }
+  if (portalUiOpen) {
+    if (e.key === 'Escape') { closePortalUi(); e.preventDefault(); return; }
+    return;
+  }
+  if (mapOpen) {
+    if (e.key === 'Escape') { closeMap(); e.preventDefault(); return; }
+    return;
+  }
   if (bagEatConfirm) {
     if (e.key === 'Escape') { closeBagEatConfirm(); e.preventDefault(); return; }
     if (e.key === 'Enter') { const b = getEatConfirmButtons(); handleBagEatConfirmClick(b.yes.x + 5, b.yes.y + 5); e.preventDefault(); return; }
@@ -2252,12 +2754,15 @@ window.addEventListener('keydown', (e) => {
   }
   const k = e.key.toLowerCase(), code = e.code;
   if (k === 'i' || k === 'ш' || code === 'KeyI') { bagOpen = !bagOpen; contextMenu = null; bagContextMenu = null; return; }
+  if (code === 'KeyM' || k === 'm' || k === 'ь') { openMap(); e.preventDefault(); return; }
   if (code === 'Tab' || e.key === 'Tab') { e.preventDefault(); statsOpen = !statsOpen; questDialogOpen = false; questDialog2Open = false; rollDialogOpen = false; return; }
   if (code === 'Space' || k === ' ') {
     e.preventDefault();
     if (bagOpen || statsOpen || questDialogOpen || questDialog2Open || rollDialogOpen || adminOpen || aimingAbility) return;
     if (player.onShip) { leaveShip(); return; }
     if (player.hasShip && !isOnAnyLand(player.x, player.y)) { enterShip(); return; }
+    // пробел также пытается использовать портал телепорта, если он рядом
+    if (!useBigPortalIfNear()) { /* ничего */ }
     return;
   }
   if (code === 'KeyE' || k === 'e' || k === 'у') { handleInteract(); return; }
@@ -2271,7 +2776,13 @@ window.addEventListener('keydown', (e) => {
   if (code === 'KeyC' || k === 'c' || k === 'с') { tc('C'); return; }
   if (code === 'KeyR' || k === 'r' || k === 'к') { tc('R'); return; }
   if (code === 'KeyV' || k === 'v' || k === 'м') { tc('V'); return; }
-  if (code === 'KeyF' || k === 'f' || k === 'а') { if (e.repeat) return; player.flightKeyDown = true; e.preventDefault(); return; }
+  if (code === 'KeyF' || k === 'f' || k === 'а') {
+    if (e.repeat) return;
+    player.flightKeyDown = true;
+    // если портал — F это скилл-нож
+    if (held && held.power.name === 'Портал') { const ab = held.abilities.find(a => a.id === 'portal_knife'); if (ab) { startAbility('Портал', 'portal_knife'); e.preventDefault(); return; } }
+    e.preventDefault(); return;
+  }
   if (e.key === 'Escape') {
     if (bagContextMenu) { bagContextMenu = null; return; }
     if (rollDialogOpen) { closeRollDialog(); return; }
@@ -2305,7 +2816,11 @@ function handleInteract() {
   if (isNearRollNpc() && !rollDialogOpen && !questDialogOpen && !questDialog2Open && !statsOpen) { openRollDialog(); return; }
   if (isNearQuestNpc() && !questDialogOpen && !questDialog2Open && !rollDialogOpen && !statsOpen) { openQuestDialog(); return; }
   if (isNearQuestNpc2() && !questDialog2Open && !questDialogOpen && !rollDialogOpen && !statsOpen) { openQuestDialog2(); return; }
-}// ==================== МОБИЛЬНАЯ ЛОГИКА ====================
+  // портал телепорта рядом?
+  useBigPortalIfNear();
+}
+
+// ==================== МОБИЛЬНАЯ ЛОГИКА ====================
 const mobileSlotRects = [];
 let mobileJoy = { active: false, id: null, cx: 0, cy: 0, dx: 0, dy: 0, baseX: 0, baseY: 0, maxR: 60 };
 let mobileButtonsBuilt = false;
@@ -2344,6 +2859,8 @@ function setupMobileHud() {
   initMenuBtns();
   initCanvasTouch();
   initFullscreenBtn();
+  initMapBtn();
+  initPortalUi();
   mobileButtonsBuilt = true;
   refreshMobileHud();
 }
@@ -2411,6 +2928,7 @@ function drawSlotIcon(cx, x, y, r, item) {
     else if (item.name === 'Контроль') { c1 = '#e0c8ff'; c2 = '#7c5cff'; }
     else if (item.name === 'Свет') { c1 = '#ffffff'; c2 = '#ffd700'; }
     else if (item.name === 'Ветряная мельница') { c1 = '#f5e6c8'; c2 = '#8a6a4a'; }
+    else if (item.name === 'Портал') { c1 = '#e0c8ff'; c2 = '#3a0060'; }
     g.addColorStop(0, c1);
     g.addColorStop(1, c2);
     cx.beginPath();
@@ -2424,7 +2942,7 @@ function drawSlotIcon(cx, x, y, r, item) {
     cx.font = 'bold 15px Arial';
     cx.textAlign = 'center';
     cx.textBaseline = 'middle';
-    const letter = item.name === 'Ветряная мельница' ? 'М' : item.name.charAt(0);
+    const letter = item.name === 'Ветряная мельница' ? 'М' : (item.name === 'Портал' ? 'П' : item.name.charAt(0));
     cx.fillText(letter, x, y + 1);
   }
 }
@@ -2443,7 +2961,14 @@ function buildAbilityButtons() {
     btn.dataset.abId = ab.id;
     btn.textContent = ab.key;
     const myLevel = held.power.masteryLevel || 0;
-    if (myLevel < ab.requiredMasteryLevel) btn.classList.add('locked');
+    const locked = myLevel < ab.requiredMasteryLevel;
+    if (locked) {
+      btn.classList.add('locked');
+      const label = document.createElement('div');
+      label.className = 'lockLabel';
+      label.textContent = '🔒 Lv.' + ab.requiredMasteryLevel;
+      btn.appendChild(label);
+    }
     btn.addEventListener('touchstart', (ev) => { ev.preventDefault(); ev.stopPropagation(); startAbility(held.power.name, ab.id); }, { passive: false });
     btn.addEventListener('mousedown', (ev) => { ev.preventDefault(); ev.stopPropagation(); startAbility(held.power.name, ab.id); });
     abContainer.appendChild(btn);
@@ -2528,14 +3053,17 @@ function initAttackBtn() {
   btn.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); doAttack(); });
 }
 
+// АТАКА В ДВИЖЕНИИ — мобильная атака не блокирует движение
 function doAttack() {
   if (!currentUser) return;
   if (adminOpen) return;
-  if (bagOpen || statsOpen || questDialogOpen || questDialog2Open || rollDialogOpen || eatConfirm || bagEatConfirm) return;
+  if (bagOpen || statsOpen || questDialogOpen || questDialog2Open || rollDialogOpen || eatConfirm || bagEatConfirm || portalUiOpen || mapOpen) return;
   if (aimingAbility) {
-    const cx = canvas.width / 2 + camera.x;
-    const cy = canvas.height / 2 + camera.y;
-    executeAbilityAt(cx, cy);
+    // на мобилке "прицел" — это центр экрана + небольшой сдвиг джойстика
+    const dx = mobileJoy.dx || 0, dy = mobileJoy.dy || 0;
+    const tx = player.x + (dx !== 0 || dy !== 0 ? dx * 400 : player.lookX * 400);
+    const ty = player.y + (dx !== 0 || dy !== 0 ? dy * 400 : player.lookY * 400);
+    executeAbilityAt(tx, ty);
     return;
   }
   if (heldSlot !== -1) {
@@ -2569,6 +3097,7 @@ function initBottomBtns() {
       e.preventDefault(); e.stopPropagation();
       if (player.onShip) leaveShip();
       else if (player.hasShip && !isOnAnyLand(player.x, player.y)) enterShip();
+      else useBigPortalIfNear();
     }, { passive: false });
   }
   if (flightBtn) {
@@ -2606,10 +3135,24 @@ function initFullscreenBtn() {
   }, { passive: false });
 }
 
+function initMapBtn() {
+  const btn = document.getElementById('miniMapBtn');
+  if (!btn) return;
+  const show = (e) => { e.preventDefault(); e.stopPropagation(); openMap(); };
+  btn.addEventListener('click', show);
+  btn.addEventListener('touchstart', show, { passive: false });
+}
+
+function initPortalUi() {
+  const closeBtn = document.getElementById('portalUiClose');
+  if (closeBtn) closeBtn.addEventListener('click', () => closePortalUi());
+}
+
 function initCanvasTouch() {
   canvas.addEventListener('touchstart', (e) => {
     if (!currentUser) return;
     if (adminOpen) return;
+    if (portalUiOpen || mapOpen) return;
     for (const t of e.changedTouches) {
       const rect = canvas.getBoundingClientRect();
       const mx = t.clientX - rect.left;
@@ -2660,11 +3203,17 @@ function updateNpcBtnMobile() {
   if (!isMobile()) return;
   const btn = document.getElementById('npcBtn');
   if (!btn) return;
-  if (questDialogOpen || questDialog2Open || rollDialogOpen || statsOpen || bagOpen || aimingAbility || eatConfirm || bagEatConfirm) {
+  if (questDialogOpen || questDialog2Open || rollDialogOpen || statsOpen || bagOpen || aimingAbility || eatConfirm || bagEatConfirm || portalUiOpen || mapOpen) {
     btn.style.display = 'none';
     return;
   }
   if (player.onShip || player.windmillActive) { btn.style.display = 'none'; return; }
+  // портал рядом?
+  if (bigPortalActive && performance.now() < bigPortalActive.until && Math.hypot(player.x - bigPortalActive.x, player.y - bigPortalActive.y) < 60) {
+    btn.textContent = '🌀 Войти в портал';
+    btn.style.display = 'block';
+    return;
+  }
   const adm = getNearAdmiral();
   if (adm) {
     if (!player.hasShip && player.money >= SHIP_PRICE) { btn.textContent = '🚢 Купить корабль (5 💰)'; btn.style.display = 'block'; }
@@ -2740,9 +3289,33 @@ function tickMobileHud(now) {
       }
     } else if (existing) existing.remove();
   }
-}
-
-// ==================== ОБНОВЛЕНИЕ ====================
+  // HUD измерений/владений
+  const dimHud = document.getElementById('dimensionHud');
+  const dimVeil = document.getElementById('dimensionVeil');
+  const dimTimerEl = document.getElementById('dimensionTimer');
+  if (isInMyDimension()) {
+    const left = Math.max(0, (myDimension.until - performance.now()) / 1000);
+    if (dimHud) dimHud.classList.add('active');
+    if (dimVeil) dimVeil.classList.add('active');
+    if (dimTimerEl) dimTimerEl.textContent = left.toFixed(1);
+  } else {
+    if (dimHud) dimHud.classList.remove('active');
+    if (dimVeil) dimVeil.classList.remove('active');
+  }
+  const domHud = document.getElementById('domainHud');
+  const domVeil = document.getElementById('domainVeil');
+  const domTimerEl = document.getElementById('domainTimer');
+  if (isInMyDomain() || iAmInSomeoneDimension) {
+    const until = myDomain ? myDomain.until : (iAmInSomeoneDimension ? iAmInSomeoneDimension.until : 0);
+    const left = Math.max(0, (until - performance.now()) / 1000);
+    if (domHud) domHud.classList.add('active');
+    if (domVeil) domVeil.classList.add('active');
+    if (domTimerEl) domTimerEl.textContent = left.toFixed(1);
+  } else {
+    if (domHud) domHud.classList.remove('active');
+    if (domVeil) domVeil.classList.remove('active');
+  }
+}// ==================== ОБНОВЛЕНИЕ ====================
 function update() {
   if (!currentUser) return;
   if (particles.length > 1500) particles.splice(0, particles.length - 1500);
@@ -2766,9 +3339,50 @@ function update() {
   if (remoteLightBeams.length > 20) remoteLightBeams.splice(0, remoteLightBeams.length - 20);
   if (remoteLightTrails.length > 120) remoteLightTrails.splice(0, remoteLightTrails.length - 120);
   if (shipWakes.length > 200) shipWakes.splice(0, shipWakes.length - 200);
+  if (activePortalRifts.length > 6) activePortalRifts.splice(0, activePortalRifts.length - 6);
+  if (remotePortalRifts.length > 20) remotePortalRifts.splice(0, remotePortalRifts.length - 20);
+  if (thrownKnives.length > 20) thrownKnives.splice(0, thrownKnives.length - 20);
+  if (remoteKnives.length > 30) remoteKnives.splice(0, remoteKnives.length - 30);
+  if (remoteBigPortals.length > 10) remoteBigPortals.splice(0, remoteBigPortals.length - 10);
 
   let g = 0;
   while (pendingXp.length > 0 && g < 50) { g++; addXp(pendingXp.shift()); }
+
+  // засос чёрной дыры
+  processBlackHole();
+
+  // проверка конца измерения
+  if (myDimension && performance.now() >= myDimension.until) {
+    exitMyDimension();
+  }
+  if (iAmInSomeoneDimension && performance.now() >= iAmInSomeoneDimension.until) {
+    iAmInSomeoneDimension = null;
+  }
+  // проверка конца владений
+  if (myDomain && performance.now() >= myDomain.until) {
+    exitMyDomain();
+  }
+
+  // таймер портала телепорта (UI)
+  if (portalUiOpen && portalUiCountdownTimer > 0) {
+    portalUiCountdownTimer -= 1000 / 60;
+    const el = document.getElementById('portalCountdown');
+    if (el) el.textContent = 'Осталось: ' + Math.max(0, portalUiCountdownTimer / 1000).toFixed(1) + 'с';
+    if (portalUiCountdownTimer <= 0) closePortalUi();
+  }
+  // удаление старого портала телепорта
+  if (bigPortalActive && performance.now() >= bigPortalActive.until) {
+    bigPortalActive = null;
+    portalPendingTp = null;
+    sendBigPortalClose();
+  }
+  // сохранение текущего большого портала в массив активных для клиента (если вдруг)
+  if (bigPortalActive) {
+    const now = performance.now();
+    if (now >= bigPortalActive.until) {
+      bigPortalActive = null;
+    }
+  }
 
   for (const rp of remotePlayers.values()) {
     rp.x += (rp.targetX - rp.x) * 0.25;
@@ -2787,8 +3401,8 @@ function update() {
   }
 
   const now = performance.now();
-  const blocked = bagOpen || statsOpen || questDialogOpen || questDialog2Open || adminOpen || rollDialogOpen || !!eatConfirm || !!bagEatConfirm;
-  const spd = player.speedWalk;
+  const blocked = bagOpen || statsOpen || questDialogOpen || questDialog2Open || adminOpen || rollDialogOpen || !!eatConfirm || !!bagEatConfirm || portalUiOpen || mapOpen;
+  const spd = player.speedWalk * (isInMyDomain() ? PORTAL_DOMAIN_SPEED_MULT : 1);
 
   if (now > player.seaDamageTimer && !blocked) { player.seaDamageTimer = now + 1000; applySeaDamage(); }
   if (now > (player._enemyTeleportTimer || 0)) { player._enemyTeleportTimer = now + 500; teleportEnemiesFromSea(); }
@@ -2874,7 +3488,7 @@ function update() {
     }
   }
 
-  if (!player.windmillActive && !player.onShip && !blocked && !aimingAbility && !player.flying) {
+  if (!player.windmillActive && !player.onShip && !blocked && !player.flying) {
     let dx = 0, dy = 0;
     if (isMobile() && (Math.abs(mobileJoy.dx) > 0.15 || Math.abs(mobileJoy.dy) > 0.15)) { dx = mobileJoy.dx; dy = mobileJoy.dy; }
     else {
@@ -2939,6 +3553,105 @@ function update() {
   for (let i = remoteLightBeams.length - 1; i >= 0; i--) { remoteLightBeams[i].life--; if (remoteLightBeams[i].life <= 0) remoteLightBeams.splice(i, 1); }
   for (let i = shipWakes.length - 1; i >= 0; i--) { shipWakes[i].life--; shipWakes[i].radius += 0.3; if (shipWakes[i].life <= 0) shipWakes.splice(i, 1); }
 
+  // ---- ОБНОВЛЕНИЕ ПОРТАЛЬНЫХ РАЗЛОМОВ (Z) ----
+  for (let i = activePortalRifts.length - 1; i >= 0; i--) {
+    const r = activePortalRifts[i];
+    r.life--; r.rot = (r.rot || 0) + 0.06;
+    const t = Math.min(1, (r.maxLife - r.life) / 20);
+    r.radius = r.maxRadius * t;
+    if (Math.random() < 0.6) {
+      const a = Math.random() * Math.PI * 2;
+      const rr = r.radius * (0.6 + Math.random() * 0.4);
+      particles.push({
+        x: r.x + Math.cos(a) * rr, y: r.y + Math.sin(a) * rr,
+        vx: (Math.random() - 0.5) * 1.5, vy: (Math.random() - 0.5) * 1.5 - 0.5,
+        life: 30 + Math.random() * 20, maxLife: 50,
+        radius: 3 + Math.random() * 4,
+        color: Math.random() < 0.3 ? '#000000' : (Math.random() < 0.6 ? '#7c5cff' : '#c8b0ff')
+      });
+    }
+    if (r.life <= 0) activePortalRifts.splice(i, 1);
+  }
+  for (let i = remotePortalRifts.length - 1; i >= 0; i--) {
+    const r = remotePortalRifts[i];
+    r.life--;
+    const t = Math.min(1, (r.maxLife - r.life) / 20);
+    r.radius = r.maxRadius * t;
+    if (r.life <= 0) remotePortalRifts.splice(i, 1);
+  }
+
+  // ---- ОБНОВЛЕНИЕ НОЖЕЙ (F) ----
+  for (let i = thrownKnives.length - 1; i >= 0; i--) {
+    const k = thrownKnives[i];
+    k.x += k.vx; k.y += k.vy; k.life--;
+    if (k.trail.length < 20) k.trail.push({ x: k.x, y: k.y, life: 12 });
+    for (let j = k.trail.length - 1; j >= 0; j--) { k.trail[j].life--; if (k.trail[j].life <= 0) k.trail.splice(j, 1); }
+    if (Math.random() < 0.7) {
+      particles.push({ x: k.x, y: k.y, vx: (Math.random() - 0.5) * 1.5, vy: (Math.random() - 0.5) * 1.5, life: 18, maxLife: 18, radius: 2 + Math.random() * 3, color: Math.random() < 0.5 ? '#7c5cff' : '#c8b0ff' });
+    }
+    let hit = false;
+    for (const pir of pirates) {
+      if (pir.dead || k.pierced.has(pir)) continue;
+      if (Math.hypot(k.x - pir.x, k.y - pir.y) < k.radius + pir.radius) {
+        damagePirate(pir, k.damage); k.pierced.add(pir); hit = true; spawnPortalImpact(k.x, k.y); break;
+      }
+    }
+    if (!hit) for (const dw of duneWarriors) {
+      if (dw.dead || k.pierced.has(dw)) continue;
+      if (Math.hypot(k.x - dw.x, k.y - dw.y) < k.radius + dw.radius) {
+        damageDuneWarrior(dw, k.damage); k.pierced.add(dw); hit = true; spawnPortalImpact(k.x, k.y); break;
+      }
+    }
+    if (!hit && boss.active && !boss.dead && !k.pierced.has('boss') && Math.hypot(k.x - boss.x, k.y - boss.y) < k.radius + boss.radius * 0.7) {
+      damageBoss(k.damage); k.pierced.add('boss'); hit = true; spawnPortalImpact(k.x, k.y);
+    }
+    if (!hit && Math.hypot(k.x - npc.x, k.y - npc.y) < k.radius + npc.radius) {
+      damageNpc(k.damage); hit = true; spawnPortalImpact(k.x, k.y);
+    }
+    if (!hit) {
+      for (const rp of remotePlayers.values()) {
+        if (rp.dimensionId !== 0 || k.pierced.has(rp.u)) continue;
+        if (Math.hypot(k.x - rp.x, k.y - rp.y) < k.radius + player.radius) {
+          sendHit(rp.u, k.damage, 'ranged'); k.pierced.add(rp.u); hit = true; spawnPortalImpact(k.x, k.y); break;
+        }
+      }
+    }
+    if (hit || k.life <= 0) thrownKnives.splice(i, 1);
+  }
+  for (let i = remoteKnives.length - 1; i >= 0; i--) {
+    const k = remoteKnives[i];
+    k.x += k.vx; k.y += k.vy; k.life--;
+    if (k.trail.length < 20) k.trail.push({ x: k.x, y: k.y, life: 12 });
+    for (let j = k.trail.length - 1; j >= 0; j--) { k.trail[j].life--; if (k.trail[j].life <= 0) k.trail.splice(j, 1); }
+    if (k.life <= 0) remoteKnives.splice(i, 1);
+  }
+
+  // ---- ОБНОВЛЕНИЕ ЧУЖИХ БОЛЬШИХ ПОРТАЛОВ ----
+  for (let i = remoteBigPortals.length - 1; i >= 0; i--) {
+    const p = remoteBigPortals[i];
+    p.life--;
+    if (p.life <= 0) remoteBigPortals.splice(i, 1);
+  }
+  // ---- ОБНОВЛЕНИЕ ЧУЖИХ ЧЁРНЫХ ДЫР ----
+  for (let i = remoteBlackHoles.length - 1; i >= 0; i--) {
+    const b = remoteBlackHoles[i];
+    b.life--; b.rotation += 0.15;
+    const t = Math.min(1, (b.maxLife - b.life) / 30);
+    b.radius = b.maxRadius * t;
+    if (Math.random() < 0.9) {
+      const a = Math.random() * Math.PI * 2;
+      const rr = b.radius * (0.8 + Math.random() * 0.2);
+      particles.push({
+        x: b.x + Math.cos(a) * rr, y: b.y + Math.sin(a) * rr,
+        vx: -Math.cos(a) * 2, vy: -Math.sin(a) * 2,
+        life: 25 + Math.random() * 15, maxLife: 40,
+        radius: 3 + Math.random() * 5,
+        color: Math.random() < 0.3 ? '#000000' : (Math.random() < 0.6 ? '#ff44ff' : '#8800cc')
+      });
+    }
+    if (b.life <= 0) remoteBlackHoles.splice(i, 1);
+  }
+
   for (let i = lightBeams.length - 1; i >= 0; i--) {
     const LB = lightBeams[i];
     if (now > LB.until) { lightBeams.splice(i, 1); continue; }
@@ -2947,7 +3660,7 @@ function update() {
       for (const pir of pirates) if (!pir.dead) enemies.push({ ref: pir, x: pir.x, y: pir.y, r: pir.radius, type: 'pirate' });
       for (const dw of duneWarriors) if (!dw.dead) enemies.push({ ref: dw, x: dw.x, y: dw.y, r: dw.radius, type: 'dune' });
       enemies.push({ ref: npc, x: npc.x, y: npc.y, r: npc.radius, type: 'npc' });
-      for (const rp of remotePlayers.values()) enemies.push({ ref: rp, x: rp.x, y: rp.y, r: player.radius, type: 'remote', u: rp.u });
+      for (const rp of remotePlayers.values()) { if (rp.dimensionId === 0) enemies.push({ ref: rp, x: rp.x, y: rp.y, r: player.radius, type: 'remote', u: rp.u }); }
       if (boss.active && !boss.dead) enemies.push({ ref: boss, x: boss.x, y: boss.y, r: boss.radius, type: 'boss' });
       for (const en of enemies) {
         if (LB.hit.has(en.type === 'remote' ? en.u : en.ref)) continue;
@@ -3056,7 +3769,7 @@ function update() {
     }
     if (!hit) {
       for (const rp of remotePlayers.values()) {
-        if (p.pierced.has(rp.u)) continue;
+        if (rp.dimensionId !== 0 || p.pierced.has(rp.u)) continue;
         if (Math.hypot(p.x - rp.x, p.y - rp.y) < p.radius + player.radius) {
           sendHit(rp.u, p.damage, 'ranged');
           if (p.kind === 'light_spear') spawnLightImpact(p.x, p.y);
@@ -3103,7 +3816,7 @@ function update() {
     }
     if (!hit) {
       for (const rp of remotePlayers.values()) {
-        if (s.pierced.has(rp.u)) continue;
+        if (rp.dimensionId !== 0 || s.pierced.has(rp.u)) continue;
         if (Math.hypot(s.x - rp.x, s.y - rp.y) < s.radius + player.radius) {
           sendHit(rp.u, s.damage, 'ranged');
           s.pierced.add(rp.u);
@@ -3125,7 +3838,7 @@ function update() {
     if (boss.active && !boss.dead && !w.damagedOnce.has('boss') && Math.hypot(boss.x - w.x, boss.y - w.y) < w.radius) { damageBoss(w.damage); w.damagedOnce.add('boss'); }
     if (!w.damagedOnce.has('npc') && Math.hypot(npc.x - w.x, npc.y - w.y) < w.radius) { damageNpc(w.damage); w.damagedOnce.add('npc'); }
     for (const rp of remotePlayers.values()) {
-      if (w.damagedOnce.has(rp.u)) continue;
+      if (rp.dimensionId !== 0 || w.damagedOnce.has(rp.u)) continue;
       if (Math.hypot(rp.x - w.x, rp.y - w.y) < w.radius) { sendHit(rp.u, w.damage, 'ranged'); w.damagedOnce.add(rp.u); }
     }
     const pullR = 350;
@@ -3158,7 +3871,7 @@ function update() {
       for (const pir of pirates) if (!pir.dead) enemies.push({ ref: pir, x: pir.x, y: pir.y, r: pir.radius, type: 'pirate' });
       for (const dw of duneWarriors) if (!dw.dead) enemies.push({ ref: dw, x: dw.x, y: dw.y, r: dw.radius, type: 'dune' });
       enemies.push({ ref: npc, x: npc.x, y: npc.y, r: npc.radius, type: 'npc' });
-      for (const rp of remotePlayers.values()) enemies.push({ ref: rp, x: rp.x, y: rp.y, r: player.radius, type: 'remote', u: rp.u });
+      for (const rp of remotePlayers.values()) { if (rp.dimensionId === 0) enemies.push({ ref: rp, x: rp.x, y: rp.y, r: player.radius, type: 'remote', u: rp.u }); }
       if (boss.active && !boss.dead) enemies.push({ ref: boss, x: boss.x, y: boss.y, r: boss.radius, type: 'boss' });
       for (const en of enemies) {
         if (L.hit.has(en.type === 'remote' ? en.u : en.ref)) continue;
@@ -3194,7 +3907,7 @@ function update() {
       if (boss.active && !boss.dead) { const d = Math.hypot(boss.x - m.targetX, boss.y - m.targetY); if (d < m.radius) damageBoss(m.damage); else if (isInControlZone(boss.x, boss.y)) damageBoss(CONTROL_METEOR_ZONE_DAMAGE); }
       const npcDist = Math.hypot(npc.x - m.targetX, npc.y - m.targetY);
       if (npcDist < m.radius) damageNpc(m.damage);
-      for (const rp of remotePlayers.values()) { const d = Math.hypot(rp.x - m.targetX, rp.y - m.targetY); if (d < m.radius) sendHit(rp.u, m.damage, 'ranged'); else if (isInControlZone(rp.x, rp.y)) sendHit(rp.u, CONTROL_METEOR_ZONE_DAMAGE, 'ranged'); }
+      for (const rp of remotePlayers.values()) { if (rp.dimensionId !== 0) continue; const d = Math.hypot(rp.x - m.targetX, rp.y - m.targetY); if (d < m.radius) sendHit(rp.u, m.damage, 'ranged'); else if (isInControlZone(rp.x, rp.y)) sendHit(rp.u, CONTROL_METEOR_ZONE_DAMAGE, 'ranged'); }
       for (let k = 0; k < 60; k++) { const a = Math.random() * Math.PI * 2, s = 4 + Math.random() * 10; particles.push({ x: m.targetX, y: m.targetY, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 45, maxLife: 80, radius: 5 + Math.random() * 6, color: Math.random() < 0.4 ? '#ffffff' : (Math.random() < 0.7 ? '#aaffff' : '#7c5cff') }); }
       particles.push({ isShockwave: true, x: m.targetX, y: m.targetY, radius: 10, maxRadius: 200, life: 35, maxLife: 35, color: '#7c5cff' });
     }
@@ -3210,7 +3923,7 @@ function update() {
       for (const dw of duneWarriors) { if (dw.dead) continue; if (Math.hypot(dw.x - B.x, dw.y - B.y) < B.radius) damageDuneWarrior(dw, B.damage); }
       if (boss.active && !boss.dead && Math.hypot(boss.x - B.x, boss.y - B.y) < B.radius) damageBoss(B.damage);
       if (Math.hypot(npc.x - B.x, npc.y - B.y) < B.radius) damageNpc(B.damage);
-      for (const rp of remotePlayers.values()) { if (Math.hypot(rp.x - B.x, rp.y - B.y) < B.radius) sendHit(rp.u, B.damage, 'ranged'); }
+      for (const rp of remotePlayers.values()) { if (rp.dimensionId !== 0) continue; if (Math.hypot(rp.x - B.x, rp.y - B.y) < B.radius) sendHit(rp.u, B.damage, 'ranged'); }
       const pc1 = B.lightBeam ? '#ffffff' : '#7c5cff';
       const pc2 = B.lightBeam ? '#fff6b0' : '#ffffff';
       for (let k = 0; k < 50; k++) { const a = Math.random() * Math.PI * 2, s = 4 + Math.random() * 8; particles.push({ x: B.x, y: B.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 40, maxLife: 70, radius: 5 + Math.random() * 6, color: Math.random() < 0.5 ? pc1 : pc2 }); }
@@ -3230,7 +3943,7 @@ function update() {
       for (const dw of duneWarriors) { if (dw.dead) continue; if (Math.hypot(dw.x - z.x, dw.y - z.y) < z.maxRadius) { damageDuneWarrior(dw, z.damage); if (!dw.dead) dw.frozenUntil = performance.now() + z.freezeDuration; } }
       if (boss.active && !boss.dead && Math.hypot(boss.x - z.x, boss.y - z.y) < z.maxRadius) { damageBoss(z.damage); if (!boss.dead) boss.frozenUntil = performance.now() + z.freezeDuration; }
       if (Math.hypot(npc.x - z.x, npc.y - z.y) < z.maxRadius) damageNpc(z.damage);
-      for (const rp of remotePlayers.values()) { if (Math.hypot(rp.x - z.x, rp.y - z.y) < z.maxRadius) sendHit(rp.u, z.damage, 'ranged'); }
+      for (const rp of remotePlayers.values()) { if (rp.dimensionId !== 0) continue; if (Math.hypot(rp.x - z.x, rp.y - z.y) < z.maxRadius) sendHit(rp.u, z.damage, 'ranged'); }
     }
     if (z.life <= 0) iceZones.splice(i, 1);
   }
@@ -3251,7 +3964,7 @@ function update() {
       for (const dw of duneWarriors) { if (dw.dead) continue; if (Math.hypot(dw.x - m.targetX, dw.y - m.targetY) < m.radius) damageDuneWarrior(dw, m.damage); }
       if (boss.active && !boss.dead && Math.hypot(boss.x - m.targetX, boss.y - m.targetY) < m.radius) damageBoss(m.damage);
       if (Math.hypot(npc.x - m.targetX, npc.y - m.targetY) < m.radius) damageNpc(m.damage);
-      for (const rp of remotePlayers.values()) { if (Math.hypot(rp.x - m.targetX, rp.y - m.targetY) < m.radius) sendHit(rp.u, m.damage, 'ranged'); }
+      for (const rp of remotePlayers.values()) { if (rp.dimensionId !== 0) continue; if (Math.hypot(rp.x - m.targetX, rp.y - m.targetY) < m.radius) sendHit(rp.u, m.damage, 'ranged'); }
       for (let k = 0; k < 40; k++) { const a = Math.random() * Math.PI * 2, s = 3 + Math.random() * 8; particles.push({ x: m.targetX, y: m.targetY, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 40, maxLife: 70, radius: 4 + Math.random() * 6, color: '#aaffff' }); }
       particles.push({ isShockwave: true, x: m.targetX, y: m.targetY, radius: 10, maxRadius: 150, life: 30, maxLife: 30, color: '#aaffff' });
       iceFields.push({ x: m.targetX, y: m.targetY, radius: 100, life: 300, maxLife: 300 });
@@ -3360,7 +4073,13 @@ function spawnSharkImpact(x, y) {
 function spawnLightImpact(x, y) {
   for (let k = 0; k < 35; k++) { const a = Math.random() * Math.PI * 2, s = 4 + Math.random() * 9; particles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 30, maxLife: 55, radius: 4 + Math.random() * 6, color: Math.random() < 0.5 ? '#ffffff' : '#fff6b0' }); }
   particles.push({ isShockwave: true, x, y, radius: 10, maxRadius: 120, life: 25, maxLife: 25, color: '#fff6b0' });
-}// ==================== ОТРИСОВКА МИРА ====================
+}
+function spawnPortalImpact(x, y) {
+  for (let k = 0; k < 40; k++) { const a = Math.random() * Math.PI * 2, s = 3 + Math.random() * 9; particles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 30, maxLife: 60, radius: 4 + Math.random() * 6, color: Math.random() < 0.3 ? '#000000' : (Math.random() < 0.6 ? '#7c5cff' : '#c8b0ff') }); }
+  particles.push({ isShockwave: true, x, y, radius: 10, maxRadius: 130, life: 28, maxLife: 28, color: '#7c5cff' });
+}
+
+// ==================== ОТРИСОВКА МИРА ====================
 function drawWorld() {
   const time = performance.now() * 0.001;
   const seaGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
@@ -3412,7 +4131,36 @@ function drawWorld() {
   ctx.strokeStyle = '#c9a86a'; ctx.lineWidth = 4;
   ctx.strokeRect(dsx, dsy, DESERT.width, DESERT.height);
 
-  if (!isOnAnyLand(player.x, player.y) && !player.windmillActive && !player.onShip) {
+  // если игрок в измерении — рисуем особый фон вместо моря
+  if (isInMyDimension()) {
+    const t = performance.now() * 0.001;
+    ctx.fillStyle = 'rgba(100, 180, 255, 0.18)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // сетка
+    ctx.strokeStyle = 'rgba(180, 220, 255, 0.25)';
+    ctx.lineWidth = 1;
+    const gs = 80;
+    const offX = (camera.x * 0.5) % gs;
+    const offY = (camera.y * 0.5) % gs;
+    for (let x = -offX; x < canvas.width; x += gs) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+    }
+    for (let y = -offY; y < canvas.height; y += gs) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+    }
+  }
+
+  // если во владениях — фиолетово-красный фон
+  if (isInMyDomain() || iAmInSomeoneDimension) {
+    const g = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 100, canvas.width / 2, canvas.height / 2, Math.max(canvas.width, canvas.height));
+    g.addColorStop(0, 'rgba(60, 0, 80, 0.25)');
+    g.addColorStop(0.6, 'rgba(30, 0, 50, 0.55)');
+    g.addColorStop(1, 'rgba(0, 0, 0, 0.85)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+
+  if (!isOnAnyLand(player.x, player.y) && !player.windmillActive && !player.onShip && !isInMyDimension() && !isInMyDomain()) {
     const pulse = 0.3 + Math.sin(performance.now() * 0.008) * 0.2;
     ctx.strokeStyle = `rgba(80, 200, 255, ${pulse})`;
     ctx.lineWidth = 8;
@@ -3612,9 +4360,7 @@ function drawObstacles() {
       ctx.strokeStyle = '#5a3a1a'; ctx.lineWidth = 2; ctx.strokeRect(x, y, ob.w, ob.h);
     }
   }
-}
-
-// ==================== ИКОНКИ ====================
+}// ==================== ИКОНКИ ====================
 function drawFistsIcon(cx, cy, radius) {
   const bg = ctx.createRadialGradient(cx, cy, 1, cx, cy, radius * 1.2);
   bg.addColorStop(0, '#2a2a2a'); bg.addColorStop(1, '#0a0a0a');
@@ -3763,10 +4509,40 @@ function drawPowerIcon(cx, cy, radius, name) {
       ctx.restore();
     }
     ctx.restore();
-    ctx.beginPath();
-    ctx.arc(hubX, hubY, radius * 0.12, 0, Math.PI * 2);
+    ctx.beginPath(); ctx.arc(hubX, hubY, radius * 0.12, 0, Math.PI * 2);
     ctx.fillStyle = '#e8c88a'; ctx.fill();
     ctx.strokeStyle = '#5a3a1a'; ctx.lineWidth = 1.5; ctx.stroke();
+  } else if (name === 'Портал') {
+    const bg = ctx.createRadialGradient(cx, cy, 1, cx, cy, radius * 1.2);
+    bg.addColorStop(0, '#1a0030'); bg.addColorStop(1, '#050010');
+    ctx.beginPath(); ctx.arc(cx, cy, radius * 1.1, 0, Math.PI * 2);
+    ctx.fillStyle = bg; ctx.fill();
+    ctx.strokeStyle = '#a060ff'; ctx.lineWidth = 2.5; ctx.stroke();
+    const t = performance.now() * 0.004;
+    ctx.save();
+    ctx.translate(cx, cy);
+    for (let ring = 0; ring < 3; ring++) {
+      const rr = radius * (0.35 + ring * 0.25);
+      ctx.beginPath();
+      for (let i = 0; i <= 24; i++) {
+        const a = (i / 24) * Math.PI * 2 + t * (1 + ring * 0.3);
+        const wobble = Math.sin(a * 5 + t * 3) * radius * 0.05;
+        const px = Math.cos(a) * (rr + wobble);
+        const py = Math.sin(a) * (rr + wobble);
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.strokeStyle = ring === 0 ? 'rgba(200, 100, 255, 0.95)' : ring === 1 ? 'rgba(120, 60, 220, 0.85)' : 'rgba(60, 0, 120, 0.85)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+    const core = ctx.createRadialGradient(0, 0, 0, 0, 0, radius * 0.4);
+    core.addColorStop(0, 'rgba(0, 0, 0, 1)');
+    core.addColorStop(0.5, 'rgba(80, 20, 140, 0.9)');
+    core.addColorStop(1, 'rgba(150, 80, 255, 0)');
+    ctx.beginPath(); ctx.arc(0, 0, radius * 0.4, 0, Math.PI * 2);
+    ctx.fillStyle = core; ctx.fill();
+    ctx.restore();
   }
 }
 
@@ -3789,7 +4565,7 @@ function getRarityBorderColor(name) {
   return 'rgba(200, 200, 200, 0.75)';
 }
 
-// ==================== ФРУКТЫ/ПРЕДМЕТЫ НА ЗЕМЛЕ ====================
+// ==================== ФРУКТЫ НА ЗЕМЛЕ ====================
 function drawFruitShape(x, y, radius, color, phase = 0, bob = false, glow = false) {
   const bo = bob ? Math.sin(phase) * 5 : 0;
   const fy = y + bo;
@@ -3836,7 +4612,262 @@ function drawSharedDroppedFruits() {
   }
 }
 
-// ==================== ЭФФЕКТЫ СПОСОБНОСТЕЙ ====================
+// ==================== ОТРИСОВКА: ПОРТАЛЫ Z ====================
+function drawActivePortalRifts() {
+  for (const r of activePortalRifts) {
+    drawPortalRiftAt(r.x, r.y, r.radius, r.rot || 0);
+  }
+  for (const r of remotePortalRifts) {
+    drawPortalRiftAt(r.x, r.y, r.radius, r.rot || 0);
+  }
+}
+function drawPortalRiftAt(wx, wy, radius, rot) {
+  const x = wx - camera.x, y = wy - camera.y;
+  if (radius <= 0) return;
+  const t = performance.now() * 0.004 + rot;
+  // внешнее свечение
+  const halo = ctx.createRadialGradient(x, y, radius * 0.2, x, y, radius * 1.6);
+  halo.addColorStop(0, 'rgba(180, 100, 255, 0.55)');
+  halo.addColorStop(0.5, 'rgba(90, 40, 200, 0.35)');
+  halo.addColorStop(1, 'rgba(30, 0, 80, 0)');
+  ctx.beginPath(); ctx.arc(x, y, radius * 1.6, 0, Math.PI * 2);
+  ctx.fillStyle = halo; ctx.fill();
+  // искажающие круги
+  ctx.save();
+  ctx.translate(x, y);
+  for (let ring = 0; ring < 4; ring++) {
+    const rr = radius * (0.35 + ring * 0.22);
+    ctx.beginPath();
+    for (let i = 0; i <= 30; i++) {
+      const a = (i / 30) * Math.PI * 2 + t * (1 + ring * 0.4);
+      const wob = Math.sin(a * 5 + t * 3 + ring) * radius * 0.08;
+      const px = Math.cos(a) * (rr + wob);
+      const py = Math.sin(a) * (rr + wob);
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    const cols = ['rgba(220, 130, 255, 0.95)', 'rgba(150, 80, 240, 0.85)', 'rgba(90, 30, 190, 0.85)', 'rgba(40, 0, 90, 0.85)'];
+    ctx.strokeStyle = cols[ring];
+    ctx.lineWidth = 3 - ring * 0.4;
+    ctx.stroke();
+  }
+  // чёрное ядро
+  const core = ctx.createRadialGradient(0, 0, 0, 0, 0, radius * 0.6);
+  core.addColorStop(0, 'rgba(0, 0, 0, 1)');
+  core.addColorStop(0.4, 'rgba(20, 0, 50, 0.95)');
+  core.addColorStop(0.75, 'rgba(80, 20, 150, 0.7)');
+  core.addColorStop(1, 'rgba(150, 80, 255, 0)');
+  ctx.beginPath(); ctx.arc(0, 0, radius * 0.6, 0, Math.PI * 2);
+  ctx.fillStyle = core; ctx.fill();
+  // искры
+  for (let i = 0; i < 6; i++) {
+    const a = t * 2 + i * (Math.PI / 3);
+    const rr = radius * (0.9 + Math.sin(t * 3 + i) * 0.15);
+    const px = Math.cos(a) * rr, py = Math.sin(a) * rr;
+    ctx.beginPath(); ctx.arc(px, py, 2 + Math.random() * 1.5, 0, Math.PI * 2);
+    ctx.fillStyle = Math.random() < 0.5 ? '#ffffff' : '#c8b0ff';
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+// ==================== ОТРИСОВКА: БОЛЬШИЕ ПОРТАЛЫ C ====================
+function drawBigPortals() {
+  if (bigPortalActive) {
+    drawBigPortalAt(bigPortalActive.x, bigPortalActive.y, 1);
+  }
+  for (const p of remoteBigPortals) {
+    const alpha = Math.min(1, p.life / 60);
+    drawBigPortalAt(p.x, p.y, alpha);
+  }
+}
+function drawBigPortalAt(wx, wy, alpha) {
+  const x = wx - camera.x, y = wy - camera.y;
+  const t = performance.now() * 0.003;
+  const R = 55;
+  // вертикальное эллиптическое "полотно"
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  const halo = ctx.createRadialGradient(x, y, 0, x, y, R * 2);
+  halo.addColorStop(0, 'rgba(200, 140, 255, 0.7)');
+  halo.addColorStop(0.5, 'rgba(100, 50, 220, 0.35)');
+  halo.addColorStop(1, 'rgba(40, 0, 100, 0)');
+  ctx.beginPath(); ctx.ellipse(x, y, R * 1.6, R * 2, 0, 0, Math.PI * 2);
+  ctx.fillStyle = halo; ctx.fill();
+  // 8 вращающихся "лепестков" вокруг
+  for (let i = 0; i < 8; i++) {
+    const a = t + i * (Math.PI / 4);
+    const rr = R * (1.2 + Math.sin(t * 2 + i) * 0.15);
+    const px = x + Math.cos(a) * rr;
+    const py = y + Math.sin(a) * rr * 1.3;
+    const g = ctx.createRadialGradient(px, py, 0, px, py, 12);
+    g.addColorStop(0, 'rgba(255, 240, 255, 0.95)');
+    g.addColorStop(1, 'rgba(150, 80, 255, 0)');
+    ctx.beginPath(); ctx.arc(px, py, 12, 0, Math.PI * 2);
+    ctx.fillStyle = g; ctx.fill();
+  }
+  // 3 вращающихся эллипса
+  for (let ring = 0; ring < 3; ring++) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(t * (0.8 + ring * 0.4));
+    ctx.beginPath();
+    ctx.ellipse(0, 0, R * (0.5 + ring * 0.25), R * (0.9 + ring * 0.35), 0, 0, Math.PI * 2);
+    ctx.strokeStyle = ring === 0 ? 'rgba(255, 200, 255, 0.95)' : ring === 1 ? 'rgba(180, 100, 255, 0.85)' : 'rgba(80, 20, 180, 0.85)';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    ctx.restore();
+  }
+  // чёрное ядро эллипса
+  const core = ctx.createRadialGradient(x, y, 0, x, y, R * 0.9);
+  core.addColorStop(0, 'rgba(0, 0, 0, 1)');
+  core.addColorStop(0.5, 'rgba(40, 0, 80, 0.9)');
+  core.addColorStop(1, 'rgba(120, 40, 220, 0)');
+  ctx.beginPath(); ctx.ellipse(x, y, R * 0.75, R * 1.3, 0, 0, Math.PI * 2);
+  ctx.fillStyle = core; ctx.fill();
+  // подпись с островом
+  ctx.globalAlpha = alpha;
+  ctx.font = 'bold 13px Arial';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
+  const label = '→ ' + (bigPortalActive && bigPortalActive.islandName ? bigPortalActive.islandName : (portalPendingTp ? portalPendingTp.islandName : 'портал'));
+  ctx.strokeText(label, x, y - R * 2.2);
+  ctx.fillStyle = '#c8b0ff';
+  ctx.fillText(label, x, y - R * 2.2);
+  // подсказка "E/Пробел"
+  if (bigPortalActive && Math.hypot(player.x - bigPortalActive.x, player.y - bigPortalActive.y) < 60) {
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    const ht = isMobile() ? 'Нажми кнопку NPC' : 'E или Пробел — войти';
+    ctx.font = 'bold 14px Arial';
+    const tw = ctx.measureText(ht).width + 20;
+    ctx.beginPath();
+    ctx.roundRect(x - tw / 2, y + R * 2 + 10, tw, 26, 8);
+    ctx.fill();
+    ctx.fillStyle = '#c8b0ff';
+    ctx.fillText(ht, x, y + R * 2 + 23);
+  }
+  ctx.restore();
+}
+
+// ==================== ОТРИСОВКА: НОЖИ ====================
+function drawThrownKnives() {
+  for (const k of thrownKnives) drawKnifeAt(k, 1);
+  for (const k of remoteKnives) drawKnifeAt(k, 1);
+}
+function drawKnifeAt(k, alpha) {
+  const x = k.x - camera.x, y = k.y - camera.y;
+  for (const tr of k.trail) {
+    const a = tr.life / 12;
+    const g = ctx.createRadialGradient(tr.x - camera.x, tr.y - camera.y, 0, tr.x - camera.x, tr.y - camera.y, 8);
+    g.addColorStop(0, `rgba(200, 140, 255, ${a * 0.9})`);
+    g.addColorStop(1, 'rgba(80, 20, 180, 0)');
+    ctx.beginPath(); ctx.arc(tr.x - camera.x, tr.y - camera.y, 8, 0, Math.PI * 2);
+    ctx.fillStyle = g; ctx.fill();
+  }
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.translate(x, y);
+  ctx.rotate(k.angle);
+  // аура
+  const halo = ctx.createRadialGradient(0, 0, 0, 0, 0, 26);
+  halo.addColorStop(0, 'rgba(255, 220, 255, 0.9)');
+  halo.addColorStop(0.6, 'rgba(180, 100, 255, 0.6)');
+  halo.addColorStop(1, 'rgba(60, 0, 140, 0)');
+  ctx.beginPath(); ctx.arc(0, 0, 26, 0, Math.PI * 2);
+  ctx.fillStyle = halo; ctx.fill();
+  // лезвие
+  ctx.beginPath();
+  ctx.moveTo(18, 0);
+  ctx.lineTo(6, -5);
+  ctx.lineTo(-16, -3);
+  ctx.lineTo(-20, 0);
+  ctx.lineTo(-16, 3);
+  ctx.lineTo(6, 5);
+  ctx.closePath();
+  const kg = ctx.createLinearGradient(-20, 0, 18, 0);
+  kg.addColorStop(0, '#3a0060');
+  kg.addColorStop(0.5, '#a060ff');
+  kg.addColorStop(1, '#ffffff');
+  ctx.fillStyle = kg; ctx.fill();
+  ctx.strokeStyle = '#2a0040'; ctx.lineWidth = 1.5; ctx.stroke();
+  // рукоять
+  ctx.beginPath();
+  ctx.rect(-24, -3, 5, 6);
+  ctx.fillStyle = '#1a0030'; ctx.fill();
+  ctx.strokeStyle = '#000'; ctx.lineWidth = 1; ctx.stroke();
+  // чёрное ядро в середине
+  ctx.beginPath(); ctx.arc(0, 0, 3, 0, Math.PI * 2);
+  ctx.fillStyle = '#000'; ctx.fill();
+  ctx.restore();
+}
+
+// ==================== ОТРИСОВКА: ЧЁРНАЯ ДЫРА (СВОЯ) ====================
+function drawMyBlackHole() {
+  if (!blackHole) return;
+  drawBlackHoleAt(blackHole.x, blackHole.y, blackHole.radius, blackHole.rotation || 0);
+}
+function drawRemoteBlackHoles() {
+  for (const b of remoteBlackHoles) {
+    drawBlackHoleAt(b.x, b.y, b.radius, b.rotation || 0);
+  }
+}
+function drawBlackHoleAt(wx, wy, radius, rot) {
+  const x = wx - camera.x, y = wy - camera.y;
+  if (radius <= 0) return;
+  const t = performance.now() * 0.004 + rot;
+  // гравитационное искажение (тёмный ореол)
+  const halo = ctx.createRadialGradient(x, y, radius * 0.3, x, y, radius * 1.8);
+  halo.addColorStop(0, 'rgba(0, 0, 0, 0.95)');
+  halo.addColorStop(0.3, 'rgba(30, 0, 50, 0.85)');
+  halo.addColorStop(0.6, 'rgba(120, 0, 180, 0.45)');
+  halo.addColorStop(1, 'rgba(40, 0, 80, 0)');
+  ctx.beginPath(); ctx.arc(x, y, radius * 1.8, 0, Math.PI * 2);
+  ctx.fillStyle = halo; ctx.fill();
+  // аккреционный диск (вращающиеся спирали)
+  ctx.save();
+  ctx.translate(x, y);
+  for (let arm = 0; arm < 4; arm++) {
+    ctx.beginPath();
+    for (let i = 0; i <= 30; i++) {
+      const r = (i / 30) * radius * 1.5;
+      const a = t + arm * (Math.PI / 2) + r * 0.04;
+      const px = Math.cos(a) * r;
+      const py = Math.sin(a) * r;
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    const grad = ctx.createLinearGradient(0, 0, radius * 1.5, 0);
+    grad.addColorStop(0, 'rgba(255, 100, 255, 0)');
+    grad.addColorStop(0.5, 'rgba(200, 60, 255, 0.7)');
+    grad.addColorStop(1, 'rgba(80, 0, 140, 0)');
+    ctx.strokeStyle = grad;
+    ctx.lineWidth = 3;
+    ctx.stroke();
+  }
+  // чёрное ядро (event horizon)
+  const core = ctx.createRadialGradient(0, 0, 0, 0, 0, radius * 0.7);
+  core.addColorStop(0, 'rgba(0, 0, 0, 1)');
+  core.addColorStop(0.7, 'rgba(0, 0, 0, 0.95)');
+  core.addColorStop(1, 'rgba(60, 0, 100, 0)');
+  ctx.beginPath(); ctx.arc(0, 0, radius * 0.7, 0, Math.PI * 2);
+  ctx.fillStyle = core; ctx.fill();
+  // кольцо горизонта событий
+  ctx.beginPath(); ctx.arc(0, 0, radius * 0.7, 0, Math.PI * 2);
+  ctx.strokeStyle = `rgba(200, 100, 255, ${0.7 + Math.sin(t * 4) * 0.3})`;
+  ctx.lineWidth = 3;
+  ctx.stroke();
+  // вспышки по краям
+  for (let i = 0; i < 8; i++) {
+    const a = t * 2 + i * (Math.PI / 4);
+    const rr = radius * (0.75 + Math.sin(t * 5 + i) * 0.1);
+    const px = Math.cos(a) * rr, py = Math.sin(a) * rr;
+    ctx.beginPath(); ctx.arc(px, py, 2 + Math.random() * 2, 0, Math.PI * 2);
+    ctx.fillStyle = Math.random() < 0.5 ? '#ffffff' : '#ff44ff';
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+// ==================== ЭФФЕКТЫ СПОСОБНОСТЕЙ (старые) ====================
 function drawControlSlashes() {
   for (const s of controlSlashes) {
     const a = s.life / s.maxLife;
@@ -3963,7 +4994,6 @@ function drawRemoteLightTrails() {
   }
 }
 
-// ==================== ЗОНА КОНТРОЛЯ ====================
 function drawControlZone() {
   if (!controlZone) return;
   const now = performance.now();
@@ -4088,7 +5118,6 @@ function drawControlMeteors() {
   }
 }
 
-// ==================== ЧУЖИЕ АТАКИ ====================
 function drawRemoteAttacks() {
   const now = performance.now();
   for (const rp of remoteProjectiles) {
@@ -4218,7 +5247,6 @@ function drawRemoteAttacks() {
   }
 }
 
-// ==================== СНАРЯДЫ (свои) ====================
 function drawProjectiles() {
   for (const p of projectiles) {
     const x = p.x - camera.x, y = p.y - camera.y;
@@ -4438,19 +5466,7 @@ function drawPlayer() {
   const inWater = isInWaterForm();
   const flying = player.flying;
 
-  if (player.onShip) {
-    drawShipAt(x, y, player.shipAngle, SHIP_RADIUS, true);
-    if (currentUser) {
-      ctx.font = 'bold 13px Arial';
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
-      ctx.strokeText(currentUser.username, x, y - SHIP_RADIUS - 25);
-      ctx.fillStyle = '#ffd700';
-      ctx.fillText(currentUser.username, x, y - SHIP_RADIUS - 25);
-    }
-    return;
-  }
-
+  // МЕЛЬНИЦА — игрок НЕВИДИМ, только здание
   if (player.windmillActive) {
     drawWindmillAt(x, y, player.windmillAngle, WINDMILL_RADIUS, true);
     if (currentUser) {
@@ -4460,6 +5476,41 @@ function drawPlayer() {
       ctx.strokeText(currentUser.username, x, y - WINDMILL_RADIUS * 2.5);
       ctx.fillStyle = '#ffd700';
       ctx.fillText(currentUser.username, x, y - WINDMILL_RADIUS * 2.5);
+    }
+    return;
+  }
+
+  // В СВОЁМ ИЗМЕРЕНИИ — игрок светится, полупрозрачный силуэт
+  if (isInMyDimension()) {
+    ctx.save();
+    ctx.globalAlpha = 0.85;
+    const glow = ctx.createRadialGradient(x, y, 0, x, y, player.radius * 2.5);
+    glow.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+    glow.addColorStop(0.5, 'rgba(180, 220, 255, 0.6)');
+    glow.addColorStop(1, 'rgba(120, 160, 255, 0)');
+    ctx.beginPath(); ctx.arc(x, y, player.radius * 2.5, 0, Math.PI * 2);
+    ctx.fillStyle = glow; ctx.fill();
+    ctx.beginPath(); ctx.arc(x, y, player.radius, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(180, 220, 255, 0.9)'; ctx.lineWidth = 3; ctx.stroke();
+    ctx.font = 'bold 12px Arial';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+    ctx.fillText('в измерении', x, y + player.radius + 20);
+    ctx.restore();
+    return;
+  }
+
+  if (player.onShip) {
+    drawShipAt(x, y, player.shipAngle, SHIP_RADIUS, true);
+    if (currentUser) {
+      ctx.font = 'bold 13px Arial';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
+      ctx.strokeText(currentUser.username, x, y - SHIP_RADIUS - 25);
+      ctx.fillStyle = '#ffd700';
+      ctx.fillText(currentUser.username, x, y - SHIP_RADIUS - 25);
     }
     return;
   }
@@ -4479,7 +5530,7 @@ function drawPlayer() {
       ctx.beginPath(); ctx.arc(px, py, 5, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'; ctx.fill();
     }
   }
-  if (!isOnAnyLand(player.x, player.y) && !inWater && !flying) {
+  if (!isOnAnyLand(player.x, player.y) && !inWater && !flying && !isInMyDomain()) {
     for (let i = 0; i < 8; i++) { const a = t * 2 + i * (Math.PI / 4); const r = player.radius + 10 + Math.sin(t * 3 + i) * 4; const dx = x + Math.cos(a) * r, dy = y + Math.sin(a) * r; ctx.beginPath(); ctx.arc(dx, dy, 2 + Math.sin(t * 4 + i), 0, Math.PI * 2); ctx.fillStyle = 'rgba(150,220,255,0.7)'; ctx.fill(); }
     const g = ctx.createRadialGradient(x, y + 15, 0, x, y + 15, 40); g.addColorStop(0, 'rgba(80,180,255,0.5)'); g.addColorStop(1, 'rgba(80,180,255,0)');
     ctx.beginPath(); ctx.ellipse(x, y + 15, 40, 15, 0, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
@@ -4500,14 +5551,24 @@ function drawPlayer() {
     ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fill();
   }
   const isHit = player.hitFlash > 0;
+  const inDomain = isInMyDomain();
   const g = ctx.createRadialGradient(x - player.radius * 0.35, y - player.radius * 0.35, 3, x, y, player.radius);
   if (isHit) { g.addColorStop(0, '#ffffff'); g.addColorStop(1, '#ff6666'); }
   else if (flying) { g.addColorStop(0, '#ffffff'); g.addColorStop(1, '#fff6b0'); }
   else if (inWater) { g.addColorStop(0, '#aaffff'); g.addColorStop(1, '#2288cc'); }
+  else if (inDomain) { g.addColorStop(0, '#ffccff'); g.addColorStop(1, '#8800cc'); }
   else { g.addColorStop(0, '#ffe066'); g.addColorStop(1, '#ffb300'); }
   ctx.beginPath(); ctx.arc(x, y, player.radius, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
-  ctx.strokeStyle = flying ? '#c9a800' : (inWater ? '#005588' : '#b37700');
+  ctx.strokeStyle = inDomain ? '#ff44ff' : (flying ? '#c9a800' : (inWater ? '#005588' : '#b37700'));
   ctx.lineWidth = 3; ctx.stroke();
+  // владельческая аура
+  if (inDomain) {
+    const t2 = performance.now() * 0.003;
+    const auraR = player.radius + 8 + Math.sin(t2 * 3) * 3;
+    ctx.beginPath(); ctx.arc(x, y, auraR, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(255, 100, 255, ${0.6 + Math.sin(t2 * 5) * 0.3})`;
+    ctx.lineWidth = 3; ctx.stroke();
+  }
   if (player.punchAnim > 0.05) {
     const px = x + player.punchDir.x * (player.radius + 15 + player.punchAnim * 20);
     const py = y + player.punchDir.y * (player.radius + 15 + player.punchAnim * 20);
@@ -4525,17 +5586,17 @@ function drawPlayer() {
   ctx.beginPath(); ctx.arc(eRx, eRy, er, 0, Math.PI * 2); ctx.fillStyle = 'white'; ctx.fill();
   ctx.strokeStyle = '#333'; ctx.lineWidth = 2; ctx.stroke();
   ctx.beginPath(); ctx.arc(eLx + lx * ps, eLy + ly * ps, pr, 0, Math.PI * 2);
-  ctx.fillStyle = (inWater || flying) ? '#003366' : '#1a1a1a'; ctx.fill();
+  ctx.fillStyle = (inWater || flying || inDomain) ? '#003366' : '#1a1a1a'; ctx.fill();
   ctx.beginPath(); ctx.arc(eRx + lx * ps, eRy + ly * ps, pr, 0, Math.PI * 2);
-  ctx.fillStyle = (inWater || flying) ? '#003366' : '#1a1a1a'; ctx.fill();
+  ctx.fillStyle = (inWater || flying || inDomain) ? '#003366' : '#1a1a1a'; ctx.fill();
   ctx.beginPath(); ctx.arc(x, y + player.radius * 0.25, player.radius * 0.4, 0.15 * Math.PI, 0.85 * Math.PI);
-  ctx.strokeStyle = (inWater || flying) ? '#003366' : '#5a3a00';
+  ctx.strokeStyle = (inWater || flying || inDomain) ? '#003366' : '#5a3a00';
   ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.stroke();
   if (currentUser) {
     ctx.font = 'bold 13px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
     ctx.strokeText(currentUser.username, x, y - player.radius - 12);
-    ctx.fillStyle = flying ? '#fff6b0' : '#ffd700';
+    ctx.fillStyle = inDomain ? '#ff88ff' : (flying ? '#fff6b0' : '#ffd700');
     ctx.fillText(currentUser.username, x, y - player.radius - 12);
   }
 }
@@ -4543,10 +5604,10 @@ function drawPlayer() {
 function drawHeldItem() {
   if (heldSlot === -1) return;
   const item = inventory[heldSlot];
-  if (!item || item.type === 'fists' || isInWaterForm() || player.windmillActive || player.onShip) return;
+  if (!item || item.type === 'fists' || isInWaterForm() || player.windmillActive || player.onShip || isInMyDimension()) return;
   const x = player.x - camera.x + player.radius * 1.1, y = player.y - camera.y + player.radius * 0.5;
   if (item.type === 'fruit') {
-    drawFruitShape(x, y, 14, item.color, performance.now() * 0.002, false, item.name === 'Акула' || item.name === 'Контроль' || item.name === 'Свет' || item.name === 'Ветряная мельница');
+    drawFruitShape(x, y, 14, item.color, performance.now() * 0.002, false, item.name === 'Акула' || item.name === 'Контроль' || item.name === 'Свет' || item.name === 'Ветряная мельница' || item.name === 'Портал');
   } else if (item.type === 'power') {
     const t = performance.now() * 0.005;
     const g = ctx.createRadialGradient(x, y, 0, x, y, 16 + Math.sin(t) * 2);
@@ -4874,7 +5935,6 @@ function drawDuneWarriors() {
   }
 }
 
-// ==================== БОСС ====================
 function drawBoss() {
   if (!boss.active && !boss.dead) return;
   if (boss.dead && boss.deathTimer <= 0) return;
@@ -5047,7 +6107,6 @@ function drawRemoteShips() {
   }
 }
 
-// ==================== МЕЛЬНИЦА ====================
 function drawWindmillAt(x, y, angle, radius, isPlayer) {
   ctx.beginPath();
   ctx.ellipse(x, y + radius * 0.95, radius * 0.9, 12, 0, 0, Math.PI * 2);
@@ -5180,10 +6239,10 @@ function drawRemoteWindmills() {
   }
 }
 
-// ==================== ЧУЖИЕ ИГРОКИ ====================
 function drawRemotePlayers() {
   for (const rp of remotePlayers.values()) {
     if (rp.onShip) continue;
+    if (rp.dimensionId !== 0) continue; // скрываем тех, кто в измерении/владениях
     const x = rp.x - camera.x, y = rp.y - camera.y;
     const r = player.radius;
     const inWater = rp.waterForm;
@@ -5232,7 +6291,9 @@ function drawRemotePlayers() {
       if (hr > 0) { ctx.fillStyle = '#ff3b3b'; roundRect(bx, by, bw * hr, bh, 2); ctx.fill(); }
     }
   }
-}// ==================== UI: ДЕНЕЖНЫЙ ИНДИКАТОР (ПК) ====================
+}
+
+// ==================== UI ====================
 function drawMoneyBox() {
   if (isMobile()) return;
   const bw = 200, bh = 44;
@@ -5254,7 +6315,6 @@ function drawMoneyBox() {
   ctx.fillText(txt, x + 44, y + bh / 2);
 }
 
-// ==================== UI: ХОТБАР (ПК) ====================
 function drawInventory() {
   if (isMobile()) return;
   const sw = INVENTORY_SLOTS * SLOT_SIZE + (INVENTORY_SLOTS - 1) * SLOT_GAP;
@@ -5314,7 +6374,6 @@ function drawInventory() {
   ctx.fillText('🎒 Инвентарь', ir.x + ir.w / 2, ir.y + ir.h / 2);
 }
 
-// ==================== UI: ГАЙД ПО СПОСОБНОСТЯМ ====================
 function drawAbilityGuide() {
   if (!abilityGuide) return;
   if (isMobile()) return;
@@ -5322,15 +6381,15 @@ function drawAbilityGuide() {
   const pw = 320, hh = 110, rh = 78;
   const ph = hh + abilities.length * rh + 14;
   const px = canvas.width - pw - 20, py = canvas.height - ph - 80;
-  const isFire = abilityGuide.name === 'Огонь', isIce = abilityGuide.name === 'Лёд', isCtrl = abilityGuide.name === 'Контроль', isLight = abilityGuide.name === 'Свет', isWind = abilityGuide.name === 'Ветряная мельница';
-  const themeSolid = isFire ? '#ff6600' : (isIce ? '#00c8ff' : (isCtrl ? '#7c5cff' : (isLight ? '#fff6b0' : (isWind ? '#c9b088' : '#4fd4ff'))));
-  const theme2 = isFire ? '#ffcc66' : (isIce ? '#aaffff' : (isCtrl ? '#c8b0ff' : (isLight ? '#ffffff' : (isWind ? '#f5e6c8' : '#aaddff'))));
-  const theme = isFire ? 'rgba(255,102,0,0.35)' : (isIce ? 'rgba(0,200,255,0.35)' : (isCtrl ? 'rgba(124,92,255,0.4)' : (isLight ? 'rgba(255,246,176,0.5)' : (isWind ? 'rgba(200,160,80,0.45)' : 'rgba(80,180,255,0.35)'))));
+  const isFire = abilityGuide.name === 'Огонь', isIce = abilityGuide.name === 'Лёд', isCtrl = abilityGuide.name === 'Контроль', isLight = abilityGuide.name === 'Свет', isWind = abilityGuide.name === 'Ветряная мельница', isPort = abilityGuide.name === 'Портал';
+  const themeSolid = isFire ? '#ff6600' : (isIce ? '#00c8ff' : (isCtrl ? '#7c5cff' : (isLight ? '#fff6b0' : (isWind ? '#c9b088' : (isPort ? '#a060ff' : '#4fd4ff')))));
+  const theme2 = isFire ? '#ffcc66' : (isIce ? '#aaffff' : (isCtrl ? '#c8b0ff' : (isLight ? '#ffffff' : (isWind ? '#f5e6c8' : (isPort ? '#e0c8ff' : '#aaddff')))));
+  const theme = isFire ? 'rgba(255,102,0,0.35)' : (isIce ? 'rgba(0,200,255,0.35)' : (isCtrl ? 'rgba(124,92,255,0.4)' : (isLight ? 'rgba(255,246,176,0.5)' : (isWind ? 'rgba(200,160,80,0.45)' : (isPort ? 'rgba(160,96,255,0.45)' : 'rgba(80,180,255,0.35)')))));
   ctx.fillStyle = 'rgba(15,10,5,0.55)';
   ctx.strokeStyle = theme;
   ctx.lineWidth = 1.5;
   roundRect(px, py, pw, ph, 12); ctx.fill(); ctx.stroke();
-  const emoji = isFire ? '🔥' : (isIce ? '❄️' : (isCtrl ? '🌀' : (isLight ? '✨' : (isWind ? '🌀' : '🦈'))));
+  const emoji = isFire ? '🔥' : (isIce ? '❄️' : (isCtrl ? '🌀' : (isLight ? '✨' : (isWind ? '🌀' : (isPort ? '🌀' : '🦈')))));
   ctx.fillStyle = theme2;
   ctx.font = 'bold 15px Arial';
   ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
@@ -5355,7 +6414,7 @@ function drawAbilityGuide() {
   if (ratio > 0) {
     const g = ctx.createLinearGradient(mx, by, mx, by + mh);
     g.addColorStop(0, themeSolid);
-    g.addColorStop(1, isFire ? '#aa3300' : (isIce ? '#0066aa' : (isCtrl ? '#3a1a8a' : (isLight ? '#c9a800' : (isWind ? '#5a3a1a' : '#0a3a6c')))));
+    g.addColorStop(1, isFire ? '#aa3300' : (isIce ? '#0066aa' : (isCtrl ? '#3a1a8a' : (isLight ? '#c9a800' : (isWind ? '#5a3a1a' : (isPort ? '#3a0080' : '#0a3a6c'))))));
     ctx.fillStyle = g;
     roundRect(mx, by, mw * ratio, mh, 3); ctx.fill();
   }
@@ -5441,7 +6500,6 @@ function drawAbilityGuide() {
   }
 }
 
-// ==================== UI: УРОВЕНЬ (ПК) ====================
 function drawLevelUi() {
   if (isMobile()) return;
   const x = 20, y = canvas.height - 100, w = 240, h = 80;
@@ -5492,7 +6550,6 @@ function drawLevelUi() {
   }
 }
 
-// ==================== UI: СТАТЫ ИГРОКА (ПК) ====================
 function drawPlayerStats() {
   if (isMobile()) return;
   const bw = 260, bh = 20;
@@ -5622,6 +6679,36 @@ function drawPlayerStats() {
     ctx.fillText('✨ ПОЛЁТ!', x + bw / 2, nextY + 8);
     nextY += 30;
   }
+  if (isInMyDimension()) {
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    roundRect(x - 4, nextY - 4, bw + 8, 24, 6); ctx.fill();
+    ctx.fillStyle = '#c8b0ff';
+    ctx.font = 'bold 13px Arial';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const left = Math.max(0, (myDimension.until - performance.now()) / 1000);
+    ctx.fillText('🌀 ИЗМЕРЕНИЕ ' + left.toFixed(1) + 'с (X — выйти)', x + bw / 2, nextY + 8);
+    nextY += 30;
+  }
+  if (isInMyDomain()) {
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    roundRect(x - 4, nextY - 4, bw + 8, 24, 6); ctx.fill();
+    ctx.fillStyle = '#ff88ff';
+    ctx.font = 'bold 13px Arial';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const left = Math.max(0, (myDomain.until - performance.now()) / 1000);
+    ctx.fillText('👑 ВЛАДЕНИЯ ' + left.toFixed(1) + 'с (×2 урон, ×3 скор)', x + bw / 2, nextY + 8);
+    nextY += 30;
+  }
+  if (iAmInSomeoneDimension) {
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    roundRect(x - 4, nextY - 4, bw + 8, 24, 6); ctx.fill();
+    ctx.fillStyle = '#ff88ff';
+    ctx.font = 'bold 13px Arial';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const left = Math.max(0, (iAmInSomeoneDimension.until - performance.now()) / 1000);
+    ctx.fillText('⚔️ Владения ' + iAmInSomeoneDimension.hostName + ' · ' + left.toFixed(1) + 'с', x + bw / 2, nextY + 8);
+    nextY += 30;
+  }
   if (wsConnected) {
     ctx.fillStyle = 'rgba(0,0,0,0.55)';
     roundRect(x - 4, nextY, bw + 8, 24, 6); ctx.fill();
@@ -5633,7 +6720,6 @@ function drawPlayerStats() {
   }
 }
 
-// ==================== UI: АКТИВНЫЙ КВЕСТ (ПК) ====================
 function drawActiveQuest() {
   if (isMobile()) return;
   let yy = 200;
@@ -5721,7 +6807,7 @@ function drawActiveQuest() {
   }
 }
 
-// ==================== ДИАЛОГИ ====================
+// ==================== ДИАЛОГИ (отрисовка) ====================
 function drawQuestDialog() {
   if (!questDialogOpen) return;
   ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -5891,8 +6977,8 @@ function drawRollDialog() {
   ctx.fillText('Шансы:', p.x + 25, p.y + 218);
   ctx.fillStyle = '#dddddd';
   ctx.font = '11px Arial';
-  ctx.fillText('⚪ 48%  🟢 22%  🔵 18%', p.x + 25, p.y + 238);
-  ctx.fillText('🟡 8%  🔴 4%', p.x + 25, p.y + 256);
+  ctx.fillText('⚪ 40%  🟢 22%  🔵 16%', p.x + 25, p.y + 238);
+  ctx.fillText('🟡 8%  🔴 10%  🟣 4% (Портал)', p.x + 25, p.y + 256);
   const c = b.close;
   ctx.fillStyle = 'rgba(255,80,80,0.85)';
   roundRect(c.x, c.y, c.w, c.h, 6); ctx.fill();
@@ -6134,45 +7220,181 @@ function drawBagEatConfirm() {
   ctx.fillText('❌ НЕТ', no.x + no.w / 2, no.y + no.h / 2);
 }
 
-const mousePos = { x: 0, y: 0 };
-canvas.addEventListener('mousemove', (e) => {
-  const rect = canvas.getBoundingClientRect();
-  mousePos.x = e.clientX - rect.left;
-  mousePos.y = e.clientY - rect.top;
-});
-
-function drawAimCursor() {
-  if (!aimingAbility) return;
-  if (isMobile()) return;
-  const x = mousePos.x, y = mousePos.y;
-  const t = performance.now() * 0.005;
-  const isCtrl = aimingAbility.powerName === 'Контроль';
-  const isLight = aimingAbility.powerName === 'Свет';
-  const isMeteor = aimingAbility.abilityId === 'control_meteor';
-  const isBeam = aimingAbility.abilityId === 'control_beam';
-  const isSky = aimingAbility.abilityId === 'light_sky';
-  let r, col, colFill;
-  if (isMeteor) { r = 90; col = 'rgba(124,92,255,0.95)'; colFill = 'rgba(180,160,255,0.5)'; }
-  else if (isBeam) { r = 160; col = 'rgba(124,92,255,0.95)'; colFill = 'rgba(180,160,255,0.5)'; }
-  else if (isSky) { r = 130; col = 'rgba(255,246,176,0.95)'; colFill = 'rgba(255,255,255,0.5)'; }
-  else {
-    r = 24 + Math.sin(t * 3) * 4;
-    const isFire = aimingAbility.powerName === 'Огонь';
-    const isIce = aimingAbility.powerName === 'Лёд';
-    col = isFire ? 'rgba(255,150,0,0.9)' : (isIce ? 'rgba(100,200,255,0.9)' : (isCtrl ? 'rgba(124,92,255,0.9)' : (isLight ? 'rgba(255,246,176,0.95)' : 'rgba(80,200,255,0.9)')));
-    colFill = isFire ? 'rgba(255,220,100,0.9)' : (isIce ? 'rgba(200,240,255,0.9)' : (isCtrl ? 'rgba(200,180,255,0.9)' : (isLight ? 'rgba(255,255,255,0.95)' : 'rgba(180,240,255,0.9)')));
+// ==================== МИНИ-КАРТА и БОЛЬШАЯ КАРТА ====================
+function drawMiniMapBtn() {
+  const cvs = document.getElementById('miniMapBtn');
+  if (!cvs) return;
+  cvs.style.display = 'block';
+  const c = cvs.getContext('2d');
+  const W = cvs.width, H = cvs.height;
+  c.clearRect(0, 0, W, H);
+  // фон
+  c.fillStyle = '#0a1a3a';
+  c.fillRect(0, 0, W, H);
+  // сетка
+  c.strokeStyle = 'rgba(120, 200, 255, 0.15)';
+  c.lineWidth = 1;
+  for (let i = 1; i < 4; i++) {
+    c.beginPath(); c.moveTo(i * W / 4, 0); c.lineTo(i * W / 4, H); c.stroke();
+    c.beginPath(); c.moveTo(0, i * H / 4); c.lineTo(W, i * H / 4); c.stroke();
   }
-  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
-  ctx.strokeStyle = col; ctx.lineWidth = 3; ctx.stroke();
-  ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI * 2);
-  ctx.fillStyle = colFill; ctx.fill();
-  ctx.strokeStyle = col; ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(x - r - 8, y); ctx.lineTo(x - r + 4, y);
-  ctx.moveTo(x + r - 4, y); ctx.lineTo(x + r + 8, y);
-  ctx.moveTo(x, y - r - 8); ctx.lineTo(x, y - r + 4);
-  ctx.moveTo(x, y + r - 4); ctx.lineTo(x, y + r + 8);
-  ctx.stroke();
+  // рисуем два острова
+  // мир: X от -1500 до 9200, Y от -6000 до 1200
+  const wX0 = -1500, wX1 = 9200, wY0 = -6000, wY1 = 1200;
+  const mapX = (wx) => ((wx - wX0) / (wX1 - wX0)) * W;
+  const mapY = (wy) => ((wy - wY0) / (wY1 - wY0)) * H;
+  // пиратский остров
+  c.fillStyle = '#7cc576';
+  c.fillRect(mapX(ISLAND.x), mapY(ISLAND.y), mapX(ISLAND.x + ISLAND.width) - mapX(ISLAND.x), mapY(ISLAND.y + ISLAND.height) - mapY(ISLAND.y));
+  // пустыня
+  c.fillStyle = '#e8d09a';
+  c.fillRect(mapX(DESERT.x), mapY(DESERT.y), mapX(DESERT.x + DESERT.width) - mapX(DESERT.x), mapY(DESERT.y + DESERT.height) - mapY(DESERT.y));
+  // игрок
+  const px = mapX(player.x), py = mapY(player.y);
+  c.beginPath(); c.arc(px, py, 4, 0, Math.PI * 2);
+  c.fillStyle = '#ffd700';
+  c.fill();
+  c.strokeStyle = '#000'; c.lineWidth = 1.5; c.stroke();
+  // рамка
+  c.strokeStyle = 'rgba(255,215,0,0.9)'; c.lineWidth = 2;
+  c.strokeRect(1, 1, W - 2, H - 2);
+  // подпись
+  c.fillStyle = 'rgba(0,0,0,0.7)';
+  c.fillRect(0, H - 14, W, 14);
+  c.fillStyle = '#ffd700';
+  c.font = 'bold 9px Arial';
+  c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.fillText('КАРТА', W / 2, H - 7);
+}
+
+function openMap() {
+  mapOpen = true;
+  document.getElementById('mapOverlay').classList.remove('hidden');
+  updateMapOverlay();
+  drawBigMapOnOverlay();
+}
+function closeMap() {
+  mapOpen = false;
+  document.getElementById('mapOverlay').classList.add('hidden');
+}
+
+function drawBigMapOnOverlay() {
+  const cvs = document.getElementById('mapCanvas');
+  if (!cvs) return;
+  const c = cvs.getContext('2d');
+  const W = cvs.width, H = cvs.height;
+  c.clearRect(0, 0, W, H);
+  // фон — море
+  const seaGrad = c.createLinearGradient(0, 0, 0, H);
+  seaGrad.addColorStop(0, '#3a89c8'); seaGrad.addColorStop(1, '#1a5a9c');
+  c.fillStyle = seaGrad;
+  c.fillRect(0, 0, W, H);
+  // сетка
+  c.strokeStyle = 'rgba(200, 240, 255, 0.15)';
+  c.lineWidth = 1;
+  for (let i = 1; i < 8; i++) {
+    c.beginPath(); c.moveTo(i * W / 8, 0); c.lineTo(i * W / 8, H); c.stroke();
+    c.beginPath(); c.moveTo(0, i * H / 8); c.lineTo(W, i * H / 8); c.stroke();
+  }
+  // мир
+  const wX0 = -1500, wX1 = 9200, wY0 = -6000, wY1 = 1200;
+  const mapX = (wx) => ((wx - wX0) / (wX1 - wX0)) * W;
+  const mapY = (wy) => ((wy - wY0) / (wY1 - wY0)) * H;
+  // пиратский остров
+  const pX = mapX(ISLAND.x), pY = mapY(ISLAND.y);
+  const pW = mapX(ISLAND.x + ISLAND.width) - pX;
+  const pH = mapY(ISLAND.y + ISLAND.height) - pY;
+  c.fillStyle = '#f2d68a';
+  c.fillRect(pX, pY, pW, pH);
+  c.fillStyle = '#7cc576';
+  const bW = (BEACH_WIDTH / ISLAND.width) * pW;
+  const bH = (BEACH_WIDTH / ISLAND.height) * pH;
+  c.fillRect(pX + bW, pY + bH, pW - bW * 2, pH - bH * 2);
+  c.strokeStyle = '#d4b878'; c.lineWidth = 2;
+  c.strokeRect(pX, pY, pW, pH);
+  // подпись
+  c.fillStyle = '#3a2a00';
+  c.font = 'bold 14px Arial';
+  c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.fillText('🏴‍☠️', pX + pW / 2, pY + pH / 2 - 10);
+  c.fillText('Пиратский берег', pX + pW / 2, pY + pH / 2 + 10);
+  // пустыня
+  const dX = mapX(DESERT.x), dY = mapY(DESERT.y);
+  const dW = mapX(DESERT.x + DESERT.width) - dX;
+  const dH = mapY(DESERT.y + DESERT.height) - dY;
+  c.fillStyle = '#e8d09a';
+  c.fillRect(dX, dY, dW, dH);
+  c.fillStyle = '#f5deb3';
+  const dbW = (DESERT_BEACH / DESERT.width) * dW;
+  const dbH = (DESERT_BEACH / DESERT.height) * dH;
+  c.fillRect(dX + dbW, dY + dbH, dW - dbW * 2, dH - dbH * 2);
+  c.strokeStyle = '#c9a86a'; c.lineWidth = 2;
+  c.strokeRect(dX, dY, dW, dH);
+  c.fillStyle = '#3a2a00';
+  c.font = 'bold 14px Arial';
+  c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.fillText('🏜️', dX + dW / 2, dY + dH / 2 - 10);
+  c.fillText('Пустыня', dX + dW / 2, dY + dH / 2 + 10);
+  // игрок
+  const px = mapX(player.x), py = mapY(player.y);
+  c.beginPath(); c.arc(px, py, 6, 0, Math.PI * 2);
+  c.fillStyle = '#ffd700';
+  c.fill();
+  c.strokeStyle = '#000'; c.lineWidth = 2; c.stroke();
+  // подпись "ты"
+  c.fillStyle = 'white';
+  c.font = 'bold 11px Arial';
+  c.strokeStyle = 'black'; c.lineWidth = 3;
+  c.strokeText('ТЫ', px, py - 14);
+  c.fillText('ТЫ', px, py - 14);
+  // цель если выбрана
+  if (compassTarget) {
+    const tx = mapX(compassTarget.x), ty = mapY(compassTarget.y);
+    c.beginPath(); c.arc(tx, ty, 8, 0, Math.PI * 2);
+    c.strokeStyle = compassTarget.color; c.lineWidth = 3;
+    c.stroke();
+    // линия
+    c.beginPath();
+    c.moveTo(px, py);
+    c.lineTo(tx, ty);
+    c.strokeStyle = compassTarget.color;
+    c.lineWidth = 2;
+    c.setLineDash([6, 5]);
+    c.stroke();
+    c.setLineDash([]);
+  }
+  // обработчик клика
+  cvs.onclick = (e) => {
+    const rect = cvs.getBoundingClientRect();
+    const mx = (e.clientX - rect.left) * (W / rect.width);
+    const my = (e.clientY - rect.top) * (H / rect.height);
+    // пиратский остров?
+    if (mx >= pX && mx <= pX + pW && my >= pY && my <= pY + pH) {
+      setCompassTarget(ISLAND.x + ISLAND.width / 2, ISLAND.y + ISLAND.height / 2, '🏴‍☠️ Пиратский берег', '#66ff88');
+    } else if (mx >= dX && mx <= dX + dW && my >= dY && my <= dY + dH) {
+      setCompassTarget(DESERT.x + DESERT.width / 2, DESERT.y + DESERT.height / 2, '🏜️ Пустыня', '#ffaa44');
+    }
+  };
+}
+
+let compassTarget = null;
+function setCompassTarget(x, y, name, color) {
+  compassTarget = { x, y, name, color };
+  updateMapOverlay();
+}
+function clearCompassTarget() {
+  compassTarget = null;
+  updateMapOverlay();
+}
+function updateMapOverlay() {
+  const el = document.getElementById('mapSelectedInfo');
+  if (!el) return;
+  if (compassTarget) {
+    const dist = Math.round(Math.hypot(player.x - compassTarget.x, player.y - compassTarget.y));
+    el.textContent = '🎯 ' + compassTarget.name + ' · ' + dist + 'м';
+  } else {
+    el.textContent = 'Остров не выбран';
+  }
 }
 
 // ==================== КОМПАС ====================
@@ -6194,7 +7416,12 @@ function drawCompass() {
   ctx.fillText('З', cx - R + 8, cy);
   ctx.fillText('В', cx + R - 8, cy);
   let targetX = null, targetY = null, targetName = '', targetColor = '#fff';
-  if (questBoss.active === 'active' && boss.active && !boss.dead) {
+  if (compassTarget) {
+    targetX = compassTarget.x;
+    targetY = compassTarget.y;
+    targetName = compassTarget.name;
+    targetColor = compassTarget.color;
+  } else if (questBoss.active === 'active' && boss.active && !boss.dead) {
     targetX = boss.x; targetY = boss.y; targetName = '👑 БОСС'; targetColor = '#ff4444';
   } else if (questDune.active) {
     targetX = DESERT.x + DESERT.width / 2;
@@ -6231,7 +7458,7 @@ function drawCompass() {
   ctx.lineTo(R - 19, 0);
   ctx.lineTo(R - 22, 8);
   ctx.closePath();
-  const glow = stats.level >= 5;
+  const glow = true;
   if (glow) {
     const pulse = 0.7 + Math.sin(performance.now() * 0.005) * 0.3;
     ctx.shadowColor = targetColor;
@@ -6243,6 +7470,15 @@ function drawCompass() {
   ctx.lineWidth = 1.5;
   ctx.stroke();
   ctx.restore();
+  // подпись цели
+  if (compassTarget) {
+    ctx.font = 'bold 10px Arial';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
+    ctx.strokeText(compassTarget.name, cx, cy + R + 14);
+    ctx.fillStyle = compassTarget.color;
+    ctx.fillText(compassTarget.name, cx, cy + R + 14);
+  }
 }
 
 // ==================== АДМИН-КОНСОЛЬ ====================
@@ -6266,7 +7502,7 @@ function drawAdminConsole() {
   ctx.fillStyle = 'rgba(255,255,255,0.55)';
   ctx.font = '12px Consolas, monospace';
   if (adminUnlocked) {
-    ctx.fillText('g [фрукт]     · пример: g свет', px + 20, py + 50);
+    ctx.fillText('g [фрукт]     · пример: g портал', px + 20, py + 50);
     ctx.fillText('g level X имя · пример: g level 4 Test1', px + 20, py + 68);
     ctx.fillText('g mastery N фрукт имя', px + 20, py + 86);
   } else {
@@ -6301,6 +7537,125 @@ function drawAdminConsole() {
   const inputX = px + 32 + ctx.measureText(promptText).width;
   const displayInput = adminUnlocked ? adminInput : '•'.repeat(adminInput.length);
   ctx.fillText(displayInput + (Math.floor(now / 500) % 2 === 0 ? '_' : ''), inputX, inY + 20);
+}
+
+// ==================== АДМИН-ЛОГИКА ====================
+function openAdminConsole() { adminOpen = true; adminInput = ''; }
+function closeAdminConsole() { adminOpen = false; adminInput = ''; }
+function adminLog(text, color) {
+  adminHistory.push({ text, color: color || '#aaffaa', until: performance.now() + 4000 });
+  if (adminHistory.length > 8) adminHistory.shift();
+}
+
+function giveFruitToSlot5(name, color) {
+  const slotIdx = FRUIT_GIVE_SLOT;
+  const existing = inventory[slotIdx];
+  if (existing && existing.type === 'fruit') {
+    bag.push({ type: 'fruit', name: existing.name, color: existing.color });
+    player.fruitCount = Math.max(0, player.fruitCount - 1);
+  }
+  inventory[slotIdx] = { type: 'fruit', name, color };
+  player.fruitCount++;
+  updateFruitUi();
+  saveNow();
+}
+
+function adminSubmit() {
+  const cmd = adminInput.trim();
+  adminInput = '';
+  if (!cmd) return;
+  if (!adminUnlocked) {
+    if (passwordMatches(cmd, ADMIN_PASSWORD)) { adminUnlocked = true; adminLog('✅ Админ-доступ разрешён', '#66ff66'); }
+    else adminLog('❌ Неверный пароль', '#ff5555');
+    return;
+  }
+  const parts = cmd.split(/\s+/);
+  const command = parts[0].toLowerCase();
+  if (command === 'g' && parts.length >= 2) {
+    if (parts[1].toLowerCase() === 'level' && parts.length >= 4) {
+      const lvl = parseInt(parts[2], 10);
+      const targetName = parts.slice(3).join(' ');
+      if (!Number.isFinite(lvl) || lvl < 1 || lvl > 20) { adminLog('❌ Уровень 1-20', '#ff5555'); return; }
+      sendAdminSetLevel(targetName, lvl);
+      adminLog('📤 ' + targetName + ' → уровень ' + lvl, '#aaddff');
+      return;
+    }
+    if (parts[1].toLowerCase() === 'mastery' && parts.length >= 5) {
+      const masteryLvl = parseInt(parts[2], 10);
+      const fruitArg = parts[3].toLowerCase();
+      const targetName = parts.slice(4).join(' ');
+      if (!Number.isFinite(masteryLvl) || masteryLvl < 0 || masteryLvl > 100) { adminLog('❌ Mastery 0-100', '#ff5555'); return; }
+      const fruitMap = { 'огонь': 'Огонь', 'огня': 'Огонь', 'fire': 'Огонь', 'лёд': 'Лёд', 'лед': 'Лёд', 'льда': 'Лёд', 'ice': 'Лёд', 'акула': 'Акула', 'акулы': 'Акула', 'shark': 'Акула', 'контроль': 'Контроль', 'контроля': 'Контроль', 'control': 'Контроль', 'свет': 'Свет', 'света': 'Свет', 'light': 'Свет', 'мельница': 'Ветряная мельница', 'мельницы': 'Ветряная мельница', 'windmill': 'Ветряная мельница', 'портал': 'Портал', 'портала': 'Портал', 'portal': 'Портал' };
+      const fruitName = fruitMap[fruitArg];
+      if (!fruitName) { adminLog('❌ Фрукт: ' + fruitArg, '#ff5555'); return; }
+      sendAdminSetMastery(targetName, fruitName, masteryLvl);
+      adminLog('📤 ' + targetName + ' ' + fruitName + ' → ' + masteryLvl, '#aaddff');
+      return;
+    }
+    const argAll = parts.slice(1).join(' ').toLowerCase();
+    const fruitMap = {
+      'огонь': { name: 'Огонь', color: '#ff6600' }, 'огня': { name: 'Огонь', color: '#ff6600' }, 'fire': { name: 'Огонь', color: '#ff6600' },
+      'лёд': { name: 'Лёд', color: '#00c8ff' }, 'лед': { name: 'Лёд', color: '#00c8ff' }, 'льда': { name: 'Лёд', color: '#00c8ff' }, 'ice': { name: 'Лёд', color: '#00c8ff' },
+      'акула': { name: 'Акула', color: '#1a4f8c' }, 'акулы': { name: 'Акула', color: '#1a4f8c' }, 'shark': { name: 'Акула', color: '#1a4f8c' },
+      'контроль': { name: 'Контроль', color: '#7c5cff' }, 'контроля': { name: 'Контроль', color: '#7c5cff' }, 'control': { name: 'Контроль', color: '#7c5cff' },
+      'свет': { name: 'Свет', color: '#fff6b0' }, 'света': { name: 'Свет', color: '#fff6b0' }, 'light': { name: 'Свет', color: '#fff6b0' },
+      'ветряная мельница': { name: 'Ветряная мельница', color: '#8a6a4a' }, 'ветряной мельницы': { name: 'Ветряная мельница', color: '#8a6a4a' }, 'мельница': { name: 'Ветряная мельница', color: '#8a6a4a' }, 'мельницы': { name: 'Ветряная мельница', color: '#8a6a4a' }, 'windmill': { name: 'Ветряная мельница', color: '#8a6a4a' },
+      'портал': { name: 'Портал', color: '#7c5cff' }, 'портала': { name: 'Портал', color: '#7c5cff' }, 'portal': { name: 'Портал', color: '#7c5cff' }
+    };
+    const fruit = fruitMap[argAll];
+    if (!fruit) { adminLog('❌ Фрукт: ' + argAll, '#ff5555'); adminLog('огонь / лёд / акула / контроль / свет / мельница / портал', '#ffdd66'); return; }
+    giveFruitToSlot5(fruit.name, fruit.color);
+    adminLog('🍎 Выдан: ' + fruit.name + ' (слот 5)', '#66ff66');
+    return;
+  }
+  adminLog('❌ Неизвестно: ' + command, '#ff5555');
+  adminLog('g [фрукт] | g level X имя | g mastery N фрукт имя', '#ffdd66');
+}
+
+const mousePos = { x: 0, y: 0 };
+canvas.addEventListener('mousemove', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  mousePos.x = e.clientX - rect.left;
+  mousePos.y = e.clientY - rect.top;
+});
+
+function drawAimCursor() {
+  if (!aimingAbility) return;
+  if (isMobile()) return;
+  const x = mousePos.x, y = mousePos.y;
+  const t = performance.now() * 0.005;
+  const isCtrl = aimingAbility.powerName === 'Контроль';
+  const isLight = aimingAbility.powerName === 'Свет';
+  const isPort = aimingAbility.powerName === 'Портал';
+  const isMeteor = aimingAbility.abilityId === 'control_meteor';
+  const isBeam = aimingAbility.abilityId === 'control_beam';
+  const isSky = aimingAbility.abilityId === 'light_sky';
+  const isPortZ = aimingAbility.type === 'portalZ';
+  const isKnife = aimingAbility.type === 'knife';
+  let r, col, colFill;
+  if (isMeteor) { r = 90; col = 'rgba(124,92,255,0.95)'; colFill = 'rgba(180,160,255,0.5)'; }
+  else if (isBeam) { r = 160; col = 'rgba(124,92,255,0.95)'; colFill = 'rgba(180,160,255,0.5)'; }
+  else if (isSky) { r = 130; col = 'rgba(255,246,176,0.95)'; colFill = 'rgba(255,255,255,0.5)'; }
+  else if (isPortZ) { r = 70; col = 'rgba(200,100,255,0.95)'; colFill = 'rgba(120,60,220,0.5)'; }
+  else if (isKnife) { r = 20; col = 'rgba(200,140,255,0.95)'; colFill = 'rgba(255,220,255,0.9)'; }
+  else {
+    r = 24 + Math.sin(t * 3) * 4;
+    const isFire = aimingAbility.powerName === 'Огонь';
+    const isIce = aimingAbility.powerName === 'Лёд';
+    col = isFire ? 'rgba(255,150,0,0.9)' : (isIce ? 'rgba(100,200,255,0.9)' : (isCtrl ? 'rgba(124,92,255,0.9)' : (isLight ? 'rgba(255,246,176,0.95)' : (isPort ? 'rgba(160,96,255,0.9)' : 'rgba(80,200,255,0.9)'))));
+    colFill = isFire ? 'rgba(255,220,100,0.9)' : (isIce ? 'rgba(200,240,255,0.9)' : (isCtrl ? 'rgba(200,180,255,0.9)' : (isLight ? 'rgba(255,255,255,0.95)' : (isPort ? 'rgba(220,180,255,0.9)' : 'rgba(180,240,255,0.9)'))));
+  }
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.strokeStyle = col; ctx.lineWidth = 3; ctx.stroke();
+  ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI * 2);
+  ctx.fillStyle = colFill; ctx.fill();
+  ctx.strokeStyle = col; ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(x - r - 8, y); ctx.lineTo(x - r + 4, y);
+  ctx.moveTo(x + r - 4, y); ctx.lineTo(x + r + 8, y);
+  ctx.moveTo(x, y - r - 8); ctx.lineTo(x, y - r + 4);
+  ctx.moveTo(x, y + r - 4); ctx.lineTo(x, y + r + 8);
+  ctx.stroke();
 }
 
 // ==================== ГЛАВНЫЙ ЦИКЛ ====================
@@ -6348,9 +7703,17 @@ function render() {
     drawParticles();
     drawProjectiles();
     drawDashTrail();
+    // ПОРТАЛЬНЫЕ ЭФФЕКТЫ (под игроком)
+    drawActivePortalRifts();
+    drawBigPortals();
+    drawMyBlackHole();
+    drawRemoteBlackHoles();
+    drawThrownKnives();
+    // игрок и снаряды поверх
     drawPlayer();
     drawHeldItem();
     drawDamageNumbers();
+    // UI
     drawInventory();
     drawPlayerStats();
     drawAbilityGuide();
@@ -6368,6 +7731,7 @@ function render() {
     drawBagEatConfirm();
     drawAdminConsole();
     drawCompass();
+    drawMiniMapBtn();
   } else {
     ctx.fillStyle = '#0a1a3a';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -6405,6 +7769,7 @@ window.addEventListener('resize', () => {
       }
     }
   }
+  if (currentUser) drawMiniMapBtn();
 });
 </script>
 </body>
