@@ -15,6 +15,7 @@
 
   #fsBtn { position: absolute; top: 10px; right: 10px; width: 44px; height: 44px; background: rgba(0,0,0,0.5); border: 2px solid rgba(255,255,255,0.6); border-radius: 8px; color: white; font-size: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 100; }
 
+  /* ==================== АВТОРИЗАЦИЯ ==================== */
   #authOverlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: linear-gradient(135deg, #1a2a4a, #0a1a3a); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
   #authOverlay.hidden { display: none; }
   #authPanel { width: 100%; max-width: 420px; background: rgba(20,25,40,0.95); border: 3px solid rgba(255,215,0,0.6); border-radius: 16px; padding: 25px 30px; box-shadow: 0 20px 60px rgba(0,0,0,0.6); }
@@ -33,6 +34,7 @@
   #authError { color: #ff5555; text-align: center; font-size: 13px; min-height: 18px; margin-top: 10px; font-weight: bold; }
   #authHint { color: rgba(255,255,255,0.4); text-align: center; font-size: 11px; margin-top: 18px; }
 
+  /* ==================== ВЫБОР УСТРОЙСТВА ==================== */
   #deviceOverlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: linear-gradient(135deg, #1a2a4a, #0a1a3a); display: flex; align-items: center; justify-content: center; z-index: 1100; padding: 20px; }
   #deviceOverlay.hidden { display: none; }
   #devicePanel { width: 100%; max-width: 480px; background: rgba(20,25,40,0.96); border: 3px solid rgba(255,215,0,0.7); border-radius: 16px; padding: 28px 30px; box-shadow: 0 20px 60px rgba(0,0,0,0.7); text-align: center; }
@@ -44,54 +46,81 @@
   .deviceBtn .info { text-align: left; flex: 1; }
   .deviceBtn .info small { display: block; font-size: 12px; color: rgba(255,255,255,0.6); font-weight: normal; margin-top: 3px; }
 
-  #pcUi { position: absolute; top: 10px; left: 10px; color: white; font-size: 18px; text-shadow: 2px 2px 4px black; pointer-events: none; }
-  #pchint { position: absolute; top: 40px; left: 10px; color: white; font-size: 13px; text-shadow: 2px 2px 4px black; pointer-events: none; opacity: 0.8; line-height: 1.4; }
-  #logoutBtn { position: absolute; bottom: 10px; left: 10px; padding: 6px 12px; background: rgba(255,60,60,0.7); border: 2px solid rgba(255,255,255,0.4); border-radius: 6px; color: white; font-size: 12px; cursor: pointer; z-index: 50; display: none; }
-  #playerName { position: absolute; bottom: 55px; left: 10px; padding: 8px 16px; background: rgba(0,0,0,0.55); border: 2px solid rgba(255,215,0,0.6); border-radius: 8px; color: #ffd700; font-size: 16px; font-weight: bold; z-index: 50; display: none; }
+  /* ==================== ПК-ЭЛЕМЕНТЫ ==================== */
+  #pcUi { position: absolute; top: 10px; left: 10px; color: white; font-size: 18px; text-shadow: 2px 2px 4px black; pointer-events: none; display: none; }
+  #pchint { position: absolute; top: 40px; left: 10px; color: white; font-size: 13px; text-shadow: 2px 2px 4px black; pointer-events: none; opacity: 0.8; line-height: 1.4; display: none; }
+  #logoutBtn { position: absolute; bottom: 10px; left: 10px; padding: 8px 14px; background: rgba(255,60,60,0.7); border: 2px solid rgba(255,255,255,0.4); border-radius: 6px; color: white; font-size: 13px; cursor: pointer; z-index: 50; display: none; }
+  #logoutBtn:hover { background: rgba(255,60,60,0.95); }
+  #playerName { position: absolute; bottom: 10px; left: 110px; padding: 8px 16px; background: rgba(0,0,0,0.55); border: 2px solid rgba(255,215,0,0.6); border-radius: 8px; color: #ffd700; font-size: 14px; font-weight: bold; z-index: 50; display: none; }
 
+  /* ==================== МОБИЛЬНЫЙ UI ==================== */
   #mobileUi { display: none; }
   body.mobile #mobileUi { display: block; }
+  body.mobile #fsBtn { display: none; }
 
-  #mobileTop { position: fixed; top: 8px; left: 8px; right: 60px; z-index: 200; display: flex; flex-direction: column; gap: 5px; pointer-events: none; }
-  .mBar { height: 22px; border-radius: 11px; background: rgba(0,0,0,0.65); overflow: hidden; position: relative; font-size: 12px; font-weight: bold; color: white; text-shadow: 1px 1px 2px black; display: flex; align-items: center; justify-content: center; border: 2px solid rgba(255,255,255,0.25); }
-  .mBar .fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0%; border-radius: 11px; transition: width 0.15s; }
-  .mBar .txt { position: relative; z-index: 2; }
-  .mBarHp .fill { background: linear-gradient(180deg, #ff6666, #aa0000); }
-  .mBarSt .fill { background: linear-gradient(180deg, #66ddff, #0099cc); }
-  .mBarMoney { background: linear-gradient(180deg, #ffe680, #cc9900); color: #3a2a00; text-shadow: none; justify-content: flex-end; padding-right: 12px; height: 26px; }
-  .mBarMastery .fill { background: linear-gradient(180deg, #c8b0ff, #7c5cff); }
-  .mBarWater .fill { background: linear-gradient(180deg, #aaffff, #0a5c9c); }
+  /* Левый верх — фуллскрин и компас (canvas рисует компас) */
+  #mFullscreen { position: fixed; top: 10px; left: 10px; width: 46px; height: 46px; background: rgba(0,0,0,0.55); border: 2px solid rgba(255,255,255,0.6); border-radius: 10px; color: white; font-size: 22px; display: flex; align-items: center; justify-content: center; z-index: 200; touch-action: manipulation; user-select: none; }
+  #mFullscreen:active { background: rgba(255,215,0,0.5); }
 
-  #menuBtns { position: fixed; top: 8px; right: 60px; display: flex; flex-direction: column; gap: 8px; z-index: 200; }
-  .menuBtn { width: 48px; height: 48px; border-radius: 12px; background: rgba(0,0,0,0.6); border: 2px solid rgba(255,255,255,0.5); color: white; font-size: 22px; display: flex; align-items: center; justify-content: center; touch-action: manipulation; user-select: none; }
-  .menuBtn:active { background: rgba(255,215,0,0.6); border-color: #ffd700; transform: scale(0.95); }
+  /* Левый центр — счётчик монет */
+  #mMoneyBox { position: fixed; left: 20px; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.55); border: 2px solid rgba(255,215,0,0.7); border-radius: 12px; padding: 10px 16px; color: #ffd700; font-size: 20px; font-weight: bold; z-index: 200; pointer-events: none; display: flex; align-items: center; gap: 8px; }
+  #mMoneyBox .sign { font-size: 24px; color: #ffdd44; }
 
-  #joystickBase { position: fixed; left: 25px; bottom: 25px; width: 160px; height: 160px; border-radius: 50%; background: rgba(0,0,0,0.4); border: 3px solid rgba(255,255,255,0.35); z-index: 200; touch-action: none; user-select: none; }
+  /* Джойстик */
+  #joystickBase { position: fixed; left: 30px; bottom: 100px; width: 170px; height: 170px; border-radius: 50%; background: rgba(0,0,0,0.4); border: 3px solid rgba(255,255,255,0.35); z-index: 200; touch-action: none; user-select: none; }
   #joystickBase::after { content: ''; position: absolute; inset: 15px; border-radius: 50%; border: 2px dashed rgba(255,255,255,0.2); pointer-events: none; }
-  #joystickKnob { position: fixed; width: 70px; height: 70px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #ffe680, #ffb300); border: 3px solid rgba(255,255,255,0.8); z-index: 201; pointer-events: none; transform: translate(-50%, -50%); box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+  #joystickKnob { position: fixed; width: 75px; height: 75px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #ffe680, #ffb300); border: 3px solid rgba(255,255,255,0.8); z-index: 201; pointer-events: none; transform: translate(-50%, -50%); box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
 
-  #abilityBtns { position: fixed; right: 20px; bottom: 230px; display: flex; flex-direction: column-reverse; gap: 12px; z-index: 200; align-items: flex-end; }
-  .abBtn { position: relative; width: 72px; height: 72px; border-radius: 50%; background: rgba(0,0,0,0.6); border: 3px solid rgba(255,255,255,0.6); color: white; font-size: 26px; font-weight: bold; display: flex; align-items: center; justify-content: center; z-index: 200; touch-action: manipulation; user-select: none; box-shadow: 0 4px 10px rgba(0,0,0,0.4); transition: transform 0.08s; }
-  .abBtn:active { background: rgba(255,215,0,0.7); border-color: #ffd700; transform: scale(0.92); }
-  .abBtn.locked { opacity: 0.35; }
-  .abBtn .cdOverlay { position: absolute; inset: 0; border-radius: 50%; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; font-size: 18px; color: #ffcc66; font-weight: bold; }
-
-  #attackBtn { position: fixed; right: 20px; bottom: 130px; width: 100px; height: 100px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #ff6666, #aa0000); border: 4px solid rgba(255,255,255,0.75); color: white; font-size: 40px; display: flex; align-items: center; justify-content: center; z-index: 200; touch-action: manipulation; user-select: none; box-shadow: 0 6px 18px rgba(0,0,0,0.5); }
-  #attackBtn:active { background: radial-gradient(circle at 35% 30%, #ffaaaa, #dd2222); transform: scale(0.92); }
-
-  #bottomBtns { position: fixed; right: 130px; bottom: 30px; display: flex; gap: 12px; z-index: 200; align-items: center; }
-  #bottomBtns .abBtn { width: 60px; height: 60px; font-size: 26px; }
-
-  #mobileSlots { position: fixed; left: 50%; transform: translateX(-50%); bottom: 20px; display: flex; gap: 6px; z-index: 200; }
-  .mSlot { width: 52px; height: 52px; border-radius: 10px; background: rgba(0,0,0,0.55); border: 3px solid rgba(255,255,255,0.5); display: flex; align-items: center; justify-content: center; position: relative; touch-action: manipulation; user-select: none; }
+  /* Слоты внизу по центру */
+  #mobileSlots { position: fixed; left: 50%; transform: translateX(-50%); bottom: 20px; display: flex; gap: 8px; z-index: 200; }
+  .mSlot { width: 56px; height: 56px; border-radius: 10px; background: rgba(0,0,0,0.55); border: 3px solid rgba(255,255,255,0.5); display: flex; align-items: center; justify-content: center; position: relative; touch-action: manipulation; user-select: none; }
   .mSlot:active { transform: scale(0.95); }
   .mSlot.active { border-color: #ffd700; background: rgba(255,215,0,0.35); box-shadow: 0 0 12px #ffd700; }
   .mSlot .num { position: absolute; top: 2px; left: 5px; font-size: 11px; color: rgba(255,255,255,0.85); font-weight: bold; }
   .mSlot canvas { border-radius: 6px; }
 
-  #npcBtn { position: fixed; left: 50%; transform: translateX(-50%); bottom: 90px; padding: 16px 28px; background: linear-gradient(180deg, #ffd700, #cc9900); border: 3px solid rgba(255,255,255,0.85); border-radius: 16px; color: #3a2a00; font-size: 17px; font-weight: bold; z-index: 250; display: none; box-shadow: 0 6px 20px rgba(0,0,0,0.5); touch-action: manipulation; user-select: none; }
+  /* Правый верх — INV / STATS кнопки */
+  #mTopBtns { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; z-index: 200; }
+  #mTopBtns .mBtn { padding: 10px 16px; border-radius: 10px; background: rgba(0,0,0,0.6); border: 2px solid rgba(255,255,255,0.55); color: white; font-size: 14px; font-weight: bold; letter-spacing: 1px; touch-action: manipulation; user-select: none; }
+  #mTopBtns .mBtn:active { background: rgba(255,215,0,0.55); border-color: #ffd700; }
+
+  /* Правый верх — полосы HP / St / LVL */
+  #mStats { position: fixed; top: 60px; right: 10px; display: flex; flex-direction: column; gap: 6px; z-index: 200; width: 210px; pointer-events: none; }
+  .mBar { height: 26px; border-radius: 8px; background: rgba(0,0,0,0.65); overflow: hidden; position: relative; font-size: 13px; font-weight: bold; color: white; text-shadow: 1px 1px 2px black; display: flex; align-items: center; padding-left: 10px; border: 2px solid rgba(255,255,255,0.3); }
+  .mBar .fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0%; transition: width 0.15s; }
+  .mBar .ico { position: relative; z-index: 2; margin-right: 6px; }
+  .mBar .txt { position: relative; z-index: 2; }
+  .mBarHp .fill { background: linear-gradient(180deg, #ff6666, #aa0000); }
+  .mBarSt .fill { background: linear-gradient(180deg, #66ddff, #0099cc); }
+  .mBarLvl { background: linear-gradient(180deg, #ffe680, #cc9900); color: #3a2a00; text-shadow: none; }
+  .mBarMastery .fill { background: linear-gradient(180deg, #c8b0ff, #7c5cff); }
+  .mBarWater .fill { background: linear-gradient(180deg, #aaffff, #0a5c9c); }
+
+  /* Кнопки способностей на мобилке */
+  #abilityBtns { position: fixed; right: 15px; bottom: 200px; display: flex; flex-direction: column-reverse; gap: 10px; z-index: 200; align-items: flex-end; }
+  .abBtn { position: relative; width: 68px; height: 68px; border-radius: 50%; background: rgba(0,0,0,0.6); border: 3px solid rgba(255,255,255,0.6); color: white; font-size: 24px; font-weight: bold; display: flex; align-items: center; justify-content: center; z-index: 200; touch-action: manipulation; user-select: none; box-shadow: 0 4px 10px rgba(0,0,0,0.4); transition: transform 0.08s; }
+  .abBtn:active { background: rgba(255,215,0,0.7); border-color: #ffd700; transform: scale(0.92); }
+  .abBtn.locked { opacity: 0.35; }
+  .abBtn .cdOverlay { position: absolute; inset: 0; border-radius: 50%; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; font-size: 16px; color: #ffcc66; font-weight: bold; }
+
+  /* Кнопка атаки */
+  #attackBtn { position: fixed; right: 15px; bottom: 100px; width: 95px; height: 95px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #ff6666, #aa0000); border: 4px solid rgba(255,255,255,0.75); color: white; font-size: 38px; display: flex; align-items: center; justify-content: center; z-index: 200; touch-action: manipulation; user-select: none; box-shadow: 0 6px 18px rgba(0,0,0,0.5); }
+  #attackBtn:active { background: radial-gradient(circle at 35% 30%, #ffaaaa, #dd2222); transform: scale(0.92); }
+
+  /* Нижний ряд доп кнопок (корабль/полёт/пробел) */
+  #bottomBtns { position: fixed; right: 125px; bottom: 15px; display: flex; gap: 10px; z-index: 200; align-items: center; }
+  #bottomBtns .abBtn { width: 58px; height: 58px; font-size: 24px; }
+
+  /* Кнопка NPC */
+  #npcBtn { position: fixed; left: 50%; transform: translateX(-50%); bottom: 90px; padding: 14px 26px; background: linear-gradient(180deg, #ffd700, #cc9900); border: 3px solid rgba(255,255,255,0.85); border-radius: 14px; color: #3a2a00; font-size: 16px; font-weight: bold; z-index: 250; display: none; box-shadow: 0 6px 20px rgba(0,0,0,0.5); touch-action: manipulation; user-select: none; }
   #npcBtn:active { background: linear-gradient(180deg, #ffe680, #ffbb00); transform: translateX(-50%) scale(0.95); }
 
+  /* Имя и выход на мобилке — под джойстиком слева */
+  #mPlayerName { position: fixed; left: 20px; bottom: 50px; padding: 6px 12px; background: rgba(0,0,0,0.55); border: 2px solid rgba(255,215,0,0.6); border-radius: 6px; color: #ffd700; font-size: 13px; font-weight: bold; z-index: 200; display: none; }
+  #mLogoutBtn { position: fixed; left: 20px; bottom: 15px; padding: 6px 12px; background: rgba(255,60,60,0.75); border: 2px solid rgba(255,255,255,0.5); border-radius: 6px; color: white; font-size: 12px; font-weight: bold; cursor: pointer; z-index: 200; display: none; }
+  #mLogoutBtn:active { background: rgba(255,60,60,1); }
+
+  /* Скрытие/показ по классу */
   body.mobile #pcUi, body.mobile #pchint, body.mobile #logoutBtn, body.mobile #playerName { display: none !important; }
   body:not(.mobile) #mobileUi { display: none !important; }
 </style>
@@ -99,23 +128,29 @@
 <body>
 <canvas id="game"></canvas>
 
+<!-- ============ ПК-элементы ============ -->
 <div id="pcUi">🍎 Фрукты: <span id="fruitCount">0</span> | 💰 Монеты: <span id="moneyCount">0</span></div>
 <div id="pchint">WASD — движение | 1-5 — слоты | I — мешок | E — NPC | Tab — статистика | N N — админ<br><b>ЛКМ</b> — кулак / разрез | <b>Z / X / C / R / V</b> — способности | <b>F (зажать)</b> — полёт Света | <b>Пробел</b> — корабль</div>
 <div id="playerName"></div>
 <button id="logoutBtn">🚪 Выйти</button>
 
+<!-- ============ Мобильный UI ============ -->
 <div id="mobileUi">
-  <div id="mobileTop">
-    <div class="mBar mBarHp"><div class="fill" id="mHpFill"></div><span class="txt" id="mHpTxt">❤️ 100/100</span></div>
-    <div class="mBar mBarSt"><div class="fill" id="mStFill"></div><span class="txt" id="mStTxt">⚡ 100/100</span></div>
-    <div class="mBar mBarMastery" id="mMasteryBar" style="display:none;"><div class="fill" id="mMasteryFill"></div><span class="txt" id="mMasteryTxt">🌟 Lv.0</span></div>
-    <div class="mBar mBarWater" id="mWaterBar" style="display:none;"><div class="fill" id="mWaterFill"></div><span class="txt" id="mWaterTxt">💧 0/100</span></div>
-    <div class="mBar mBarMoney" id="mMoneyBar">💰 <span id="mMoneyTxt">0</span></div>
+  <div id="mFullscreen">⛶</div>
+
+  <div id="mMoneyBox"><span class="sign">$</span><span id="mMoneyBoxVal">0</span></div>
+
+  <div id="mTopBtns">
+    <div class="mBtn" id="mInvBtn">INV</div>
+    <div class="mBtn" id="mStatsBtn">STATS</div>
   </div>
 
-  <div id="menuBtns">
-    <div class="menuBtn" id="mBagBtn">🎒</div>
-    <div class="menuBtn" id="mStatsBtn">📊</div>
+  <div id="mStats">
+    <div class="mBar mBarHp"><div class="fill" id="mHpFill"></div><span class="ico">❤️</span><span class="txt" id="mHpTxt">100/100</span></div>
+    <div class="mBar mBarSt"><div class="fill" id="mStFill"></div><span class="ico">⚡</span><span class="txt" id="mStTxt">100/100</span></div>
+    <div class="mBar mBarLvl"><span class="ico">LVL</span><span class="txt" id="mLvlTxt">1 · 0/100</span></div>
+    <div class="mBar mBarMastery" id="mMasteryBar" style="display:none;"><div class="fill" id="mMasteryFill"></div><span class="ico">🌟</span><span class="txt" id="mMasteryTxt">Lv.0</span></div>
+    <div class="mBar mBarWater" id="mWaterBar" style="display:none;"><div class="fill" id="mWaterFill"></div><span class="ico">💧</span><span class="txt" id="mWaterTxt">0/100</span></div>
   </div>
 
   <div id="joystickBase"><div id="joystickKnob"></div></div>
@@ -132,10 +167,14 @@
   <div id="mobileSlots"></div>
 
   <div id="npcBtn"></div>
+
+  <div id="mPlayerName"></div>
+  <button id="mLogoutBtn">🚪 Выход</button>
 </div>
 
 <button id="fsBtn" title="Полный экран">⛶</button>
 
+<!-- ============ АВТОРИЗАЦИЯ ============ -->
 <div id="authOverlay">
   <div id="authPanel">
     <h1>🍎 Magic Fruits</h1>
@@ -152,6 +191,7 @@
   </div>
 </div>
 
+<!-- ============ ВЫБОР УСТРОЙСТВА ============ -->
 <div id="deviceOverlay" class="hidden">
   <div id="devicePanel">
     <h2>🎮 На чём будешь играть?</h2>
@@ -176,7 +216,7 @@
 let DEVICE_TYPE = 'pc';
 function isMobile() { return DEVICE_TYPE === 'phone' || DEVICE_TYPE === 'tablet'; }
 
-// ВСЕ переменные диалогов объявлены ЗДЕСЬ (чтобы не падало на TDZ)
+// ВСЕ переменные диалогов — объявлены ЗДЕСЬ, чтобы не крашилось
 let questDialogOpen = false;
 let questDialog2Open = false;
 let rollDialogOpen = false;
@@ -248,8 +288,8 @@ const sharedDroppedFruits = new Map();
 function updateMoneyUi() {
   const el = document.getElementById('moneyCount');
   if (el) el.textContent = player.money;
-  const mEl = document.getElementById('mMoneyTxt');
-  if (mEl) mEl.textContent = player.money;
+  const mV = document.getElementById('mMoneyBoxVal');
+  if (mV) mV.textContent = player.money;
 }
 function updateFruitUi() {
   const el = document.getElementById('fruitCount');
@@ -260,12 +300,20 @@ function showAuth() {
   document.getElementById('authOverlay').classList.remove('hidden');
   document.getElementById('logoutBtn').style.display = 'none';
   document.getElementById('playerName').style.display = 'none';
+  const mLog = document.getElementById('mLogoutBtn');
+  if (mLog) mLog.style.display = 'none';
+  const mName = document.getElementById('mPlayerName');
+  if (mName) mName.style.display = 'none';
 }
 function hideAuth() {
   document.getElementById('authOverlay').classList.add('hidden');
   document.getElementById('logoutBtn').style.display = 'block';
   document.getElementById('playerName').style.display = 'block';
   document.getElementById('playerName').textContent = '👤 ' + currentUser.username;
+  const mLog = document.getElementById('mLogoutBtn');
+  if (mLog) mLog.style.display = 'block';
+  const mName = document.getElementById('mPlayerName');
+  if (mName) { mName.style.display = 'block'; mName.textContent = '👤 ' + currentUser.username; }
 }
 function showAuthError(m) {
   document.getElementById('authError').textContent = m;
@@ -507,6 +555,17 @@ document.getElementById('logoutBtn').addEventListener('click', async () => {
   try { localStorage.removeItem('mf_session'); } catch(e) {}
   location.reload();
 });
+
+const mLogoutEl = document.getElementById('mLogoutBtn');
+if (mLogoutEl) {
+  mLogoutEl.addEventListener('click', async () => {
+    await saveNow();
+    try { if (ws) ws.close(); } catch (e) {}
+    ws = null;
+    try { localStorage.removeItem('mf_session'); } catch(e) {}
+    location.reload();
+  });
+}
 
 setInterval(saveNow, 15000);
 window.addEventListener('beforeunload', saveNow);
@@ -2264,8 +2323,8 @@ function setupMobileHud() {
     num.textContent = String(i + 1);
     d.appendChild(num);
     const cv = document.createElement('canvas');
-    cv.width = 44; cv.height = 44;
-    cv.style.width = '40px'; cv.style.height = '40px';
+    cv.width = 48; cv.height = 48;
+    cv.style.width = '44px'; cv.style.height = '44px';
     d.appendChild(cv);
     slotsEl.appendChild(d);
   }
@@ -2284,6 +2343,7 @@ function setupMobileHud() {
   initBottomBtns();
   initMenuBtns();
   initCanvasTouch();
+  initFullscreenBtn();
   mobileButtonsBuilt = true;
   refreshMobileHud();
 }
@@ -2300,9 +2360,9 @@ function refreshMobileHud() {
     const cv = el.querySelector('canvas');
     if (!cv) continue;
     const cx = cv.getContext('2d');
-    cx.clearRect(0, 0, 44, 44);
+    cx.clearRect(0, 0, 48, 48);
     const item = inventory[i];
-    if (item) drawSlotIcon(cx, 22, 22, 18, item);
+    if (item) drawSlotIcon(cx, 24, 24, 20, item);
   }
   buildAbilityButtons();
   updateNpcBtnMobile();
@@ -2361,7 +2421,7 @@ function drawSlotIcon(cx, x, y, r, item) {
     cx.lineWidth = 1.5;
     cx.stroke();
     cx.fillStyle = 'rgba(0,0,0,0.8)';
-    cx.font = 'bold 14px Arial';
+    cx.font = 'bold 15px Arial';
     cx.textAlign = 'center';
     cx.textBaseline = 'middle';
     const letter = item.name === 'Ветряная мельница' ? 'М' : item.name.charAt(0);
@@ -2520,16 +2580,30 @@ function initBottomBtns() {
 }
 
 function initMenuBtns() {
-  const bagBtn = document.getElementById('mBagBtn');
+  const invBtn = document.getElementById('mInvBtn');
   const statsBtn = document.getElementById('mStatsBtn');
-  if (bagBtn) {
-    bagBtn.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); bagOpen = !bagOpen; bagContextMenu = null; updateNpcBtnMobile(); }, { passive: false });
-    bagBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); bagOpen = !bagOpen; bagContextMenu = null; updateNpcBtnMobile(); });
+  if (invBtn) {
+    invBtn.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); bagOpen = !bagOpen; bagContextMenu = null; updateNpcBtnMobile(); }, { passive: false });
+    invBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); bagOpen = !bagOpen; bagContextMenu = null; updateNpcBtnMobile(); });
   }
   if (statsBtn) {
     statsBtn.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); statsOpen = !statsOpen; updateNpcBtnMobile(); }, { passive: false });
     statsBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); statsOpen = !statsOpen; updateNpcBtnMobile(); });
   }
+}
+
+function initFullscreenBtn() {
+  const btn = document.getElementById('mFullscreen');
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
+    else document.exitFullscreen();
+  });
+  btn.addEventListener('touchstart', (e) => {
+    e.preventDefault(); e.stopPropagation();
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
+    else document.exitFullscreen();
+  }, { passive: false });
 }
 
 function initCanvasTouch() {
@@ -2613,12 +2687,14 @@ function tickMobileHud(now) {
   const hpFill = document.getElementById('mHpFill');
   const hpTxt = document.getElementById('mHpTxt');
   if (hpFill) hpFill.style.width = Math.max(0, Math.min(100, player.hp / mhp * 100)) + '%';
-  if (hpTxt) hpTxt.textContent = `❤️ ${Math.ceil(player.hp)}/${mhp}`;
+  if (hpTxt) hpTxt.textContent = Math.ceil(player.hp) + '/' + mhp;
   const mst = getMaxStamina();
   const stFill = document.getElementById('mStFill');
   const stTxt = document.getElementById('mStTxt');
   if (stFill) stFill.style.width = Math.max(0, Math.min(100, player.stamina / mst * 100)) + '%';
-  if (stTxt) stTxt.textContent = `⚡ ${Math.ceil(player.stamina)}/${mst}`;
+  if (stTxt) stTxt.textContent = Math.ceil(player.stamina) + '/' + mst;
+  const lvlTxt = document.getElementById('mLvlTxt');
+  if (lvlTxt) lvlTxt.textContent = stats.level + ' · ' + stats.xp + '/' + (stats.level < MAX_LEVEL ? xpForNextLevel(stats.level) : 0);
   const mBar = document.getElementById('mMasteryBar');
   const mFill = document.getElementById('mMasteryFill');
   const mTxt = document.getElementById('mMasteryTxt');
@@ -2629,7 +2705,7 @@ function tickMobileHud(now) {
     const xp = powerSlot.masteryXp || 0;
     const need = masteryThreshold(lvl);
     mFill.style.width = Math.max(0, Math.min(100, xp / need * 100)) + '%';
-    mTxt.textContent = `🌟 Lv.${lvl} · ${xp}/${need}`;
+    mTxt.textContent = 'Lv.' + lvl + ' · ' + xp + '/' + need;
   } else if (mBar) mBar.style.display = 'none';
   const wBar = document.getElementById('mWaterBar');
   const wFill = document.getElementById('mWaterFill');
@@ -2637,10 +2713,10 @@ function tickMobileHud(now) {
   if (powerSlot && powerSlot.name === 'Акула' && wBar && wFill && wTxt) {
     wBar.style.display = 'flex';
     wFill.style.width = Math.max(0, Math.min(100, waterMeter / WATER_METER_MAX * 100)) + '%';
-    wTxt.textContent = `💧 ${Math.floor(waterMeter)}/${WATER_METER_MAX}`;
+    wTxt.textContent = Math.floor(waterMeter) + '/' + WATER_METER_MAX;
   } else if (wBar) wBar.style.display = 'none';
-  const moneyTxt = document.getElementById('mMoneyTxt');
-  if (moneyTxt) moneyTxt.textContent = player.money;
+  const moneyBoxVal = document.getElementById('mMoneyBoxVal');
+  if (moneyBoxVal) moneyBoxVal.textContent = player.money;
   updateShipBtn();
   updateFlightBtn();
   updateSpaceBtn();
@@ -2863,7 +2939,6 @@ function update() {
   for (let i = remoteLightBeams.length - 1; i >= 0; i--) { remoteLightBeams[i].life--; if (remoteLightBeams[i].life <= 0) remoteLightBeams.splice(i, 1); }
   for (let i = shipWakes.length - 1; i >= 0; i--) { shipWakes[i].life--; shipWakes[i].radius += 0.3; if (shipWakes[i].life <= 0) shipWakes.splice(i, 1); }
 
-  // Световые лучи игрока
   for (let i = lightBeams.length - 1; i >= 0; i--) {
     const LB = lightBeams[i];
     if (now > LB.until) { lightBeams.splice(i, 1); continue; }
@@ -2895,7 +2970,6 @@ function update() {
     }
   }
 
-  // Чужие снаряды
   for (let i = remoteProjectiles.length - 1; i >= 0; i--) {
     const rp = remoteProjectiles[i];
     rp.x += rp.vx; rp.y += rp.vy; rp.life--;
@@ -2933,7 +3007,6 @@ function update() {
   }
   for (let i = remoteBeams.length - 1; i >= 0; i--) { remoteBeams[i].life--; if (remoteBeams[i].life <= 0) remoteBeams.splice(i, 1); }
 
-  // Свои снаряды
   for (let i = projectiles.length - 1; i >= 0; i--) {
     const p = projectiles[i];
     p.x += p.vx; p.y += p.vy; p.life--;
@@ -2995,7 +3068,6 @@ function update() {
     if (hit || p.life <= 0) projectiles.splice(i, 1);
   }
 
-  // Акулы
   for (let i = sharkBites.length - 1; i >= 0; i--) {
     const s = sharkBites[i];
     s.x += s.vx; s.y += s.vy; s.life--;
@@ -3043,7 +3115,6 @@ function update() {
     if (hit || s.life <= 0) sharkBites.splice(i, 1);
   }
 
-  // Водовороты
   for (let i = whirlpools.length - 1; i >= 0; i--) {
     const w = whirlpools[i];
     w.life--; w.rotation += 0.15;
@@ -3079,7 +3150,6 @@ function update() {
     if (w.life <= 0) whirlpools.splice(i, 1);
   }
 
-  // Лазеры Контроля
   for (let i = controlLasers.length - 1; i >= 0; i--) {
     const L = controlLasers[i];
     if (now > L.until) { controlLasers.splice(i, 1); continue; }
@@ -3111,7 +3181,6 @@ function update() {
     }
   }
 
-  // Метеоры Контроля
   for (let i = controlMeteors.length - 1; i >= 0; i--) {
     const m = controlMeteors[i];
     m.progress++;
@@ -3132,7 +3201,6 @@ function update() {
     if (m.impactDone && m.progress > m.duration + 40) controlMeteors.splice(i, 1);
   }
 
-  // Лучи Контроля и Света
   for (let i = controlBeams.length - 1; i >= 0; i--) {
     const B = controlBeams[i];
     if (now > B.until) { controlBeams.splice(i, 1); continue; }
@@ -3191,7 +3259,6 @@ function update() {
     if (m.impactDone && m.fallProgress > m.duration + 30) meteors.splice(i, 1);
   }
 
-  // Пираты
   for (let i = pirates.length - 1; i >= 0; i--) {
     const pir = pirates[i];
     if (pir.dead) { if (pir.deathTimer > 0) pir.deathTimer--; if (now >= pir.respawnAt) { const idx = pir.spawnIdx; pirates.splice(i, 1); spawnPirate(idx); } continue; }
@@ -3213,7 +3280,6 @@ function update() {
     if (dist < pir.radius + player.radius + 8 && now - pir.lastAttackTime > PIRATE_ATTACK_INTERVAL) { pir.lastAttackTime = now; damagePlayer(PIRATE_DAMAGE); }
   }
 
-  // Пустынные воины
   for (let i = duneWarriors.length - 1; i >= 0; i--) {
     const dw = duneWarriors[i];
     if (dw.dead) { if (dw.deathTimer > 0) dw.deathTimer--; if (now >= dw.respawnAt) { const idx = dw.spawnIdx; duneWarriors.splice(i, 1); spawnDuneWarrior(idx); } continue; }
@@ -3235,7 +3301,6 @@ function update() {
     if (dist < dw.radius + player.radius + 8 && now - dw.lastAttackTime > DUNE_ATTACK_INTERVAL) { dw.lastAttackTime = now; damagePlayer(DUNE_DAMAGE); }
   }
 
-  // Босс
   if (boss.active && !boss.dead) {
     if (boss.hitFlash > 0) boss.hitFlash--;
     if (boss.attackAnim > 0) boss.attackAnim = Math.max(0, boss.attackAnim - 0.08);
@@ -3264,7 +3329,6 @@ function update() {
     }
   } else if (boss.dead && boss.deathTimer > 0) boss.deathTimer--;
 
-  // Общие эффекты
   for (let i = particles.length - 1; i >= 0; i--) {
     const pt = particles[i]; pt.life--;
     if (pt.isShockwave) { const t = 1 - pt.life / pt.maxLife; pt.radius = 10 + t * (pt.maxRadius - 10); }
@@ -3550,6 +3614,182 @@ function drawObstacles() {
   }
 }
 
+// ==================== ИКОНКИ ====================
+function drawFistsIcon(cx, cy, radius) {
+  const bg = ctx.createRadialGradient(cx, cy, 1, cx, cy, radius * 1.2);
+  bg.addColorStop(0, '#2a2a2a'); bg.addColorStop(1, '#0a0a0a');
+  ctx.beginPath(); ctx.arc(cx, cy, radius * 1.1, 0, Math.PI * 2);
+  ctx.fillStyle = bg; ctx.fill();
+  ctx.strokeStyle = '#aaaaaa'; ctx.lineWidth = 2; ctx.stroke();
+  const s = radius * 0.7;
+  const g = ctx.createRadialGradient(cx - s * 0.2, cy - s * 0.1, 1, cx, cy, s);
+  ctx.beginPath(); ctx.rect(cx - s * 0.6, cy - s * 0.4, s * 1.2, s * 0.9);
+  g.addColorStop(0, '#ffddaa'); g.addColorStop(1, '#d4a373');
+  ctx.fillStyle = g; ctx.fill();
+  ctx.strokeStyle = '#8a6030'; ctx.lineWidth = 1.5; ctx.stroke();
+}
+
+function drawFruitIcon(cx, cy, radius, color) {
+  const g = ctx.createRadialGradient(cx - radius * 0.3, cy - radius * 0.3, 1, cx, cy, radius);
+  g.addColorStop(0, lightenColor(color, 0.5));
+  g.addColorStop(1, color);
+  ctx.beginPath(); ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.fillStyle = g; ctx.fill();
+  ctx.strokeStyle = darkenColor(color, 0.4); ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.beginPath(); ctx.strokeStyle = darkenColor(color, 0.4); ctx.lineWidth = 1.2;
+  for (let i = 0; i < 30; i++) {
+    const t = i / 30; const a = t * Math.PI * 6; const r = t * radius * 0.75;
+    const px = cx + Math.cos(a) * r, py = cy + Math.sin(a) * r;
+    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+  }
+  ctx.stroke();
+}
+
+function drawPowerIcon(cx, cy, radius, name) {
+  if (name === 'Огонь') {
+    const bg = ctx.createRadialGradient(cx, cy, 1, cx, cy, radius * 1.2);
+    bg.addColorStop(0, '#2a1a0a'); bg.addColorStop(1, '#0a0500');
+    ctx.beginPath(); ctx.arc(cx, cy, radius * 1.1, 0, Math.PI * 2);
+    ctx.fillStyle = bg; ctx.fill();
+    ctx.strokeStyle = '#ff6600'; ctx.lineWidth = 2; ctx.stroke();
+    const fh = radius * 1.5, fw = radius * 1.0;
+    ctx.beginPath(); ctx.moveTo(cx, cy - fh * 0.55);
+    ctx.bezierCurveTo(cx + fw * 0.9, cy - fh * 0.1, cx + fw * 0.7, cy + fh * 0.5, cx, cy + fh * 0.5);
+    ctx.bezierCurveTo(cx - fw * 0.7, cy + fh * 0.5, cx - fw * 0.9, cy - fh * 0.1, cx, cy - fh * 0.55);
+    const fg = ctx.createRadialGradient(cx, cy + fh * 0.15, 1, cx, cy, fh * 0.8);
+    fg.addColorStop(0, '#ffff66'); fg.addColorStop(0.4, '#ff9900'); fg.addColorStop(1, '#ff2200');
+    ctx.fillStyle = fg; ctx.fill();
+  } else if (name === 'Лёд') {
+    const bg = ctx.createRadialGradient(cx, cy, 1, cx, cy, radius * 1.2);
+    bg.addColorStop(0, '#0a1a2a'); bg.addColorStop(1, '#000510');
+    ctx.beginPath(); ctx.arc(cx, cy, radius * 1.1, 0, Math.PI * 2);
+    ctx.fillStyle = bg; ctx.fill();
+    ctx.strokeStyle = '#00c8ff'; ctx.lineWidth = 2; ctx.stroke();
+    const t = performance.now() * 0.001;
+    ctx.save(); ctx.translate(cx, cy); ctx.rotate(t);
+    ctx.strokeStyle = '#aae0ff'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+    for (let i = 0; i < 6; i++) {
+      ctx.rotate(Math.PI / 3);
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -radius * 0.75); ctx.stroke();
+    }
+    ctx.restore();
+  } else if (name === 'Акула') {
+    const bg = ctx.createRadialGradient(cx, cy, 1, cx, cy, radius * 1.2);
+    bg.addColorStop(0, '#0a2a4a'); bg.addColorStop(1, '#000a1a');
+    ctx.beginPath(); ctx.arc(cx, cy, radius * 1.1, 0, Math.PI * 2);
+    ctx.fillStyle = bg; ctx.fill();
+    ctx.strokeStyle = '#4fd4ff'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - radius * 0.8);
+    ctx.bezierCurveTo(cx + radius * 0.5, cy - radius * 0.3, cx + radius * 0.3, cy + radius * 0.5, cx, cy + radius * 0.5);
+    ctx.bezierCurveTo(cx - radius * 0.3, cy + radius * 0.5, cx - radius * 0.5, cy - radius * 0.3, cx, cy - radius * 0.8);
+    ctx.closePath();
+    const g = ctx.createLinearGradient(cx, cy - radius, cx, cy + radius);
+    g.addColorStop(0, '#4a6e9c'); g.addColorStop(0.5, '#1a3a5c'); g.addColorStop(1, '#0a1a3a');
+    ctx.fillStyle = g; ctx.fill();
+  } else if (name === 'Контроль') {
+    const bg = ctx.createRadialGradient(cx, cy, 1, cx, cy, radius * 1.2);
+    bg.addColorStop(0, '#1a0a2a'); bg.addColorStop(1, '#050010');
+    ctx.beginPath(); ctx.arc(cx, cy, radius * 1.1, 0, Math.PI * 2);
+    ctx.fillStyle = bg; ctx.fill();
+    ctx.strokeStyle = '#7c5cff'; ctx.lineWidth = 2; ctx.stroke();
+    const t = performance.now() * 0.002;
+    ctx.save(); ctx.translate(cx, cy); ctx.rotate(t * 0.5);
+    for (let i = 0; i < 3; i++) {
+      const rr = radius * (0.4 + i * 0.25);
+      ctx.beginPath(); ctx.arc(0, 0, rr, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(180, 160, 255, ${0.9 - i * 0.25})`;
+      ctx.lineWidth = 2; ctx.stroke();
+    }
+    ctx.restore();
+    ctx.beginPath(); ctx.arc(cx, cy, radius * 0.18, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffffff'; ctx.fill();
+  } else if (name === 'Свет') {
+    const bg = ctx.createRadialGradient(cx, cy, 1, cx, cy, radius * 1.2);
+    bg.addColorStop(0, '#2a2000'); bg.addColorStop(1, '#100a00');
+    ctx.beginPath(); ctx.arc(cx, cy, radius * 1.1, 0, Math.PI * 2);
+    ctx.fillStyle = bg; ctx.fill();
+    ctx.strokeStyle = '#fff6b0'; ctx.lineWidth = 2.5; ctx.stroke();
+    const t = performance.now() * 0.003;
+    const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius * 1.1);
+    core.addColorStop(0, 'rgba(255, 255, 255, 1)');
+    core.addColorStop(0.4, 'rgba(255, 246, 176, 0.95)');
+    core.addColorStop(1, 'rgba(255, 220, 80, 0)');
+    ctx.beginPath(); ctx.arc(cx, cy, radius * 1.1, 0, Math.PI * 2);
+    ctx.fillStyle = core; ctx.fill();
+    ctx.save(); ctx.translate(cx, cy); ctx.rotate(t * 0.5);
+    for (let i = 0; i < 8; i++) {
+      ctx.rotate(Math.PI / 4);
+      ctx.beginPath(); ctx.moveTo(0, -radius * 0.4); ctx.lineTo(0, -radius * 1.0);
+      ctx.strokeStyle = `rgba(255, 255, 255, ${0.6 + Math.sin(t * 4 + i) * 0.3})`;
+      ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.stroke();
+    }
+    ctx.restore();
+  } else if (name === 'Ветряная мельница') {
+    const bg = ctx.createRadialGradient(cx, cy, 1, cx, cy, radius * 1.2);
+    bg.addColorStop(0, '#3a2a1a'); bg.addColorStop(1, '#1a0f05');
+    ctx.beginPath(); ctx.arc(cx, cy, radius * 1.1, 0, Math.PI * 2);
+    ctx.fillStyle = bg; ctx.fill();
+    ctx.strokeStyle = '#c9b088'; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.fillStyle = '#a88a5c';
+    ctx.beginPath();
+    ctx.moveTo(cx - radius * 0.35, cy + radius * 0.9);
+    ctx.lineTo(cx - radius * 0.28, cy + radius * 0.1);
+    ctx.lineTo(cx + radius * 0.28, cy + radius * 0.1);
+    ctx.lineTo(cx + radius * 0.35, cy + radius * 0.9);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#5a3a1a'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.fillStyle = '#4a2a10';
+    ctx.fillRect(cx - radius * 0.1, cy + radius * 0.5, radius * 0.2, radius * 0.4);
+    const hubX = cx, hubY = cy - radius * 0.1;
+    const t = performance.now() * 0.001;
+    ctx.save(); ctx.translate(hubX, hubY); ctx.rotate(t);
+    for (let i = 0; i < 4; i++) {
+      ctx.save(); ctx.rotate(i * (Math.PI / 2));
+      ctx.fillStyle = '#8a6a4a';
+      ctx.fillRect(0, -1.2, radius * 0.35, 2.4);
+      const sg = ctx.createLinearGradient(radius * 0.35, -radius * 0.25, radius * 0.35, radius * 0.25);
+      sg.addColorStop(0, '#f5e6c8'); sg.addColorStop(1, '#c8a878');
+      ctx.fillStyle = sg;
+      ctx.beginPath();
+      ctx.moveTo(radius * 0.35, -radius * 0.2);
+      ctx.lineTo(radius * 0.95, -radius * 0.45);
+      ctx.lineTo(radius * 0.95, radius * 0.45);
+      ctx.lineTo(radius * 0.35, radius * 0.2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = '#8a6a4a'; ctx.lineWidth = 1; ctx.stroke();
+      ctx.restore();
+    }
+    ctx.restore();
+    ctx.beginPath();
+    ctx.arc(hubX, hubY, radius * 0.12, 0, Math.PI * 2);
+    ctx.fillStyle = '#e8c88a'; ctx.fill();
+    ctx.strokeStyle = '#5a3a1a'; ctx.lineWidth = 1.5; ctx.stroke();
+  }
+}
+
+function getRarityBgColor(name) {
+  const rar = getFruitRarity(name);
+  if (rar === 'mythic')    return 'rgba(200, 40, 40, 0.40)';
+  if (rar === 'legendary') return 'rgba(255, 105, 180, 0.38)';
+  if (rar === 'rare')      return 'rgba(150, 80, 220, 0.38)';
+  if (rar === 'uncommon')  return 'rgba(80, 180, 240, 0.35)';
+  if (rar === 'admin')     return 'rgba(200, 160, 80, 0.42)';
+  return 'rgba(120, 120, 120, 0.32)';
+}
+function getRarityBorderColor(name) {
+  const rar = getFruitRarity(name);
+  if (rar === 'mythic')    return 'rgba(255, 90, 90, 0.9)';
+  if (rar === 'legendary') return 'rgba(255, 160, 210, 0.9)';
+  if (rar === 'rare')      return 'rgba(190, 130, 255, 0.9)';
+  if (rar === 'uncommon')  return 'rgba(130, 210, 255, 0.9)';
+  if (rar === 'admin')     return 'rgba(255, 215, 100, 0.95)';
+  return 'rgba(200, 200, 200, 0.75)';
+}
+
+// ==================== ФРУКТЫ/ПРЕДМЕТЫ НА ЗЕМЛЕ ====================
 function drawFruitShape(x, y, radius, color, phase = 0, bob = false, glow = false) {
   const bo = bob ? Math.sin(phase) * 5 : 0;
   const fy = y + bo;
@@ -3596,6 +3836,7 @@ function drawSharedDroppedFruits() {
   }
 }
 
+// ==================== ЭФФЕКТЫ СПОСОБНОСТЕЙ ====================
 function drawControlSlashes() {
   for (const s of controlSlashes) {
     const a = s.life / s.maxLife;
@@ -3722,6 +3963,7 @@ function drawRemoteLightTrails() {
   }
 }
 
+// ==================== ЗОНА КОНТРОЛЯ ====================
 function drawControlZone() {
   if (!controlZone) return;
   const now = performance.now();
@@ -3751,6 +3993,14 @@ function drawControlZone() {
     ctx.fill();
   }
   ctx.restore();
+  ctx.font = 'bold 16px Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
+  const secLeft = Math.ceil((controlZone.until - now) / 1000);
+  ctx.strokeText('🌀 ЗОНА: ' + secLeft + 'с', x, y - controlZone.radius - 18);
+  ctx.fillStyle = '#7c5cff';
+  ctx.fillText('🌀 ЗОНА: ' + secLeft + 'с', x, y - controlZone.radius - 18);
 }
 
 function drawControlLasers() {
@@ -3838,6 +4088,7 @@ function drawControlMeteors() {
   }
 }
 
+// ==================== ЧУЖИЕ АТАКИ ====================
 function drawRemoteAttacks() {
   const now = performance.now();
   for (const rp of remoteProjectiles) {
@@ -3967,392 +4218,7 @@ function drawRemoteAttacks() {
   }
 }
 
-function drawNpc() {
-  const x = npc.x - camera.x + npc.shakeOffset.x;
-  const y = npc.y - camera.y + npc.shakeOffset.y;
-  const isSlowed = performance.now() < npc.slowUntil;
-  ctx.beginPath(); ctx.ellipse(x, npc.y - camera.y + npc.radius * 0.9, npc.radius * 0.9, 7, 0, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fill();
-  const isHit = npc.hitFlash > 0;
-  let bc = isHit ? '#ffffff' : npc.color;
-  if (isSlowed && !isHit) bc = '#aaddee';
-  const g = ctx.createRadialGradient(x - npc.radius * 0.35, y - npc.radius * 0.35, 3, x, y, npc.radius);
-  g.addColorStop(0, lightenColor(bc, 0.3)); g.addColorStop(1, bc);
-  ctx.beginPath(); ctx.arc(x, y, npc.radius, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
-  ctx.strokeStyle = darkenColor(bc, 0.4); ctx.lineWidth = 3; ctx.stroke();
-  ctx.strokeStyle = '#333'; ctx.lineWidth = 3; ctx.lineCap = 'round';
-  const eo = npc.radius * 0.4, es = npc.radius * 0.18;
-  ctx.beginPath(); ctx.moveTo(x - eo - es, y - eo - es); ctx.lineTo(x - eo + es, y - eo + es);
-  ctx.moveTo(x - eo + es, y - eo - es); ctx.lineTo(x - eo - es, y - eo + es); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(x + eo - es, y - eo - es); ctx.lineTo(x + eo + es, y - eo + es);
-  ctx.moveTo(x + eo + es, y - eo - es); ctx.lineTo(x + eo - es, y - eo + es); ctx.stroke();
-  const hw = 100, hh = 12, hx = x - hw / 2, hy = y - npc.radius - 30;
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'; roundRect(hx - 3, hy - 3, hw + 6, hh + 6, 5); ctx.fill();
-  ctx.fillStyle = '#3a0000'; roundRect(hx, hy, hw, hh, 4); ctx.fill();
-  const hr = npc.hp / npc.maxHp;
-  if (hr > 0) {
-    const hg = ctx.createLinearGradient(hx, hy, hx, hy + hh);
-    hg.addColorStop(0, '#66ff66'); hg.addColorStop(1, '#00aa00');
-    ctx.fillStyle = hg; roundRect(hx, hy, hw * hr, hh, 4); ctx.fill();
-  }
-  ctx.fillStyle = 'white'; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
-  const txt = `${Math.round(npc.hp)} / ${npc.maxHp}`;
-  ctx.strokeText(txt, x, hy + hh / 2); ctx.fillText(txt, x, hy + hh / 2);
-  ctx.font = 'bold 14px Arial';
-  ctx.strokeText('Манекен', x, hy - 14); ctx.fillStyle = '#ffdd00'; ctx.fillText('Манекен', x, hy - 14);
-}
-
-function drawPirates() {
-  const now = performance.now();
-  for (const pir of pirates) {
-    if (pir.dead && pir.deathTimer <= 0) continue;
-    const x = pir.x - camera.x, y = pir.y - camera.y;
-    let al = 1, sc = 1;
-    if (pir.dead) { const t = pir.deathTimer / 40; al = t; sc = 0.5 + t * 0.5; }
-    ctx.globalAlpha = al;
-    ctx.beginPath(); ctx.ellipse(x, pir.y - camera.y + pir.radius * 0.9 * sc, pir.radius * 0.9 * sc, 6, 0, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fill();
-    const isHit = pir.hitFlash > 0, isFrozen = now < pir.frozenUntil, isStunned = now < pir.stunUntil, isSlowed = now < pir.slowUntil;
-    let bc = isHit ? '#ffffff' : pir.color;
-    if (isFrozen && !isHit) bc = '#66c8ff';
-    else if (isStunned && !isHit) bc = '#999999';
-    else if (isSlowed && !isHit) bc = '#aa5566';
-    const g = ctx.createRadialGradient(x - pir.radius * 0.35, y - pir.radius * 0.35, 2, x, y, pir.radius * sc);
-    g.addColorStop(0, lightenColor(bc, 0.3)); g.addColorStop(1, bc);
-    ctx.beginPath(); ctx.arc(x, y, pir.radius * sc, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
-    ctx.strokeStyle = darkenColor(bc, 0.5); ctx.lineWidth = 3; ctx.stroke();
-    ctx.beginPath(); ctx.arc(x, y - pir.radius * 0.3 * sc, pir.radius * 0.9 * sc, Math.PI * 1.1, Math.PI * 1.9);
-    ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 5 * sc; ctx.stroke();
-    const eo = pir.radius * 0.35 * sc, er = pir.radius * 0.13 * sc;
-    ctx.fillStyle = 'white';
-    ctx.beginPath(); ctx.arc(x - eo, y - pir.radius * 0.05, er, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(x + eo, y - pir.radius * 0.05, er, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#1a1a1a';
-    ctx.beginPath(); ctx.arc(x - eo + 1, y - pir.radius * 0.05, er * 0.55, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(x + eo + 1, y - pir.radius * 0.05, er * 0.55, 0, Math.PI * 2); ctx.fill();
-    if (!pir.dead && (pir.aggro || pir.chasing)) {
-      ctx.font = 'bold 16px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillStyle = pir.chasing ? '#ff2222' : '#ffaa00';
-      ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
-      const sym = pir.chasing ? '‼' : '!';
-      ctx.strokeText(sym, x, y - pir.radius - 40);
-      ctx.fillText(sym, x, y - pir.radius - 40);
-    }
-    if (!pir.dead) {
-      const hw = 50, hh = 7, hx = x - hw / 2, hy = y - pir.radius - 20;
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'; roundRect(hx - 2, hy - 2, hw + 4, hh + 4, 3); ctx.fill();
-      ctx.fillStyle = '#3a0000'; roundRect(hx, hy, hw, hh, 2); ctx.fill();
-      const hr = pir.hp / pir.maxHp;
-      if (hr > 0) { ctx.fillStyle = '#ff3b3b'; roundRect(hx, hy, hw * hr, hh, 2); ctx.fill(); }
-    }
-    ctx.globalAlpha = 1;
-  }
-}
-
-function drawDuneWarriors() {
-  const now = performance.now();
-  for (const dw of duneWarriors) {
-    if (dw.dead && dw.deathTimer <= 0) continue;
-    const x = dw.x - camera.x, y = dw.y - camera.y;
-    let al = 1, sc = 1;
-    if (dw.dead) { const t = dw.deathTimer / 40; al = t; sc = 0.5 + t * 0.5; }
-    ctx.globalAlpha = al;
-    ctx.beginPath(); ctx.ellipse(x, dw.y - camera.y + dw.radius * 0.9 * sc, dw.radius * 0.9 * sc, 6, 0, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fill();
-    const isHit = dw.hitFlash > 0, isFrozen = now < dw.frozenUntil, isStunned = now < dw.stunUntil, isSlowed = now < dw.slowUntil;
-    let bc = isHit ? '#ffffff' : dw.color;
-    if (isFrozen && !isHit) bc = '#66c8ff';
-    else if (isStunned && !isHit) bc = '#999999';
-    else if (isSlowed && !isHit) bc = '#8a6840';
-    const g = ctx.createRadialGradient(x - dw.radius * 0.35, y - dw.radius * 0.35, 2, x, y, dw.radius * sc);
-    g.addColorStop(0, lightenColor(bc, 0.3)); g.addColorStop(1, bc);
-    ctx.beginPath(); ctx.arc(x, y, dw.radius * sc, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
-    ctx.strokeStyle = darkenColor(bc, 0.5); ctx.lineWidth = 3; ctx.stroke();
-    ctx.fillStyle = '#8b5a2b';
-    ctx.beginPath(); ctx.arc(x, y - dw.radius * 0.5 * sc, dw.radius * 0.85 * sc, Math.PI, 0); ctx.fill();
-    ctx.strokeStyle = '#5a3a1a'; ctx.lineWidth = 2; ctx.stroke();
-    ctx.fillStyle = '#a06a3a';
-    ctx.fillRect(x - dw.radius * 0.9 * sc, y - dw.radius * 0.7 * sc, dw.radius * 1.8 * sc, 5);
-    const eo = dw.radius * 0.35 * sc, er = dw.radius * 0.13 * sc;
-    ctx.fillStyle = 'white';
-    ctx.beginPath(); ctx.arc(x - eo, y - dw.radius * 0.05, er, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(x + eo, y - dw.radius * 0.05, er, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#1a1a1a';
-    ctx.beginPath(); ctx.arc(x - eo + 1, y - dw.radius * 0.05, er * 0.55, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(x + eo + 1, y - dw.radius * 0.05, er * 0.55, 0, Math.PI * 2); ctx.fill();
-    if (!dw.dead) {
-      const hw = 60, hh = 8, hx = x - hw / 2, hy = y - dw.radius - 20;
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.75)'; roundRect(hx - 2, hy - 2, hw + 4, hh + 4, 3); ctx.fill();
-      ctx.fillStyle = '#3a1a00'; roundRect(hx, hy, hw, hh, 2); ctx.fill();
-      const hr = dw.hp / dw.maxHp;
-      if (hr > 0) { ctx.fillStyle = '#d4882a'; roundRect(hx, hy, hw * hr, hh, 2); ctx.fill(); }
-    }
-    ctx.globalAlpha = 1;
-  }
-}
-
-function drawBoss() {
-  if (!boss.active && !boss.dead) return;
-  if (boss.dead && boss.deathTimer <= 0) return;
-  const x = boss.x - camera.x, y = boss.y - camera.y;
-  const now = performance.now();
-  let al = 1, sc = 1;
-  if (boss.dead) { const t = boss.deathTimer / 60; al = t; sc = 0.5 + t * 0.5; }
-  ctx.globalAlpha = al;
-  const aura = ctx.createRadialGradient(x, y, boss.radius * 0.7, x, y, boss.radius * 2.4 * sc);
-  aura.addColorStop(0, 'rgba(255, 40, 40, 0.35)');
-  aura.addColorStop(1, 'rgba(80, 0, 0, 0)');
-  ctx.beginPath(); ctx.arc(x, y, boss.radius * 2.4 * sc, 0, Math.PI * 2); ctx.fillStyle = aura; ctx.fill();
-  ctx.beginPath(); ctx.ellipse(x, y + boss.radius * 0.9 * sc, boss.radius * 0.9 * sc, 12, 0, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fill();
-  const isHit = boss.hitFlash > 0, isFrozen = now < boss.frozenUntil, isStunned = now < boss.stunUntil;
-  let bc = isHit ? '#ffffff' : boss.color;
-  if (isFrozen && !isHit) bc = '#66c8ff';
-  else if (isStunned && !isHit) bc = '#999999';
-  const g = ctx.createRadialGradient(x - boss.radius * 0.35, y - boss.radius * 0.35, 3, x, y, boss.radius * sc);
-  g.addColorStop(0, lightenColor(bc, 0.35)); g.addColorStop(1, bc);
-  ctx.beginPath(); ctx.arc(x, y, boss.radius * sc, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
-  ctx.strokeStyle = darkenColor(bc, 0.6); ctx.lineWidth = 4; ctx.stroke();
-  ctx.beginPath(); ctx.arc(x, y - boss.radius * 0.3 * sc, boss.radius * 0.95 * sc, Math.PI * 1.05, Math.PI * 1.95);
-  ctx.strokeStyle = '#0a0a0a'; ctx.lineWidth = 9 * sc; ctx.lineCap = 'round'; ctx.stroke();
-  const crownY = y - boss.radius * 1.15 * sc;
-  const crownW = boss.radius * 1.4 * sc;
-  const crownH = boss.radius * 0.5 * sc;
-  ctx.beginPath();
-  ctx.moveTo(x - crownW / 2, crownY + crownH);
-  ctx.lineTo(x - crownW / 2, crownY);
-  ctx.lineTo(x - crownW * 0.25, crownY + crownH * 0.5);
-  ctx.lineTo(x, crownY - crownH * 0.25);
-  ctx.lineTo(x + crownW * 0.25, crownY + crownH * 0.5);
-  ctx.lineTo(x + crownW / 2, crownY);
-  ctx.lineTo(x + crownW / 2, crownY + crownH);
-  ctx.closePath();
-  const cg = ctx.createLinearGradient(x, crownY, x, crownY + crownH);
-  cg.addColorStop(0, '#ffe680'); cg.addColorStop(0.5, '#ffbb00'); cg.addColorStop(1, '#c98800');
-  ctx.fillStyle = cg; ctx.fill();
-  ctx.strokeStyle = '#7a4f00'; ctx.lineWidth = 2; ctx.stroke();
-  const eo = boss.radius * 0.35 * sc, er = boss.radius * 0.15 * sc;
-  ctx.fillStyle = 'white';
-  ctx.beginPath(); ctx.arc(x - eo, y - boss.radius * 0.05, er, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc(x + eo, y - boss.radius * 0.05, er, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#8a0000';
-  ctx.beginPath(); ctx.arc(x - eo + 1, y - boss.radius * 0.05, er * 0.55, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc(x + eo + 1, y - boss.radius * 0.05, er * 0.55, 0, Math.PI * 2); ctx.fill();
-  if (!boss.dead) {
-    const hw = 200, hh = 22, hx = x - hw / 2, hy = y - boss.radius * 1.4 * sc;
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.85)'; roundRect(hx - 4, hy - 4, hw + 8, hh + 8, 6); ctx.fill();
-    ctx.fillStyle = '#3a0000'; roundRect(hx, hy, hw, hh, 4); ctx.fill();
-    const hr = boss.hp / boss.maxHp;
-    if (hr > 0) {
-      const hg = ctx.createLinearGradient(hx, hy, hx, hy + hh);
-      hg.addColorStop(0, '#ff5555'); hg.addColorStop(1, '#8a0000');
-      ctx.fillStyle = hg; roundRect(hx, hy, hw * hr, hh, 4); ctx.fill();
-    }
-    ctx.fillStyle = 'white'; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
-    const txt = `${Math.round(boss.hp)} / ${boss.maxHp}`;
-    ctx.strokeText(txt, x, hy + hh / 2); ctx.fillText(txt, x, hy + hh / 2);
-  }
-  ctx.font = 'bold 16px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
-  ctx.strokeText('⚔️ Капитан пиратов', x, y - boss.radius * 1.85 * sc);
-  ctx.fillStyle = '#ffdd44';
-  ctx.fillText('⚔️ Капитан пиратов', x, y - boss.radius * 1.85 * sc);
-  ctx.globalAlpha = 1;
-}
-
-function drawShipAt(x, y, angle, radius, isPlayer) {
-  const t = performance.now() * 0.003;
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.rotate(angle);
-  const bw = SHIP_HULL_WIDTH * (radius / SHIP_RADIUS);
-  const bl = SHIP_SAIL_LENGTH * (radius / SHIP_RADIUS);
-  ctx.beginPath();
-  ctx.ellipse(0, 0, bw * 0.9, bl * 1.1, 0, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(0, 40, 80, 0.3)';
-  ctx.fill();
-  ctx.beginPath();
-  ctx.moveTo(bl * 1.1, 0);
-  ctx.quadraticCurveTo(bl * 0.5, -bw * 0.7, -bl * 0.6, -bw * 0.75);
-  ctx.quadraticCurveTo(-bl * 1.15, -bw * 0.6, -bl * 1.15, 0);
-  ctx.quadraticCurveTo(-bl * 1.15, bw * 0.6, -bl * 0.6, bw * 0.75);
-  ctx.quadraticCurveTo(bl * 0.5, bw * 0.7, bl * 1.1, 0);
-  ctx.closePath();
-  const hullGrad = ctx.createLinearGradient(0, -bw, 0, bw);
-  hullGrad.addColorStop(0, '#a06a3a'); hullGrad.addColorStop(0.5, '#7a4a24'); hullGrad.addColorStop(1, '#4a2a10');
-  ctx.fillStyle = hullGrad; ctx.fill();
-  ctx.strokeStyle = '#2a1508'; ctx.lineWidth = 2.5; ctx.stroke();
-  ctx.beginPath();
-  ctx.ellipse(0, 0, bl * 0.85, bw * 0.5, 0, 0, Math.PI * 2);
-  ctx.fillStyle = '#c9a877'; ctx.fill();
-  ctx.strokeStyle = '#8a6030'; ctx.lineWidth = 1.5; ctx.stroke();
-  ctx.fillStyle = '#5a3a1a';
-  ctx.fillRect(-2.5, -bl * 0.05, 5, bl * 0.05);
-  const wave = Math.sin(t * 4) * 2;
-  ctx.beginPath();
-  ctx.moveTo(0, -bl * 0.05);
-  ctx.quadraticCurveTo(bl * 0.4, -bl * 0.25 + wave, bl * 0.15, -bl * 0.6);
-  ctx.quadraticCurveTo(-bl * 0.05, -bl * 0.4, -bl * 0.35, -bl * 0.35 + wave * 0.5);
-  ctx.quadraticCurveTo(-bl * 0.2, -bl * 0.15, 0, -bl * 0.05);
-  ctx.closePath();
-  const sailGrad = ctx.createLinearGradient(0, -bl * 0.6, 0, -bl * 0.05);
-  sailGrad.addColorStop(0, '#ffffff'); sailGrad.addColorStop(1, '#e8d4a8');
-  ctx.fillStyle = sailGrad; ctx.fill();
-  ctx.strokeStyle = '#8a6a4a'; ctx.lineWidth = 1.5; ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(0, -bl * 0.62);
-  ctx.lineTo(bl * 0.15 + wave, -bl * 0.7);
-  ctx.lineTo(0, -bl * 0.55);
-  ctx.closePath();
-  ctx.fillStyle = '#c9243b'; ctx.fill();
-  ctx.restore();
-}
-
-function drawShipWakes() {
-  for (const w of shipWakes) {
-    const a = w.life / w.maxLife;
-    const x = w.x - camera.x, y = w.y - camera.y;
-    ctx.beginPath();
-    ctx.arc(x, y, w.radius, 0, Math.PI * 2);
-    ctx.strokeStyle = `rgba(200, 240, 255, ${a * 0.7})`;
-    ctx.lineWidth = 2;
-    ctx.stroke();
-  }
-}
-
-function drawRemoteShips() {
-  for (const rs of remoteShips.values()) {
-    const x = rs.x - camera.x, y = rs.y - camera.y;
-    drawShipAt(x, y, rs.angle, SHIP_RADIUS, false);
-    ctx.font = 'bold 13px Arial';
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
-    ctx.strokeText(rs.u, x, y - SHIP_RADIUS - 25);
-    ctx.fillStyle = rs.color || '#ffd700';
-    ctx.fillText(rs.u, x, y - SHIP_RADIUS - 25);
-  }
-}
-
-function drawWindmillAt(x, y, angle, radius, isPlayer) {
-  ctx.beginPath();
-  ctx.ellipse(x, y + radius * 0.95, radius * 0.9, 12, 0, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(0,0,0,0.35)';
-  ctx.fill();
-  const baseW = radius * 1.3, baseH = radius * 1.6;
-  const baseX = x - baseW / 2, baseY = y - baseH * 0.5;
-  const bg = ctx.createLinearGradient(baseX, baseY, baseX + baseW, baseY + baseH);
-  bg.addColorStop(0, '#c9b088'); bg.addColorStop(0.5, '#a88a5c'); bg.addColorStop(1, '#7a5f38');
-  ctx.fillStyle = bg;
-  ctx.beginPath();
-  ctx.moveTo(baseX + baseW * 0.1, baseY + baseH);
-  ctx.lineTo(baseX + baseW * 0.15, baseY);
-  ctx.lineTo(baseX + baseW * 0.85, baseY);
-  ctx.lineTo(baseX + baseW * 0.9, baseY + baseH);
-  ctx.closePath();
-  ctx.fill();
-  ctx.strokeStyle = '#5a3a1a'; ctx.lineWidth = 3; ctx.stroke();
-  ctx.fillStyle = '#7a4a2a';
-  ctx.beginPath();
-  ctx.ellipse(x, baseY, baseW * 0.42, baseW * 0.14, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = '#4a2a10';
-  ctx.beginPath();
-  ctx.moveTo(x - radius * 0.25, y + radius * 0.95);
-  ctx.lineTo(x - radius * 0.25, y + radius * 0.2);
-  ctx.quadraticCurveTo(x, y - radius * 0.15, x + radius * 0.25, y + radius * 0.2);
-  ctx.lineTo(x + radius * 0.25, y + radius * 0.95);
-  ctx.closePath();
-  ctx.fill();
-  const hubX = x, hubY = y - radius * 1.1;
-  ctx.save();
-  ctx.translate(hubX, hubY);
-  ctx.rotate(angle);
-  for (let i = 0; i < WINDMILL_BLADE_COUNT; i++) {
-    ctx.save();
-    ctx.rotate(i * (Math.PI * 2 / WINDMILL_BLADE_COUNT));
-    const bl = WINDMILL_BLADE_LENGTH * (radius / WINDMILL_RADIUS);
-    const bw = WINDMILL_BLADE_WIDTH * (radius / WINDMILL_RADIUS);
-    ctx.fillStyle = '#8a6a4a';
-    ctx.fillRect(0, -bw / 3, bl * 0.3, bw * 0.66);
-    const sg = ctx.createLinearGradient(bl * 0.3, -bw, bl * 0.3, bw);
-    sg.addColorStop(0, '#f5e6c8'); sg.addColorStop(1, '#c8a878');
-    ctx.fillStyle = sg;
-    ctx.beginPath();
-    ctx.moveTo(bl * 0.3, -bw * 0.4);
-    ctx.lineTo(bl, -bw * 0.9);
-    ctx.lineTo(bl, bw * 0.9);
-    ctx.lineTo(bl * 0.3, bw * 0.4);
-    ctx.closePath();
-    ctx.fill();
-    ctx.restore();
-  }
-  ctx.restore();
-  ctx.beginPath();
-  ctx.arc(hubX, hubY, radius * 0.15, 0, Math.PI * 2);
-  ctx.fillStyle = '#e8c88a';
-  ctx.fill();
-}
-
-function drawRemoteWindmills() {
-  for (const rw of remoteWindmills.values()) {
-    const x = rw.x - camera.x, y = rw.y - camera.y;
-    drawWindmillAt(x, y, rw.angle, WINDMILL_RADIUS, false);
-    ctx.font = 'bold 13px Arial';
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
-    ctx.strokeText(rw.u, x, y - WINDMILL_RADIUS * 2.5);
-    ctx.fillStyle = rw.color || '#ffd700';
-    ctx.fillText(rw.u, x, y - WINDMILL_RADIUS * 2.5);
-  }
-}
-
-function drawRemotePlayers() {
-  for (const rp of remotePlayers.values()) {
-    if (rp.onShip) continue;
-    const x = rp.x - camera.x, y = rp.y - camera.y;
-    const r = player.radius;
-    const inWater = rp.waterForm;
-    ctx.beginPath();
-    ctx.ellipse(x, y + r * 0.9, r * 0.9, 7, 0, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fill();
-    const isHit = rp.hitFlash > 0;
-    const g = ctx.createRadialGradient(x - r * 0.35, y - r * 0.35, 3, x, y, r);
-    if (isHit) { g.addColorStop(0, '#ffffff'); g.addColorStop(1, '#ff6666'); }
-    else if (inWater) { g.addColorStop(0, '#aaffff'); g.addColorStop(1, '#2288cc'); }
-    else { g.addColorStop(0, lightenColor(rp.color, 0.35)); g.addColorStop(1, rp.color); }
-    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
-    let strokeCol = darkenColor(rp.color, 0.3);
-    if (inWater) strokeCol = '#005588';
-    ctx.strokeStyle = strokeCol; ctx.lineWidth = 3; ctx.stroke();
-    let lx = rp.lx, ly = rp.ly;
-    if (lx === 0 && ly === 0) { lx = 0.3; ly = 0.5; }
-    const ll = Math.hypot(lx, ly) || 1; lx /= ll; ly /= ll;
-    const eo = r * 0.35, eoy = -r * 0.15, er = r * 0.28, pr = er * 0.55, ps = er * 0.35;
-    const eLx = x - eo, eLy = y + eoy, eRx = x + eo, eRy = y + eoy;
-    ctx.beginPath(); ctx.arc(eLx, eLy, er, 0, Math.PI * 2); ctx.fillStyle = 'white'; ctx.fill();
-    ctx.beginPath(); ctx.arc(eRx, eRy, er, 0, Math.PI * 2); ctx.fillStyle = 'white'; ctx.fill();
-    ctx.beginPath(); ctx.arc(eLx + lx * ps, eLy + ly * ps, pr, 0, Math.PI * 2);
-    ctx.fillStyle = inWater ? '#003366' : '#1a1a1a'; ctx.fill();
-    ctx.beginPath(); ctx.arc(eRx + lx * ps, eRy + ly * ps, pr, 0, Math.PI * 2);
-    ctx.fillStyle = inWater ? '#003366' : '#1a1a1a'; ctx.fill();
-    ctx.font = 'bold 13px Arial';
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
-    ctx.strokeText(rp.u, x, y - r - 12);
-    ctx.fillStyle = rp.color;
-    ctx.fillText(rp.u, x, y - r - 12);
-    if (rp.hp < rp.mhp) {
-      const bw = 52, bh = 6, bx = x - bw / 2, by = y - r - 32;
-      ctx.fillStyle = 'rgba(0,0,0,0.6)'; roundRect(bx - 2, by - 2, bw + 4, bh + 4, 3); ctx.fill();
-      ctx.fillStyle = '#3a0000'; roundRect(bx, by, bw, bh, 2); ctx.fill();
-      const hr = Math.max(0, rp.hp) / rp.mhp;
-      if (hr > 0) { ctx.fillStyle = '#ff3b3b'; roundRect(bx, by, bw * hr, bh, 2); ctx.fill(); }
-    }
-  }
-}
-
+// ==================== СНАРЯДЫ (свои) ====================
 function drawProjectiles() {
   for (const p of projectiles) {
     const x = p.x - camera.x, y = p.y - camera.y;
@@ -4566,6 +4432,7 @@ function drawDamageNumbers() {
   }
 }
 
+// ==================== ИГРОК ====================
 function drawPlayer() {
   const x = player.x - camera.x, y = player.y - camera.y;
   const inWater = isInWaterForm();
@@ -4605,6 +4472,28 @@ function drawPlayer() {
     fg.addColorStop(0.4, 'rgba(255, 246, 176, 0.7)');
     fg.addColorStop(1, 'rgba(255, 246, 176, 0)');
     ctx.beginPath(); ctx.arc(x, y, fr * 1.6, 0, Math.PI * 2); ctx.fillStyle = fg; ctx.fill();
+    for (let i = 0; i < 4; i++) {
+      const a = t * 4 + i * (Math.PI / 2);
+      const r = player.radius + 6 + Math.sin(t * 6 + i) * 10;
+      const px = x + Math.cos(a) * r, py = y + Math.sin(a) * r;
+      ctx.beginPath(); ctx.arc(px, py, 5, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'; ctx.fill();
+    }
+  }
+  if (!isOnAnyLand(player.x, player.y) && !inWater && !flying) {
+    for (let i = 0; i < 8; i++) { const a = t * 2 + i * (Math.PI / 4); const r = player.radius + 10 + Math.sin(t * 3 + i) * 4; const dx = x + Math.cos(a) * r, dy = y + Math.sin(a) * r; ctx.beginPath(); ctx.arc(dx, dy, 2 + Math.sin(t * 4 + i), 0, Math.PI * 2); ctx.fillStyle = 'rgba(150,220,255,0.7)'; ctx.fill(); }
+    const g = ctx.createRadialGradient(x, y + 15, 0, x, y + 15, 40); g.addColorStop(0, 'rgba(80,180,255,0.5)'); g.addColorStop(1, 'rgba(80,180,255,0)');
+    ctx.beginPath(); ctx.ellipse(x, y + 15, 40, 15, 0, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
+  }
+  if (inWater) {
+    const ar = 65 + Math.sin(t * 3) * 6;
+    const ag = ctx.createRadialGradient(x, y, player.radius * 0.7, x, y, ar);
+    ag.addColorStop(0, 'rgba(80,200,255,0.4)');
+    ag.addColorStop(0.5, 'rgba(30,100,200,0.25)');
+    ag.addColorStop(1, 'rgba(0,50,120,0)');
+    ctx.beginPath(); ctx.arc(x, y, ar, 0, Math.PI * 2); ctx.fillStyle = ag; ctx.fill();
+    const cy = y - player.radius - 15;
+    for (let i = 0; i < 5; i++) { const cx = x + (i - 2) * 8; const ccy = cy + Math.sin(t * 4 + i) * 3; const h = 8 + Math.sin(t * 5 + i) * 4; const cg = ctx.createLinearGradient(cx, ccy - h, cx, ccy + 4); cg.addColorStop(0, 'rgba(200,240,255,0.9)'); cg.addColorStop(1, 'rgba(80,180,255,0)'); ctx.beginPath(); ctx.moveTo(cx, ccy - h); ctx.lineTo(cx - 3, ccy + 4); ctx.lineTo(cx + 3, ccy + 4); ctx.closePath(); ctx.fillStyle = cg; ctx.fill(); }
+    for (let i = 0; i < 8; i++) { const a = t * 1.5 + i * (Math.PI / 4); const r = player.radius + 20 + Math.sin(t * 2 + i) * 4; const dx = x + Math.cos(a) * r, dy = y + Math.sin(a) * r; ctx.beginPath(); ctx.arc(dx, dy, 3 + Math.sin(t * 3 + i), 0, Math.PI * 2); const dg = ctx.createRadialGradient(dx, dy, 0, dx, dy, 4); dg.addColorStop(0, 'rgba(255,255,255,0.9)'); dg.addColorStop(1, 'rgba(80,180,255,0)'); ctx.fillStyle = dg; ctx.fill(); }
   }
   if (!flying) {
     ctx.beginPath(); ctx.ellipse(x, y + player.radius * 0.9, player.radius * 0.9, 7, 0, 0, Math.PI * 2);
@@ -4619,6 +4508,13 @@ function drawPlayer() {
   ctx.beginPath(); ctx.arc(x, y, player.radius, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
   ctx.strokeStyle = flying ? '#c9a800' : (inWater ? '#005588' : '#b37700');
   ctx.lineWidth = 3; ctx.stroke();
+  if (player.punchAnim > 0.05) {
+    const px = x + player.punchDir.x * (player.radius + 15 + player.punchAnim * 20);
+    const py = y + player.punchDir.y * (player.radius + 15 + player.punchAnim * 20);
+    ctx.beginPath(); ctx.arc(px, py, 14 + player.punchAnim * 6, 0, Math.PI * 2);
+    const pg = ctx.createRadialGradient(px - 3, py - 3, 2, px, py, 14); pg.addColorStop(0, '#ffe066'); pg.addColorStop(1, '#ffb300');
+    ctx.fillStyle = pg; ctx.fill(); ctx.strokeStyle = '#b37700'; ctx.lineWidth = 2; ctx.stroke();
+  }
   let lx = player.lookX, ly = player.lookY;
   if (lx === 0 && ly === 0) { lx = 0.3; ly = 0.5; }
   const ll = Math.hypot(lx, ly) || 1; lx /= ll; ly /= ll;
@@ -4660,6 +4556,7 @@ function drawHeldItem() {
   }
 }
 
+// ==================== NPC ====================
 function drawQuestNpc() {
   const x = questNpc.x - camera.x, y = questNpc.y - camera.y;
   const t = performance.now() * 0.003;
@@ -4841,182 +4738,523 @@ function drawAdmirals() {
       ctx.fillText(ht, x, y + a.radius + 27);
     }
   }
-}// ==================== ИКОНКИ ====================
-function drawFistsIcon(cx, cy, radius) {
-  const bg = ctx.createRadialGradient(cx, cy, 1, cx, cy, radius * 1.2);
-  bg.addColorStop(0, '#2a2a2a'); bg.addColorStop(1, '#0a0a0a');
-  ctx.beginPath(); ctx.arc(cx, cy, radius * 1.1, 0, Math.PI * 2);
-  ctx.fillStyle = bg; ctx.fill();
-  ctx.strokeStyle = '#aaaaaa'; ctx.lineWidth = 2; ctx.stroke();
-  const s = radius * 0.7;
-  const g = ctx.createRadialGradient(cx - s * 0.2, cy - s * 0.1, 1, cx, cy, s);
-  ctx.beginPath(); ctx.rect(cx - s * 0.6, cy - s * 0.4, s * 1.2, s * 0.9);
-  g.addColorStop(0, '#ffddaa'); g.addColorStop(1, '#d4a373');
-  ctx.fillStyle = g; ctx.fill();
-  ctx.strokeStyle = '#8a6030'; ctx.lineWidth = 1.5; ctx.stroke();
 }
 
-function drawFruitIcon(cx, cy, radius, color) {
-  const g = ctx.createRadialGradient(cx - radius * 0.3, cy - radius * 0.3, 1, cx, cy, radius);
-  g.addColorStop(0, lightenColor(color, 0.5));
-  g.addColorStop(1, color);
-  ctx.beginPath(); ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-  ctx.fillStyle = g; ctx.fill();
-  ctx.strokeStyle = darkenColor(color, 0.4); ctx.lineWidth = 1.5; ctx.stroke();
-  ctx.beginPath(); ctx.strokeStyle = darkenColor(color, 0.4); ctx.lineWidth = 1.2;
-  for (let i = 0; i < 30; i++) {
-    const t = i / 30; const a = t * Math.PI * 6; const r = t * radius * 0.75;
-    const px = cx + Math.cos(a) * r, py = cy + Math.sin(a) * r;
-    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+function drawNpc() {
+  const x = npc.x - camera.x + npc.shakeOffset.x;
+  const y = npc.y - camera.y + npc.shakeOffset.y;
+  const isSlowed = performance.now() < npc.slowUntil;
+  ctx.beginPath(); ctx.ellipse(x, npc.y - camera.y + npc.radius * 0.9, npc.radius * 0.9, 7, 0, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fill();
+  const isHit = npc.hitFlash > 0;
+  let bc = isHit ? '#ffffff' : npc.color;
+  if (isSlowed && !isHit) bc = '#aaddee';
+  const g = ctx.createRadialGradient(x - npc.radius * 0.35, y - npc.radius * 0.35, 3, x, y, npc.radius);
+  g.addColorStop(0, lightenColor(bc, 0.3)); g.addColorStop(1, bc);
+  ctx.beginPath(); ctx.arc(x, y, npc.radius, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
+  ctx.strokeStyle = darkenColor(bc, 0.4); ctx.lineWidth = 3; ctx.stroke();
+  ctx.strokeStyle = '#333'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+  const eo = npc.radius * 0.4, es = npc.radius * 0.18;
+  ctx.beginPath(); ctx.moveTo(x - eo - es, y - eo - es); ctx.lineTo(x - eo + es, y - eo + es);
+  ctx.moveTo(x - eo + es, y - eo - es); ctx.lineTo(x - eo - es, y - eo + es); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x + eo - es, y - eo - es); ctx.lineTo(x + eo + es, y - eo + es);
+  ctx.moveTo(x + eo + es, y - eo - es); ctx.lineTo(x + eo - es, y - eo + es); ctx.stroke();
+  const hw = 100, hh = 12, hx = x - hw / 2, hy = y - npc.radius - 30;
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'; roundRect(hx - 3, hy - 3, hw + 6, hh + 6, 5); ctx.fill();
+  ctx.fillStyle = '#3a0000'; roundRect(hx, hy, hw, hh, 4); ctx.fill();
+  const hr = npc.hp / npc.maxHp;
+  if (hr > 0) {
+    const hg = ctx.createLinearGradient(hx, hy, hx, hy + hh);
+    hg.addColorStop(0, '#66ff66'); hg.addColorStop(1, '#00aa00');
+    ctx.fillStyle = hg; roundRect(hx, hy, hw * hr, hh, 4); ctx.fill();
   }
-  ctx.stroke();
+  ctx.fillStyle = 'white'; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
+  const txt = `${Math.round(npc.hp)} / ${npc.maxHp}`;
+  ctx.strokeText(txt, x, hy + hh / 2); ctx.fillText(txt, x, hy + hh / 2);
+  ctx.font = 'bold 14px Arial';
+  ctx.strokeText('Манекен', x, hy - 14); ctx.fillStyle = '#ffdd00'; ctx.fillText('Манекен', x, hy - 14);
 }
 
-function drawPowerIcon(cx, cy, radius, name) {
-  if (name === 'Огонь') {
-    const bg = ctx.createRadialGradient(cx, cy, 1, cx, cy, radius * 1.2);
-    bg.addColorStop(0, '#2a1a0a'); bg.addColorStop(1, '#0a0500');
-    ctx.beginPath(); ctx.arc(cx, cy, radius * 1.1, 0, Math.PI * 2);
-    ctx.fillStyle = bg; ctx.fill();
-    ctx.strokeStyle = '#ff6600'; ctx.lineWidth = 2; ctx.stroke();
-    const fh = radius * 1.5, fw = radius * 1.0;
-    ctx.beginPath(); ctx.moveTo(cx, cy - fh * 0.55);
-    ctx.bezierCurveTo(cx + fw * 0.9, cy - fh * 0.1, cx + fw * 0.7, cy + fh * 0.5, cx, cy + fh * 0.5);
-    ctx.bezierCurveTo(cx - fw * 0.7, cy + fh * 0.5, cx - fw * 0.9, cy - fh * 0.1, cx, cy - fh * 0.55);
-    const fg = ctx.createRadialGradient(cx, cy + fh * 0.15, 1, cx, cy, fh * 0.8);
-    fg.addColorStop(0, '#ffff66'); fg.addColorStop(0.4, '#ff9900'); fg.addColorStop(1, '#ff2200');
-    ctx.fillStyle = fg; ctx.fill();
-  } else if (name === 'Лёд') {
-    const bg = ctx.createRadialGradient(cx, cy, 1, cx, cy, radius * 1.2);
-    bg.addColorStop(0, '#0a1a2a'); bg.addColorStop(1, '#000510');
-    ctx.beginPath(); ctx.arc(cx, cy, radius * 1.1, 0, Math.PI * 2);
-    ctx.fillStyle = bg; ctx.fill();
-    ctx.strokeStyle = '#00c8ff'; ctx.lineWidth = 2; ctx.stroke();
-    const t = performance.now() * 0.001;
-    ctx.save(); ctx.translate(cx, cy); ctx.rotate(t);
-    ctx.strokeStyle = '#aae0ff'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
-    for (let i = 0; i < 6; i++) {
-      ctx.rotate(Math.PI / 3);
-      ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -radius * 0.75); ctx.stroke();
+// ==================== ВРАГИ ====================
+function drawPirates() {
+  const now = performance.now();
+  for (const pir of pirates) {
+    if (pir.dead && pir.deathTimer <= 0) continue;
+    const x = pir.x - camera.x, y = pir.y - camera.y;
+    let al = 1, sc = 1;
+    if (pir.dead) { const t = pir.deathTimer / 40; al = t; sc = 0.5 + t * 0.5; }
+    ctx.globalAlpha = al;
+    ctx.beginPath(); ctx.ellipse(x, pir.y - camera.y + pir.radius * 0.9 * sc, pir.radius * 0.9 * sc, 6, 0, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fill();
+    const isHit = pir.hitFlash > 0, isFrozen = now < pir.frozenUntil, isStunned = now < pir.stunUntil, isSlowed = now < pir.slowUntil;
+    let bc = isHit ? '#ffffff' : pir.color;
+    if (isFrozen && !isHit) bc = '#66c8ff';
+    else if (isStunned && !isHit) bc = '#999999';
+    else if (isSlowed && !isHit) bc = '#aa5566';
+    const g = ctx.createRadialGradient(x - pir.radius * 0.35, y - pir.radius * 0.35, 2, x, y, pir.radius * sc);
+    g.addColorStop(0, lightenColor(bc, 0.3)); g.addColorStop(1, bc);
+    ctx.beginPath(); ctx.arc(x, y, pir.radius * sc, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
+    ctx.strokeStyle = darkenColor(bc, 0.5); ctx.lineWidth = 3; ctx.stroke();
+    ctx.beginPath(); ctx.arc(x, y - pir.radius * 0.3 * sc, pir.radius * 0.9 * sc, Math.PI * 1.1, Math.PI * 1.9);
+    ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 5 * sc; ctx.stroke();
+    const eo = pir.radius * 0.35 * sc, er = pir.radius * 0.13 * sc;
+    ctx.fillStyle = 'white';
+    ctx.beginPath(); ctx.arc(x - eo, y - pir.radius * 0.05, er, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + eo, y - pir.radius * 0.05, er, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#1a1a1a';
+    ctx.beginPath(); ctx.arc(x - eo + 1, y - pir.radius * 0.05, er * 0.55, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + eo + 1, y - pir.radius * 0.05, er * 0.55, 0, Math.PI * 2); ctx.fill();
+    if (!pir.dead && (pir.aggro || pir.chasing)) {
+      ctx.font = 'bold 16px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = pir.chasing ? '#ff2222' : '#ffaa00';
+      ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
+      const sym = pir.chasing ? '‼' : '!';
+      ctx.strokeText(sym, x, y - pir.radius - 40);
+      ctx.fillText(sym, x, y - pir.radius - 40);
     }
-    ctx.restore();
-  } else if (name === 'Акула') {
-    const bg = ctx.createRadialGradient(cx, cy, 1, cx, cy, radius * 1.2);
-    bg.addColorStop(0, '#0a2a4a'); bg.addColorStop(1, '#000a1a');
-    ctx.beginPath(); ctx.arc(cx, cy, radius * 1.1, 0, Math.PI * 2);
-    ctx.fillStyle = bg; ctx.fill();
-    ctx.strokeStyle = '#4fd4ff'; ctx.lineWidth = 2; ctx.stroke();
+    if (!pir.dead) {
+      const hw = 50, hh = 7, hx = x - hw / 2, hy = y - pir.radius - 20;
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'; roundRect(hx - 2, hy - 2, hw + 4, hh + 4, 3); ctx.fill();
+      ctx.fillStyle = '#3a0000'; roundRect(hx, hy, hw, hh, 2); ctx.fill();
+      const hr = pir.hp / pir.maxHp;
+      if (hr > 0) { ctx.fillStyle = '#ff3b3b'; roundRect(hx, hy, hw * hr, hh, 2); ctx.fill(); }
+    }
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawDuneWarriors() {
+  const now = performance.now();
+  for (const dw of duneWarriors) {
+    if (dw.dead && dw.deathTimer <= 0) continue;
+    const x = dw.x - camera.x, y = dw.y - camera.y;
+    let al = 1, sc = 1;
+    if (dw.dead) { const t = dw.deathTimer / 40; al = t; sc = 0.5 + t * 0.5; }
+    ctx.globalAlpha = al;
+    ctx.beginPath(); ctx.ellipse(x, dw.y - camera.y + dw.radius * 0.9 * sc, dw.radius * 0.9 * sc, 6, 0, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fill();
+    const isHit = dw.hitFlash > 0, isFrozen = now < dw.frozenUntil, isStunned = now < dw.stunUntil, isSlowed = now < dw.slowUntil;
+    let bc = isHit ? '#ffffff' : dw.color;
+    if (isFrozen && !isHit) bc = '#66c8ff';
+    else if (isStunned && !isHit) bc = '#999999';
+    else if (isSlowed && !isHit) bc = '#8a6840';
+    const g = ctx.createRadialGradient(x - dw.radius * 0.35, y - dw.radius * 0.35, 2, x, y, dw.radius * sc);
+    g.addColorStop(0, lightenColor(bc, 0.3)); g.addColorStop(1, bc);
+    ctx.beginPath(); ctx.arc(x, y, dw.radius * sc, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
+    ctx.strokeStyle = darkenColor(bc, 0.5); ctx.lineWidth = 3; ctx.stroke();
+    ctx.fillStyle = '#8b5a2b';
+    ctx.beginPath(); ctx.arc(x, y - dw.radius * 0.5 * sc, dw.radius * 0.85 * sc, Math.PI, 0); ctx.fill();
+    ctx.strokeStyle = '#5a3a1a'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = '#a06a3a';
+    ctx.fillRect(x - dw.radius * 0.9 * sc, y - dw.radius * 0.7 * sc, dw.radius * 1.8 * sc, 5);
+    const eo = dw.radius * 0.35 * sc, er = dw.radius * 0.13 * sc;
+    ctx.fillStyle = 'white';
+    ctx.beginPath(); ctx.arc(x - eo, y - dw.radius * 0.05, er, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + eo, y - dw.radius * 0.05, er, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#1a1a1a';
+    ctx.beginPath(); ctx.arc(x - eo + 1, y - dw.radius * 0.05, er * 0.55, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + eo + 1, y - dw.radius * 0.05, er * 0.55, 0, Math.PI * 2); ctx.fill();
+    if (!dw.dead && (dw.aggro || dw.chasing)) {
+      ctx.font = 'bold 16px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = dw.chasing ? '#ff2222' : '#ffaa00';
+      ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
+      const sym = dw.chasing ? '‼' : '!';
+      ctx.strokeText(sym, x, y - dw.radius - 40);
+      ctx.fillText(sym, x, y - dw.radius - 40);
+    }
+    if (!dw.dead) {
+      const hw = 60, hh = 8, hx = x - hw / 2, hy = y - dw.radius - 20;
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.75)'; roundRect(hx - 2, hy - 2, hw + 4, hh + 4, 3); ctx.fill();
+      ctx.fillStyle = '#3a1a00'; roundRect(hx, hy, hw, hh, 2); ctx.fill();
+      const hr = dw.hp / dw.maxHp;
+      if (hr > 0) { ctx.fillStyle = '#d4882a'; roundRect(hx, hy, hw * hr, hh, 2); ctx.fill(); }
+    }
+    ctx.globalAlpha = 1;
+  }
+}
+
+// ==================== БОСС ====================
+function drawBoss() {
+  if (!boss.active && !boss.dead) return;
+  if (boss.dead && boss.deathTimer <= 0) return;
+  const x = boss.x - camera.x, y = boss.y - camera.y;
+  const now = performance.now();
+  let al = 1, sc = 1;
+  if (boss.dead) { const t = boss.deathTimer / 60; al = t; sc = 0.5 + t * 0.5; }
+  ctx.globalAlpha = al;
+  const aura = ctx.createRadialGradient(x, y, boss.radius * 0.7, x, y, boss.radius * 2.4 * sc);
+  aura.addColorStop(0, 'rgba(255, 40, 40, 0.35)');
+  aura.addColorStop(1, 'rgba(80, 0, 0, 0)');
+  ctx.beginPath(); ctx.arc(x, y, boss.radius * 2.4 * sc, 0, Math.PI * 2); ctx.fillStyle = aura; ctx.fill();
+  ctx.beginPath(); ctx.ellipse(x, y + boss.radius * 0.9 * sc, boss.radius * 0.9 * sc, 12, 0, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fill();
+  const isHit = boss.hitFlash > 0, isFrozen = now < boss.frozenUntil, isStunned = now < boss.stunUntil;
+  let bc = isHit ? '#ffffff' : boss.color;
+  if (isFrozen && !isHit) bc = '#66c8ff';
+  else if (isStunned && !isHit) bc = '#999999';
+  const g = ctx.createRadialGradient(x - boss.radius * 0.35, y - boss.radius * 0.35, 3, x, y, boss.radius * sc);
+  g.addColorStop(0, lightenColor(bc, 0.35)); g.addColorStop(1, bc);
+  ctx.beginPath(); ctx.arc(x, y, boss.radius * sc, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
+  ctx.strokeStyle = darkenColor(bc, 0.6); ctx.lineWidth = 4; ctx.stroke();
+  ctx.beginPath(); ctx.arc(x, y - boss.radius * 0.3 * sc, boss.radius * 0.95 * sc, Math.PI * 1.05, Math.PI * 1.95);
+  ctx.strokeStyle = '#0a0a0a'; ctx.lineWidth = 9 * sc; ctx.lineCap = 'round'; ctx.stroke();
+  const crownY = y - boss.radius * 1.15 * sc;
+  const crownW = boss.radius * 1.4 * sc;
+  const crownH = boss.radius * 0.5 * sc;
+  ctx.beginPath();
+  ctx.moveTo(x - crownW / 2, crownY + crownH);
+  ctx.lineTo(x - crownW / 2, crownY);
+  ctx.lineTo(x - crownW * 0.25, crownY + crownH * 0.5);
+  ctx.lineTo(x, crownY - crownH * 0.25);
+  ctx.lineTo(x + crownW * 0.25, crownY + crownH * 0.5);
+  ctx.lineTo(x + crownW / 2, crownY);
+  ctx.lineTo(x + crownW / 2, crownY + crownH);
+  ctx.closePath();
+  const cg = ctx.createLinearGradient(x, crownY, x, crownY + crownH);
+  cg.addColorStop(0, '#ffe680'); cg.addColorStop(0.5, '#ffbb00'); cg.addColorStop(1, '#c98800');
+  ctx.fillStyle = cg; ctx.fill();
+  ctx.strokeStyle = '#7a4f00'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.beginPath(); ctx.arc(x - crownW * 0.25, crownY + crownH * 0.55, 3, 0, Math.PI * 2); ctx.fillStyle = '#ff2244'; ctx.fill();
+  ctx.beginPath(); ctx.arc(x, crownY + crownH * 0.45, 3.5, 0, Math.PI * 2); ctx.fillStyle = '#22ff44'; ctx.fill();
+  ctx.beginPath(); ctx.arc(x + crownW * 0.25, crownY + crownH * 0.55, 3, 0, Math.PI * 2); ctx.fillStyle = '#2244ff'; ctx.fill();
+  const eo = boss.radius * 0.35 * sc, er = boss.radius * 0.15 * sc;
+  ctx.fillStyle = 'white';
+  ctx.beginPath(); ctx.arc(x - eo, y - boss.radius * 0.05, er, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x + eo, y - boss.radius * 0.05, er, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#8a0000';
+  ctx.beginPath(); ctx.arc(x - eo + 1, y - boss.radius * 0.05, er * 0.55, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x + eo + 1, y - boss.radius * 0.05, er * 0.55, 0, Math.PI * 2); ctx.fill();
+  if (boss.attackAnim > 0.1) {
+    const pd = Math.atan2(player.y - boss.y, player.x - boss.x);
+    const px = x + Math.cos(pd) * (boss.radius + 15 + boss.attackAnim * 40);
+    const py = y + Math.sin(pd) * (boss.radius + 15 + boss.attackAnim * 40);
+    ctx.beginPath(); ctx.arc(px, py, 22 + boss.attackAnim * 10, 0, Math.PI * 2);
+    const pg = ctx.createRadialGradient(px - 4, py - 4, 3, px, py, 22); pg.addColorStop(0, '#ff8844'); pg.addColorStop(1, '#8a0000');
+    ctx.fillStyle = pg; ctx.fill(); ctx.strokeStyle = '#3a0000'; ctx.lineWidth = 3; ctx.stroke();
+  }
+  if (!boss.dead) {
+    const bob = Math.sin(now * 0.005) * 5;
+    ctx.font = 'bold 20px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
+    ctx.strokeText('💀 БОСС', x, y - boss.radius * 1.7 * sc + bob);
+    ctx.fillStyle = '#ff2222';
+    ctx.fillText('💀 БОСС', x, y - boss.radius * 1.7 * sc + bob);
+  }
+  if (!boss.dead) {
+    const hw = 200, hh = 22, hx = x - hw / 2, hy = y - boss.radius * 1.4 * sc;
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.85)'; roundRect(hx - 4, hy - 4, hw + 8, hh + 8, 6); ctx.fill();
+    ctx.fillStyle = '#3a0000'; roundRect(hx, hy, hw, hh, 4); ctx.fill();
+    const hr = boss.hp / boss.maxHp;
+    if (hr > 0) {
+      const hg = ctx.createLinearGradient(hx, hy, hx, hy + hh);
+      hg.addColorStop(0, '#ff5555'); hg.addColorStop(1, '#8a0000');
+      ctx.fillStyle = hg; roundRect(hx, hy, hw * hr, hh, 4); ctx.fill();
+    }
+    ctx.fillStyle = 'white'; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
+    const txt = `${Math.round(boss.hp)} / ${boss.maxHp}`;
+    ctx.strokeText(txt, x, hy + hh / 2); ctx.fillText(txt, x, hy + hh / 2);
+  }
+  ctx.font = 'bold 16px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
+  ctx.strokeText('⚔️ Капитан пиратов', x, y - boss.radius * 1.85 * sc);
+  ctx.fillStyle = '#ffdd44';
+  ctx.fillText('⚔️ Капитан пиратов', x, y - boss.radius * 1.85 * sc);
+  ctx.globalAlpha = 1;
+}
+
+// ==================== КОРАБЛЬ ====================
+function drawShipAt(x, y, angle, radius, isPlayer) {
+  const t = performance.now() * 0.003;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle);
+  const bw = SHIP_HULL_WIDTH * (radius / SHIP_RADIUS);
+  const bl = SHIP_SAIL_LENGTH * (radius / SHIP_RADIUS);
+  ctx.beginPath();
+  ctx.ellipse(0, 0, bw * 0.9, bl * 1.1, 0, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(0, 40, 80, 0.3)';
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(bl * 1.1, 0);
+  ctx.quadraticCurveTo(bl * 0.5, -bw * 0.7, -bl * 0.6, -bw * 0.75);
+  ctx.quadraticCurveTo(-bl * 1.15, -bw * 0.6, -bl * 1.15, 0);
+  ctx.quadraticCurveTo(-bl * 1.15, bw * 0.6, -bl * 0.6, bw * 0.75);
+  ctx.quadraticCurveTo(bl * 0.5, bw * 0.7, bl * 1.1, 0);
+  ctx.closePath();
+  const hullGrad = ctx.createLinearGradient(0, -bw, 0, bw);
+  hullGrad.addColorStop(0, '#a06a3a'); hullGrad.addColorStop(0.5, '#7a4a24'); hullGrad.addColorStop(1, '#4a2a10');
+  ctx.fillStyle = hullGrad; ctx.fill();
+  ctx.strokeStyle = '#2a1508'; ctx.lineWidth = 2.5; ctx.stroke();
+  ctx.beginPath();
+  ctx.ellipse(0, 0, bl * 0.85, bw * 0.5, 0, 0, Math.PI * 2);
+  ctx.fillStyle = '#c9a877'; ctx.fill();
+  ctx.strokeStyle = '#8a6030'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.strokeStyle = 'rgba(120, 80, 40, 0.6)';
+  ctx.lineWidth = 1;
+  for (let i = -3; i <= 3; i++) {
+    const lx = i * bl * 0.25;
     ctx.beginPath();
-    ctx.moveTo(cx, cy - radius * 0.8);
-    ctx.bezierCurveTo(cx + radius * 0.5, cy - radius * 0.3, cx + radius * 0.3, cy + radius * 0.5, cx, cy + radius * 0.5);
-    ctx.bezierCurveTo(cx - radius * 0.3, cy + radius * 0.5, cx - radius * 0.5, cy - radius * 0.3, cx, cy - radius * 0.8);
-    ctx.closePath();
-    const g = ctx.createLinearGradient(cx, cy - radius, cx, cy + radius);
-    g.addColorStop(0, '#4a6e9c'); g.addColorStop(0.5, '#1a3a5c'); g.addColorStop(1, '#0a1a3a');
-    ctx.fillStyle = g; ctx.fill();
-  } else if (name === 'Контроль') {
-    const bg = ctx.createRadialGradient(cx, cy, 1, cx, cy, radius * 1.2);
-    bg.addColorStop(0, '#1a0a2a'); bg.addColorStop(1, '#050010');
-    ctx.beginPath(); ctx.arc(cx, cy, radius * 1.1, 0, Math.PI * 2);
-    ctx.fillStyle = bg; ctx.fill();
-    ctx.strokeStyle = '#7c5cff'; ctx.lineWidth = 2; ctx.stroke();
-    const t = performance.now() * 0.002;
-    ctx.save(); ctx.translate(cx, cy); ctx.rotate(t * 0.5);
-    for (let i = 0; i < 3; i++) {
-      const rr = radius * (0.4 + i * 0.25);
-      ctx.beginPath(); ctx.arc(0, 0, rr, 0, Math.PI * 2);
-      ctx.strokeStyle = `rgba(180, 160, 255, ${0.9 - i * 0.25})`;
-      ctx.lineWidth = 2; ctx.stroke();
-    }
-    ctx.restore();
-    ctx.beginPath(); ctx.arc(cx, cy, radius * 0.18, 0, Math.PI * 2);
-    ctx.fillStyle = '#ffffff'; ctx.fill();
-  } else if (name === 'Свет') {
-    const bg = ctx.createRadialGradient(cx, cy, 1, cx, cy, radius * 1.2);
-    bg.addColorStop(0, '#2a2000'); bg.addColorStop(1, '#100a00');
-    ctx.beginPath(); ctx.arc(cx, cy, radius * 1.1, 0, Math.PI * 2);
-    ctx.fillStyle = bg; ctx.fill();
-    ctx.strokeStyle = '#fff6b0'; ctx.lineWidth = 2.5; ctx.stroke();
-    const t = performance.now() * 0.003;
-    const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius * 1.1);
-    core.addColorStop(0, 'rgba(255, 255, 255, 1)');
-    core.addColorStop(0.4, 'rgba(255, 246, 176, 0.95)');
-    core.addColorStop(1, 'rgba(255, 220, 80, 0)');
-    ctx.beginPath(); ctx.arc(cx, cy, radius * 1.1, 0, Math.PI * 2);
-    ctx.fillStyle = core; ctx.fill();
-    ctx.save(); ctx.translate(cx, cy); ctx.rotate(t * 0.5);
-    for (let i = 0; i < 8; i++) {
-      ctx.rotate(Math.PI / 4);
-      ctx.beginPath(); ctx.moveTo(0, -radius * 0.4); ctx.lineTo(0, -radius * 1.0);
-      ctx.strokeStyle = `rgba(255, 255, 255, ${0.6 + Math.sin(t * 4 + i) * 0.3})`;
-      ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.stroke();
-    }
-    ctx.restore();
-  } else if (name === 'Ветряная мельница') {
-    const bg = ctx.createRadialGradient(cx, cy, 1, cx, cy, radius * 1.2);
-    bg.addColorStop(0, '#3a2a1a'); bg.addColorStop(1, '#1a0f05');
-    ctx.beginPath(); ctx.arc(cx, cy, radius * 1.1, 0, Math.PI * 2);
-    ctx.fillStyle = bg; ctx.fill();
-    ctx.strokeStyle = '#c9b088'; ctx.lineWidth = 2.5; ctx.stroke();
-    ctx.fillStyle = '#a88a5c';
+    ctx.moveTo(lx, -bw * 0.42);
+    ctx.lineTo(lx, bw * 0.42);
+    ctx.stroke();
+  }
+  ctx.fillStyle = '#5a3a1a';
+  ctx.fillRect(-2.5, -bl * 0.05, 5, bl * 0.05);
+  const wave = Math.sin(t * 4) * 2;
+  ctx.beginPath();
+  ctx.moveTo(0, -bl * 0.05);
+  ctx.quadraticCurveTo(bl * 0.4, -bl * 0.25 + wave, bl * 0.15, -bl * 0.6);
+  ctx.quadraticCurveTo(-bl * 0.05, -bl * 0.4, -bl * 0.35, -bl * 0.35 + wave * 0.5);
+  ctx.quadraticCurveTo(-bl * 0.2, -bl * 0.15, 0, -bl * 0.05);
+  ctx.closePath();
+  const sailGrad = ctx.createLinearGradient(0, -bl * 0.6, 0, -bl * 0.05);
+  sailGrad.addColorStop(0, '#ffffff'); sailGrad.addColorStop(1, '#e8d4a8');
+  ctx.fillStyle = sailGrad; ctx.fill();
+  ctx.strokeStyle = '#8a6a4a'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(0, -bl * 0.62);
+  ctx.lineTo(bl * 0.15 + wave, -bl * 0.7);
+  ctx.lineTo(0, -bl * 0.55);
+  ctx.closePath();
+  ctx.fillStyle = '#c9243b'; ctx.fill();
+  ctx.restore();
+}
+
+function drawShipWakes() {
+  for (const w of shipWakes) {
+    const a = w.life / w.maxLife;
+    const x = w.x - camera.x, y = w.y - camera.y;
     ctx.beginPath();
-    ctx.moveTo(cx - radius * 0.35, cy + radius * 0.9);
-    ctx.lineTo(cx - radius * 0.28, cy + radius * 0.1);
-    ctx.lineTo(cx + radius * 0.28, cy + radius * 0.1);
-    ctx.lineTo(cx + radius * 0.35, cy + radius * 0.9);
+    ctx.arc(x, y, w.radius, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(200, 240, 255, ${a * 0.7})`;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+}
+
+function drawRemoteShips() {
+  for (const rs of remoteShips.values()) {
+    const x = rs.x - camera.x, y = rs.y - camera.y;
+    drawShipAt(x, y, rs.angle, SHIP_RADIUS, false);
+    ctx.font = 'bold 13px Arial';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
+    ctx.strokeText(rs.u, x, y - SHIP_RADIUS - 25);
+    ctx.fillStyle = rs.color || '#ffd700';
+    ctx.fillText(rs.u, x, y - SHIP_RADIUS - 25);
+  }
+}
+
+// ==================== МЕЛЬНИЦА ====================
+function drawWindmillAt(x, y, angle, radius, isPlayer) {
+  ctx.beginPath();
+  ctx.ellipse(x, y + radius * 0.95, radius * 0.9, 12, 0, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.fill();
+  const baseW = radius * 1.3, baseH = radius * 1.6;
+  const baseX = x - baseW / 2, baseY = y - baseH * 0.5;
+  const bg = ctx.createLinearGradient(baseX, baseY, baseX + baseW, baseY + baseH);
+  bg.addColorStop(0, '#c9b088'); bg.addColorStop(0.5, '#a88a5c'); bg.addColorStop(1, '#7a5f38');
+  ctx.fillStyle = bg;
+  ctx.beginPath();
+  ctx.moveTo(baseX + baseW * 0.1, baseY + baseH);
+  ctx.lineTo(baseX + baseW * 0.15, baseY);
+  ctx.lineTo(baseX + baseW * 0.85, baseY);
+  ctx.lineTo(baseX + baseW * 0.9, baseY + baseH);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = '#5a3a1a'; ctx.lineWidth = 3; ctx.stroke();
+  ctx.strokeStyle = 'rgba(90, 60, 30, 0.5)';
+  ctx.lineWidth = 1.5;
+  for (let i = 1; i < 5; i++) {
+    const t = i / 5;
+    const yy = baseY + baseH * t;
+    const lx = baseX + baseW * (0.1 + 0.05 * (1 - t));
+    const rx = baseX + baseW * (0.9 - 0.05 * (1 - t));
+    ctx.beginPath();
+    ctx.moveTo(lx, yy);
+    ctx.lineTo(rx, yy);
+    ctx.stroke();
+  }
+  ctx.fillStyle = '#7a4a2a';
+  ctx.beginPath();
+  ctx.ellipse(x, baseY, baseW * 0.42, baseW * 0.14, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#4a2a10'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = '#4a2a10';
+  ctx.beginPath();
+  ctx.moveTo(x - radius * 0.25, y + radius * 0.95);
+  ctx.lineTo(x - radius * 0.25, y + radius * 0.2);
+  ctx.quadraticCurveTo(x, y - radius * 0.15, x + radius * 0.25, y + radius * 0.2);
+  ctx.lineTo(x + radius * 0.25, y + radius * 0.95);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = '#2a1508'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = '#5a8aa0';
+  ctx.beginPath();
+  ctx.arc(x, y - radius * 0.55, radius * 0.2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#3a6a80'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x - radius * 0.2, y - radius * 0.55);
+  ctx.lineTo(x + radius * 0.2, y - radius * 0.55);
+  ctx.moveTo(x, y - radius * 0.75);
+  ctx.lineTo(x, y - radius * 0.35);
+  ctx.stroke();
+  const hubX = x, hubY = y - radius * 1.1;
+  ctx.save();
+  ctx.translate(hubX, hubY);
+  ctx.rotate(angle);
+  for (let i = 0; i < WINDMILL_BLADE_COUNT; i++) {
+    ctx.save();
+    ctx.rotate(i * (Math.PI * 2 / WINDMILL_BLADE_COUNT));
+    const bl = WINDMILL_BLADE_LENGTH * (radius / WINDMILL_RADIUS);
+    const bw = WINDMILL_BLADE_WIDTH * (radius / WINDMILL_RADIUS);
+    ctx.fillStyle = '#8a6a4a';
+    ctx.fillRect(0, -bw / 3, bl * 0.3, bw * 0.66);
+    ctx.strokeStyle = '#5a3a1a';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(0, -bw / 3, bl * 0.3, bw * 0.66);
+    const sg = ctx.createLinearGradient(bl * 0.3, -bw, bl * 0.3, bw);
+    sg.addColorStop(0, '#f5e6c8');
+    sg.addColorStop(0.5, '#e8d4a8');
+    sg.addColorStop(1, '#c8a878');
+    ctx.fillStyle = sg;
+    ctx.beginPath();
+    ctx.moveTo(bl * 0.3, -bw * 0.4);
+    ctx.lineTo(bl, -bw * 0.9);
+    ctx.lineTo(bl, bw * 0.9);
+    ctx.lineTo(bl * 0.3, bw * 0.4);
     ctx.closePath();
     ctx.fill();
-    ctx.strokeStyle = '#5a3a1a'; ctx.lineWidth = 1.5; ctx.stroke();
-    ctx.fillStyle = '#4a2a10';
-    ctx.fillRect(cx - radius * 0.1, cy + radius * 0.5, radius * 0.2, radius * 0.4);
-    const hubX = cx, hubY = cy - radius * 0.1;
-    const t = performance.now() * 0.001;
-    ctx.save(); ctx.translate(hubX, hubY); ctx.rotate(t);
-    for (let i = 0; i < 4; i++) {
-      ctx.save(); ctx.rotate(i * (Math.PI / 2));
-      ctx.fillStyle = '#8a6a4a';
-      ctx.fillRect(0, -1.2, radius * 0.35, 2.4);
-      const sg = ctx.createLinearGradient(radius * 0.35, -radius * 0.25, radius * 0.35, radius * 0.25);
-      sg.addColorStop(0, '#f5e6c8'); sg.addColorStop(1, '#c8a878');
-      ctx.fillStyle = sg;
+    ctx.strokeStyle = '#8a6a4a';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(138, 106, 74, 0.5)';
+    ctx.lineWidth = 1;
+    for (let k = 1; k < 4; k++) {
+      const t = k / 4;
+      const lx = bl * 0.3 + (bl - bl * 0.3) * t;
+      const top = -bw * (0.4 + 0.5 * t);
+      const bot = bw * (0.4 + 0.5 * t);
       ctx.beginPath();
-      ctx.moveTo(radius * 0.35, -radius * 0.2);
-      ctx.lineTo(radius * 0.95, -radius * 0.45);
-      ctx.lineTo(radius * 0.95, radius * 0.45);
-      ctx.lineTo(radius * 0.35, radius * 0.2);
-      ctx.closePath();
-      ctx.fill();
-      ctx.strokeStyle = '#8a6a4a'; ctx.lineWidth = 1; ctx.stroke();
-      ctx.restore();
+      ctx.moveTo(lx, top);
+      ctx.lineTo(lx, bot);
+      ctx.stroke();
     }
     ctx.restore();
+  }
+  ctx.restore();
+  ctx.beginPath();
+  ctx.arc(hubX, hubY, radius * 0.15, 0, Math.PI * 2);
+  const hubG = ctx.createRadialGradient(hubX - 3, hubY - 3, 2, hubX, hubY, radius * 0.15);
+  hubG.addColorStop(0, '#e8c88a');
+  hubG.addColorStop(1, '#5a3a1a');
+  ctx.fillStyle = hubG;
+  ctx.fill();
+  ctx.strokeStyle = '#2a1508';
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+  if (isPlayer) {
+    const pulse = 0.6 + Math.sin(performance.now() * 0.005) * 0.4;
     ctx.beginPath();
-    ctx.arc(hubX, hubY, radius * 0.12, 0, Math.PI * 2);
-    ctx.fillStyle = '#e8c88a'; ctx.fill();
-    ctx.strokeStyle = '#5a3a1a'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.arc(x, y, radius * 1.5, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(200, 160, 100, ${pulse * 0.5})`;
+    ctx.lineWidth = 3;
+    ctx.stroke();
   }
 }
 
-function getRarityBgColor(name) {
-  const rar = getFruitRarity(name);
-  if (rar === 'mythic')    return 'rgba(200, 40, 40, 0.40)';
-  if (rar === 'legendary') return 'rgba(255, 105, 180, 0.38)';
-  if (rar === 'rare')      return 'rgba(150, 80, 220, 0.38)';
-  if (rar === 'uncommon')  return 'rgba(80, 180, 240, 0.35)';
-  if (rar === 'admin')     return 'rgba(200, 160, 80, 0.42)';
-  return 'rgba(120, 120, 120, 0.32)';
-}
-function getRarityBorderColor(name) {
-  const rar = getFruitRarity(name);
-  if (rar === 'mythic')    return 'rgba(255, 90, 90, 0.9)';
-  if (rar === 'legendary') return 'rgba(255, 160, 210, 0.9)';
-  if (rar === 'rare')      return 'rgba(190, 130, 255, 0.9)';
-  if (rar === 'uncommon')  return 'rgba(130, 210, 255, 0.9)';
-  if (rar === 'admin')     return 'rgba(255, 215, 100, 0.95)';
-  return 'rgba(200, 200, 200, 0.75)';
+function drawRemoteWindmills() {
+  for (const rw of remoteWindmills.values()) {
+    const x = rw.x - camera.x, y = rw.y - camera.y;
+    drawWindmillAt(x, y, rw.angle, WINDMILL_RADIUS, false);
+    ctx.font = 'bold 13px Arial';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
+    ctx.strokeText(rw.u, x, y - WINDMILL_RADIUS * 2.5);
+    ctx.fillStyle = rw.color || '#ffd700';
+    ctx.fillText(rw.u, x, y - WINDMILL_RADIUS * 2.5);
+  }
 }
 
-// ==================== ИНВЕНТАРЬ (ПК) ====================
+// ==================== ЧУЖИЕ ИГРОКИ ====================
+function drawRemotePlayers() {
+  for (const rp of remotePlayers.values()) {
+    if (rp.onShip) continue;
+    const x = rp.x - camera.x, y = rp.y - camera.y;
+    const r = player.radius;
+    const inWater = rp.waterForm;
+    if (inWater) {
+      const t = performance.now() * 0.005;
+      const ar = 65 + Math.sin(t * 3) * 6;
+      const ag = ctx.createRadialGradient(x, y, r * 0.7, x, y, ar);
+      ag.addColorStop(0, 'rgba(80,200,255,0.4)');
+      ag.addColorStop(1, 'rgba(0,50,120,0)');
+      ctx.beginPath(); ctx.arc(x, y, ar, 0, Math.PI * 2); ctx.fillStyle = ag; ctx.fill();
+    }
+    ctx.beginPath();
+    ctx.ellipse(x, y + r * 0.9, r * 0.9, 7, 0, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fill();
+    const isHit = rp.hitFlash > 0;
+    const g = ctx.createRadialGradient(x - r * 0.35, y - r * 0.35, 3, x, y, r);
+    if (isHit) { g.addColorStop(0, '#ffffff'); g.addColorStop(1, '#ff6666'); }
+    else if (inWater) { g.addColorStop(0, '#aaffff'); g.addColorStop(1, '#2288cc'); }
+    else { g.addColorStop(0, lightenColor(rp.color, 0.35)); g.addColorStop(1, rp.color); }
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
+    let strokeCol = darkenColor(rp.color, 0.3);
+    if (inWater) strokeCol = '#005588';
+    ctx.strokeStyle = strokeCol; ctx.lineWidth = 3; ctx.stroke();
+    let lx = rp.lx, ly = rp.ly;
+    if (lx === 0 && ly === 0) { lx = 0.3; ly = 0.5; }
+    const ll = Math.hypot(lx, ly) || 1; lx /= ll; ly /= ll;
+    const eo = r * 0.35, eoy = -r * 0.15, er = r * 0.28, pr = er * 0.55, ps = er * 0.35;
+    const eLx = x - eo, eLy = y + eoy, eRx = x + eo, eRy = y + eoy;
+    ctx.beginPath(); ctx.arc(eLx, eLy, er, 0, Math.PI * 2); ctx.fillStyle = 'white'; ctx.fill();
+    ctx.beginPath(); ctx.arc(eRx, eRy, er, 0, Math.PI * 2); ctx.fillStyle = 'white'; ctx.fill();
+    ctx.beginPath(); ctx.arc(eLx + lx * ps, eLy + ly * ps, pr, 0, Math.PI * 2);
+    ctx.fillStyle = inWater ? '#003366' : '#1a1a1a'; ctx.fill();
+    ctx.beginPath(); ctx.arc(eRx + lx * ps, eRy + ly * ps, pr, 0, Math.PI * 2);
+    ctx.fillStyle = inWater ? '#003366' : '#1a1a1a'; ctx.fill();
+    ctx.font = 'bold 13px Arial';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
+    ctx.strokeText(rp.u, x, y - r - 12);
+    ctx.fillStyle = rp.color;
+    ctx.fillText(rp.u, x, y - r - 12);
+    if (rp.hp < rp.mhp) {
+      const bw = 52, bh = 6, bx = x - bw / 2, by = y - r - 32;
+      ctx.fillStyle = 'rgba(0,0,0,0.6)'; roundRect(bx - 2, by - 2, bw + 4, bh + 4, 3); ctx.fill();
+      ctx.fillStyle = '#3a0000'; roundRect(bx, by, bw, bh, 2); ctx.fill();
+      const hr = Math.max(0, rp.hp) / rp.mhp;
+      if (hr > 0) { ctx.fillStyle = '#ff3b3b'; roundRect(bx, by, bw * hr, bh, 2); ctx.fill(); }
+    }
+  }
+}// ==================== UI: ДЕНЕЖНЫЙ ИНДИКАТОР (ПК) ====================
+function drawMoneyBox() {
+  if (isMobile()) return;
+  const bw = 200, bh = 44;
+  const x = 20;
+  const y = canvas.height / 2 - bh / 2;
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.strokeStyle = 'rgba(255,215,0,0.7)';
+  ctx.lineWidth = 2;
+  roundRect(x, y, bw, bh, 12); ctx.fill(); ctx.stroke();
+  ctx.font = 'bold 26px Arial';
+  ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#ffdd44';
+  ctx.fillText('$', x + 16, y + bh / 2);
+  ctx.font = 'bold 20px Arial';
+  ctx.fillStyle = '#ffd700';
+  ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
+  const txt = String(player.money);
+  ctx.strokeText(txt, x + 44, y + bh / 2);
+  ctx.fillText(txt, x + 44, y + bh / 2);
+}
+
+// ==================== UI: ХОТБАР (ПК) ====================
 function drawInventory() {
   if (isMobile()) return;
   const sw = INVENTORY_SLOTS * SLOT_SIZE + (INVENTORY_SLOTS - 1) * SLOT_GAP;
@@ -5076,19 +5314,19 @@ function drawInventory() {
   ctx.fillText('🎒 Инвентарь', ir.x + ir.w / 2, ir.y + ir.h / 2);
 }
 
-// ==================== ГАЙД ПО СПОСОБНОСТЯМ (ПК) ====================
+// ==================== UI: ГАЙД ПО СПОСОБНОСТЯМ ====================
 function drawAbilityGuide() {
   if (!abilityGuide) return;
   if (isMobile()) return;
   const abilities = abilityGuide.abilities;
-  const pw = 300, hh = 110, rh = 78;
+  const pw = 320, hh = 110, rh = 78;
   const ph = hh + abilities.length * rh + 14;
   const px = canvas.width - pw - 20, py = canvas.height - ph - 80;
   const isFire = abilityGuide.name === 'Огонь', isIce = abilityGuide.name === 'Лёд', isCtrl = abilityGuide.name === 'Контроль', isLight = abilityGuide.name === 'Свет', isWind = abilityGuide.name === 'Ветряная мельница';
   const themeSolid = isFire ? '#ff6600' : (isIce ? '#00c8ff' : (isCtrl ? '#7c5cff' : (isLight ? '#fff6b0' : (isWind ? '#c9b088' : '#4fd4ff'))));
   const theme2 = isFire ? '#ffcc66' : (isIce ? '#aaffff' : (isCtrl ? '#c8b0ff' : (isLight ? '#ffffff' : (isWind ? '#f5e6c8' : '#aaddff'))));
   const theme = isFire ? 'rgba(255,102,0,0.35)' : (isIce ? 'rgba(0,200,255,0.35)' : (isCtrl ? 'rgba(124,92,255,0.4)' : (isLight ? 'rgba(255,246,176,0.5)' : (isWind ? 'rgba(200,160,80,0.45)' : 'rgba(80,180,255,0.35)'))));
-  ctx.fillStyle = 'rgba(15,10,5,0.22)';
+  ctx.fillStyle = 'rgba(15,10,5,0.55)';
   ctx.strokeStyle = theme;
   ctx.lineWidth = 1.5;
   roundRect(px, py, pw, ph, 12); ctx.fill(); ctx.stroke();
@@ -5203,7 +5441,7 @@ function drawAbilityGuide() {
   }
 }
 
-// ==================== UI УРОВНЯ (ПК) ====================
+// ==================== UI: УРОВЕНЬ (ПК) ====================
 function drawLevelUi() {
   if (isMobile()) return;
   const x = 20, y = canvas.height - 100, w = 240, h = 80;
@@ -5254,7 +5492,7 @@ function drawLevelUi() {
   }
 }
 
-// ==================== СТАТЫ ИГРОКА (ПК) ====================
+// ==================== UI: СТАТЫ ИГРОКА (ПК) ====================
 function drawPlayerStats() {
   if (isMobile()) return;
   const bw = 260, bh = 20;
@@ -5395,7 +5633,7 @@ function drawPlayerStats() {
   }
 }
 
-// ==================== АКТИВНЫЙ КВЕСТ (ПК) ====================
+// ==================== UI: АКТИВНЫЙ КВЕСТ (ПК) ====================
 function drawActiveQuest() {
   if (isMobile()) return;
   let yy = 200;
@@ -5628,8 +5866,7 @@ function drawRollDialog() {
   ctx.fillText('Крути и получай случайные фрукты!', p.x + 25, p.y + 58);
   ctx.fillStyle = '#ffd700';
   ctx.font = 'bold 16px Arial';
-  const mTxt = `💰 Твои монеты: ${player.money}`;
-  ctx.fillText(mTxt, p.x + 25, p.y + 95);
+  ctx.fillText(`💰 Твои монеты: ${player.money}`, p.x + 25, p.y + 95);
   const cost = getRollCost();
   const canAfford = player.money >= cost;
   ctx.fillStyle = canAfford ? '#88ff88' : '#ff6666';
@@ -5941,8 +6178,8 @@ function drawAimCursor() {
 // ==================== КОМПАС ====================
 function drawCompass() {
   const cx = isMobile() ? 55 : 90;
-  const cy = isMobile() ? 260 : 130;
-  const R = isMobile() ? 42 : 55;
+  const cy = isMobile() ? 175 : 130;
+  const R = isMobile() ? 40 : 55;
   ctx.beginPath(); ctx.arc(cx, cy, R + 6, 0, Math.PI * 2);
   ctx.fillStyle = 'rgba(0, 0, 0, 0.65)'; ctx.fill();
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
@@ -6119,6 +6356,7 @@ function render() {
     drawAbilityGuide();
     drawActiveQuest();
     drawLevelUi();
+    drawMoneyBox();
     drawContextMenu();
     drawBag();
     drawAimCursor();
