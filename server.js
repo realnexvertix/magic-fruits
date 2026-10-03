@@ -10,7 +10,7 @@ const server = http.createServer(app);
 const PORT = process.env.PORT || 3000;
 const ADMIN_PASSWORD = 'wertik3636';
 
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '5mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ==================== POSTGRES ====================
@@ -88,6 +88,10 @@ app.post('/api/save', async (req, res) => {
   }
 });
 
+app.get('/api/ping', (req, res) => {
+  res.json({ ok: true, online: players.size, time: Date.now() });
+});
+
 // ==================== WEBSOCKET ====================
 const wss = new WebSocketServer({ server });
 const players = new Map();
@@ -121,7 +125,8 @@ function snapshotExcept(exceptUsername) {
       lx: +p.lx.toFixed(2), ly: +p.ly.toFixed(2),
       hp: Math.round(p.hp), mhp: p.mhp,
       c: p.color, wf: p.waterForm,
-      held: p.held || null
+      held: p.held || null,
+      dim: p.dim || 0
     });
   }
   return list;
@@ -202,7 +207,11 @@ wss.on('connection', (ws) => {
         windmillX: 0, windmillY: 0,
         windmillAngle: 0,
         onShip: false,
-        shipAngle: 0
+        shipAngle: 0,
+        // Портальные состояния
+        dim: 0,                       // 0 = обычный, -1 = своё измерение, -2 = владения, -3 = в чужом
+        inDomainHost: null,           // имя хоста, если мы в его владениях
+        domainUntil: 0
       };
       players.set(username, me);
 
@@ -218,7 +227,7 @@ wss.on('connection', (ws) => {
         type: 'join', u: username,
         x: me.x, y: me.y, lx: me.lx, ly: me.ly,
         hp: me.hp, mhp: me.mhp, c: me.color, wf: me.waterForm,
-        held: me.held
+        held: me.held, dim: me.dim
       }, username);
 
       if (me.windmillActive) {
@@ -365,6 +374,7 @@ wss.on('connection', (ws) => {
       if (typeof msg.mhp === 'number' && Number.isFinite(msg.mhp)) me.mhp = msg.mhp;
       if (typeof msg.wf === 'boolean') me.waterForm = msg.wf;
       if (msg.held === null || (typeof msg.held === 'string' && msg.held.length > 0)) me.held = msg.held;
+      if (typeof msg.dim === 'number' && Number.isFinite(msg.dim)) me.dim = msg.dim;
 
       broadcastExcept({
         type: 'pos', u: username,
@@ -372,7 +382,8 @@ wss.on('connection', (ws) => {
         lx: +me.lx.toFixed(2), ly: +me.ly.toFixed(2),
         hp: Math.round(me.hp), mhp: me.mhp,
         c: me.color, wf: me.waterForm,
-        held: me.held
+        held: me.held,
+        dim: me.dim
       }, username);
       return;
     }
@@ -400,7 +411,8 @@ wss.on('connection', (ws) => {
         lx: +me.lx.toFixed(2), ly: +me.ly.toFixed(2),
         hp: Math.round(me.hp), mhp: me.mhp,
         c: me.color, wf: me.waterForm,
-        held: me.held
+        held: me.held,
+        dim: me.dim
       }, username);
       return;
     }
@@ -524,10 +536,195 @@ wss.on('connection', (ws) => {
       return;
     }
 
+    // -------- ПОРТАЛ: РАЗЛОМ (Z) --------
+    if (msg.type === 'portal_rift_open') {
+      broadcastExcept({
+        type: 'portal_rift_open',
+        from: username,
+        x: Number(msg.x) || me.x,
+        y: Number(msg.y) || me.y,
+        dmg: Number(msg.dmg) || 0
+      }, username);
+      return;
+    }
+
+    // -------- ПОРТАЛ: БОЛЬШОЙ ПОРТАЛ (C) --------
+    if (msg.type === 'big_portal_open') {
+      broadcastExcept({
+        type: 'big_portal_open',
+        from: username,
+        x: Number(msg.x) || me.x,
+        y: Number(msg.y) || me.y,
+        islandName: String(msg.islandName || '')
+      }, username);
+      return;
+    }
+    if (msg.type === 'big_portal_close') {
+      broadcastExcept({
+        type: 'big_portal_close',
+        from: username
+      }, username);
+      return;
+    }
+
+    // -------- ПОРТАЛ: НОЖ (F) --------
+    if (msg.type === 'knife_thrown') {
+      broadcastExcept({
+        type: 'knife_thrown',
+        from: username,
+        x: Number(msg.x) || me.x,
+        y: Number(msg.y) || me.y,
+        vx: Number(msg.vx) || 0,
+        vy: Number(msg.vy) || 0
+      }, username);
+      return;
+    }
+
+    // -------- ПОРТАЛ: ЧЁРНАЯ ДЫРА (V) --------
+    if (msg.type === 'black_hole_open') {
+      broadcastExcept({
+        type: 'black_hole_open',
+        from: username,
+        x: Number(msg.x) || me.x,
+        y: Number(msg.y) || me.y
+      }, username);
+      return;
+    }
+
+    // -------- ПОРТАЛ: ИЗМЕРЕНИЕ (X) --------
+    if (msg.type === 'dimension_enter') {
+      me.dim = -1;
+      broadcastExcept({
+        type: 'dimension_enter',
+        u: username
+      }, username);
+      // повторно рассылаем позицию
+      broadcastExcept({
+        type: 'pos', u: username,
+        x: Math.round(me.x), y: Math.round(me.y),
+        lx: +me.lx.toFixed(2), ly: +me.ly.toFixed(2),
+        hp: Math.round(me.hp), mhp: me.mhp,
+        c: me.color, wf: me.waterForm,
+        held: me.held,
+        dim: me.dim
+      }, username);
+      return;
+    }
+    if (msg.type === 'dimension_exit') {
+      me.dim = 0;
+      const ex = Number(msg.x);
+      const ey = Number(msg.y);
+      if (Number.isFinite(ex) && Number.isFinite(ey)) { me.x = ex; me.y = ey; }
+      broadcastExcept({
+        type: 'dimension_exit',
+        u: username,
+        x: Math.round(me.x),
+        y: Math.round(me.y)
+      }, username);
+      broadcastExcept({
+        type: 'pos', u: username,
+        x: Math.round(me.x), y: Math.round(me.y),
+        lx: +me.lx.toFixed(2), ly: +me.ly.toFixed(2),
+        hp: Math.round(me.hp), mhp: me.mhp,
+        c: me.color, wf: me.waterForm,
+        held: me.held,
+        dim: me.dim
+      }, username);
+      return;
+    }
+
+    // -------- ПОРТАЛ: ВЛАДЕНИЯ (V) --------
+    if (msg.type === 'domain_enter') {
+      const hostName = String(msg.hostName || username);
+      const victims = Array.isArray(msg.victims) ? msg.victims : [];
+      const duration = Number(msg.duration) || 40000;
+
+      // хост
+      if (hostName === username) {
+        me.dim = -2;
+        me.domainUntil = Date.now() + duration;
+      }
+      // жертвы
+      for (const v of victims) {
+        const victim = players.get(v);
+        if (victim) {
+          victim.dim = -3;
+          victim.inDomainHost = hostName;
+          victim.domainUntil = Date.now() + duration;
+          if (victim.ws.readyState === 1) {
+            try {
+              victim.ws.send(JSON.stringify({
+                type: 'domain_enter',
+                hostName,
+                victims,
+                duration
+              }));
+            } catch (e) {}
+            // обновить позицию для всех
+            try {
+              victim.ws.send(JSON.stringify({
+                type: 'pos', u: v,
+                x: Math.round(victim.x), y: Math.round(victim.y),
+                lx: +victim.lx.toFixed(2), ly: +victim.ly.toFixed(2),
+                hp: Math.round(victim.hp), mhp: victim.mhp,
+                c: victim.color, wf: victim.waterForm,
+                held: victim.held,
+                dim: victim.dim
+              }));
+            } catch (e) {}
+          }
+        }
+      }
+      // рассылаем остальным
+      broadcastExcept({
+        type: 'domain_enter',
+        u: username,
+        hostName,
+        victims,
+        duration
+      }, username);
+      return;
+    }
+    if (msg.type === 'domain_exit') {
+      const victims = Array.isArray(msg.victims) ? msg.victims : [];
+      me.dim = 0;
+      me.domainUntil = 0;
+      for (const v of victims) {
+        const victim = players.get(v);
+        if (victim) {
+          victim.dim = 0;
+          victim.inDomainHost = null;
+          victim.domainUntil = 0;
+          if (victim.ws.readyState === 1) {
+            try {
+              victim.ws.send(JSON.stringify({ type: 'domain_exit', victims }));
+            } catch (e) {}
+          }
+        }
+      }
+      broadcastExcept({
+        type: 'domain_exit',
+        u: username,
+        victims
+      }, username);
+      broadcastExcept({
+        type: 'pos', u: username,
+        x: Math.round(me.x), y: Math.round(me.y),
+        lx: +me.lx.toFixed(2), ly: +me.ly.toFixed(2),
+        hp: Math.round(me.hp), mhp: me.mhp,
+        c: me.color, wf: me.waterForm,
+        held: me.held,
+        dim: me.dim
+      }, username);
+      return;
+    }
+
     // -------- PvP --------
     if (msg.type === 'hit') {
       const target = players.get(msg.target);
       if (!target || target.username === username) return;
+      // нельзя бить через измерения
+      if (me.dim !== 0 || target.dim !== 0) return;
       const now = Date.now();
 
       if (now < me.hitResetAt) {
@@ -572,6 +769,12 @@ wss.on('connection', (ws) => {
         target.hp = target.mhp;
         target.x = 0; target.y = 0;
         target.invulnUntil = now + 2000;
+        // сброс измерений/владений
+        if (target.dim !== 0) {
+          target.dim = 0;
+          target.inDomainHost = null;
+          broadcastAll({ type: 'dimension_exit', u: target.username, x: 0, y: 0 });
+        }
         if (target.windmillActive) {
           target.windmillActive = false;
           broadcastAll({ type: 'windmill_exit', u: target.username, x: 0, y: 0 });
@@ -605,6 +808,21 @@ wss.on('connection', (ws) => {
         if (p.onShip) {
           broadcastAll({ type: 'ship_exit', u: username });
         }
+        // если хост владений вышел — освобождаем пленников
+        if (p.dim === -2) {
+          for (const [, victim] of players) {
+            if (victim.inDomainHost === username) {
+              victim.dim = 0;
+              victim.inDomainHost = null;
+              victim.domainUntil = 0;
+              if (victim.ws.readyState === 1) {
+                try {
+                  victim.ws.send(JSON.stringify({ type: 'domain_exit', victims: [] }));
+                } catch (e) {}
+              }
+            }
+          }
+        }
         console.log(`[ws] - ${username} (online ${players.size})`);
       }
     }
@@ -635,6 +853,22 @@ setInterval(() => {
     }, u);
   }
 }, 200);
+
+// Владения — проверка окончания (страховка)
+setInterval(() => {
+  const now = Date.now();
+  for (const [, p] of players) {
+    if (p.dim === -2 && p.domainUntil > 0 && now >= p.domainUntil) {
+      p.dim = 0;
+      p.domainUntil = 0;
+    }
+    if (p.dim === -3 && p.domainUntil > 0 && now >= p.domainUntil) {
+      p.dim = 0;
+      p.inDomainHost = null;
+      p.domainUntil = 0;
+    }
+  }
+}, 1000);
 
 initDb().then(() => {
   server.listen(PORT, () => {
