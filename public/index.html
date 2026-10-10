@@ -34,7 +34,6 @@
   #authError { color: #ff5555; text-align: center; font-size: 13px; min-height: 18px; margin-top: 10px; font-weight: bold; }
   #authHint { color: rgba(255,255,255,0.4); text-align: center; font-size: 11px; margin-top: 18px; }
 
-  /* ==================== ЗАСТАВКА ==================== */
   #splashOverlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: linear-gradient(135deg, #1a2a4a, #0a1a3a); display: flex; align-items: center; justify-content: center; z-index: 1100; padding: 20px; }
   #splashOverlay.hidden { display: none; }
   #splashPanel { width: 100%; max-width: 480px; text-align: center; }
@@ -42,72 +41,56 @@
   #splashPanel h2 { color: #ffd700; margin: 0 0 12px; font-size: 28px; }
   #splashPanel .subtitle { color: rgba(255,255,255,0.8); font-size: 15px; margin-bottom: 24px; line-height: 1.5; }
   #splashPanel .hint { color: rgba(255,255,255,0.5); font-size: 12px; margin-top: 20px; }
-  @keyframes pulseIcon {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.15); }
-  }
+  @keyframes pulseIcon { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.15); } }
   #splashStart { display: inline-block; padding: 14px 40px; background: linear-gradient(180deg, #4caf50, #2e7d32); border: none; border-radius: 10px; color: white; font-size: 18px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 0 #1b5e20; }
-  #splashStart:active { transform: translateY(2px); box-shadow: 0 2px 0 #1b5e20; }
   #splashCountdown { color: #ffd700; font-size: 14px; margin-top: 16px; font-weight: bold; }
 
-  /* ==================== ВЫБОР УСТРОЙСТВА ==================== */
   #deviceOverlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: linear-gradient(135deg, #1a2a4a, #0a1a3a); display: flex; align-items: center; justify-content: center; z-index: 1100; padding: 20px; }
   #deviceOverlay.hidden { display: none; }
-  #devicePanel { width: 100%; max-width: 480px; background: rgba(20,25,40,0.96); border: 3px solid rgba(255,215,0,0.7); border-radius: 16px; padding: 28px 30px; box-shadow: 0 20px 60px rgba(0,0,0,0.7); text-align: center; }
+  #devicePanel { width: 100%; max-width: 480px; background: rgba(20,25,40,0.96); border: 3px solid rgba(255,215,0,0.7); border-radius: 16px; padding: 28px 30px; text-align: center; }
   #devicePanel h2 { color: #ffd700; margin: 0 0 8px; font-size: 24px; }
   #devicePanel .subtitle { color: rgba(255,255,255,0.7); font-size: 13px; margin-bottom: 22px; line-height: 1.5; }
-  .deviceBtn { display: flex; align-items: center; gap: 14px; width: 100%; padding: 16px 20px; margin-bottom: 12px; background: rgba(60,80,120,0.5); border: 2px solid rgba(255,255,255,0.25); border-radius: 12px; color: white; font-size: 18px; font-weight: bold; cursor: pointer; transition: all 0.15s; }
-  .deviceBtn:hover { background: rgba(120,160,220,0.4); border-color: #ffd700; transform: scale(1.02); }
+  .deviceBtn { display: flex; align-items: center; gap: 14px; width: 100%; padding: 16px 20px; margin-bottom: 12px; background: rgba(60,80,120,0.5); border: 2px solid rgba(255,255,255,0.25); border-radius: 12px; color: white; font-size: 18px; font-weight: bold; cursor: pointer; }
   .deviceBtn .ico { font-size: 32px; }
   .deviceBtn .info { text-align: left; flex: 1; }
   .deviceBtn .info small { display: block; font-size: 12px; color: rgba(255,255,255,0.6); font-weight: normal; margin-top: 3px; }
 
-  /* ==================== ПК-ЭЛЕМЕНТЫ ==================== */
   #pcUi { position: absolute; top: 10px; left: 10px; color: white; font-size: 18px; text-shadow: 2px 2px 4px black; pointer-events: none; display: none; }
   #pchint { position: absolute; top: 40px; left: 10px; color: white; font-size: 13px; text-shadow: 2px 2px 4px black; pointer-events: none; opacity: 0.8; line-height: 1.4; display: none; }
   #logoutBtn { position: absolute; bottom: 10px; left: 10px; padding: 8px 14px; background: rgba(255,60,60,0.7); border: 2px solid rgba(255,255,255,0.4); border-radius: 6px; color: white; font-size: 13px; cursor: pointer; z-index: 50; display: none; }
-  #logoutBtn:hover { background: rgba(255,60,60,0.95); }
   #playerName { position: absolute; bottom: 10px; left: 110px; padding: 8px 16px; background: rgba(0,0,0,0.55); border: 2px solid rgba(255,215,0,0.6); border-radius: 8px; color: #ffd700; font-size: 14px; font-weight: bold; z-index: 50; display: none; }
 
-  /* ==================== КАРТА ==================== */
   #miniMapBtn { position: fixed; left: 15px; top: 195px; width: 80px; height: 80px; background: rgba(20, 40, 70, 0.85); border: 2px solid rgba(255,215,0,0.7); border-radius: 10px; z-index: 200; cursor: pointer; display: none; padding: 4px; }
   body.mobile #miniMapBtn { left: 15px; top: 235px; width: 70px; height: 70px; }
 
   #mapOverlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.75); z-index: 500; display: flex; align-items: center; justify-content: center; padding: 20px; }
   #mapOverlay.hidden { display: none; }
-  #mapPanel { width: 100%; max-width: 520px; background: rgba(15, 25, 45, 0.97); border: 3px solid rgba(255,215,0,0.7); border-radius: 16px; padding: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.7); }
+  #mapPanel { width: 100%; max-width: 520px; background: rgba(15, 25, 45, 0.97); border: 3px solid rgba(255,215,0,0.7); border-radius: 16px; padding: 20px; }
   #mapPanel h2 { color: #ffd700; margin: 0 0 6px; font-size: 22px; text-align: center; }
   #mapPanel .subtitle { color: rgba(255,255,255,0.6); font-size: 12px; text-align: center; margin-bottom: 16px; }
   #mapCanvas { width: 100%; height: 320px; background: #0a1a3a; border: 2px solid rgba(255,255,255,0.25); border-radius: 10px; display: block; touch-action: manipulation; cursor: pointer; }
   #mapSelectedInfo { color: #aaddff; text-align: center; font-size: 14px; margin-top: 14px; min-height: 20px; font-weight: bold; }
   #mapCloseBtn { width: 100%; padding: 12px; background: linear-gradient(180deg, #ff5555, #aa0000); border: none; border-radius: 10px; color: white; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 12px; box-shadow: 0 4px 0 #660000; }
-  #mapCloseBtn:active { transform: translateY(2px); box-shadow: 0 2px 0 #660000; }
 
-  /* ==================== МОБИЛЬНЫЙ UI ==================== */
   #mobileUi { display: none; }
   body.mobile #mobileUi { display: block; }
   body.mobile #fsBtn { display: none; }
 
-  #mFullscreen { position: fixed; top: 10px; left: 10px; width: 46px; height: 46px; background: rgba(0,0,0,0.55); border: 2px solid rgba(255,255,255,0.6); border-radius: 10px; color: white; font-size: 22px; display: flex; align-items: center; justify-content: center; z-index: 200; touch-action: manipulation; user-select: none; }
-  #mFullscreen:active { background: rgba(255,215,0,0.5); }
-
+  #mFullscreen { position: fixed; top: 10px; left: 10px; width: 46px; height: 46px; background: rgba(0,0,0,0.55); border: 2px solid rgba(255,255,255,0.6); border-radius: 10px; color: white; font-size: 22px; display: flex; align-items: center; justify-content: center; z-index: 200; }
   #mMoneyBox { position: fixed; left: 20px; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.55); border: 2px solid rgba(255,215,0,0.7); border-radius: 12px; padding: 10px 16px; color: #ffd700; font-size: 20px; font-weight: bold; z-index: 200; pointer-events: none; display: flex; align-items: center; gap: 8px; }
   #mMoneyBox .sign { font-size: 24px; color: #ffdd44; }
 
   #joystickBase { position: fixed; left: 30px; bottom: 100px; width: 170px; height: 170px; border-radius: 50%; background: rgba(0,0,0,0.4); border: 3px solid rgba(255,255,255,0.35); z-index: 200; touch-action: none; user-select: none; }
-  #joystickBase::after { content: ''; position: absolute; inset: 15px; border-radius: 50%; border: 2px dashed rgba(255,255,255,0.2); pointer-events: none; }
-  #joystickKnob { position: fixed; width: 75px; height: 75px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #ffe680, #ffb300); border: 3px solid rgba(255,255,255,0.8); z-index: 201; pointer-events: none; transform: translate(-50%, -50%); box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+  #joystickKnob { position: fixed; width: 75px; height: 75px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #ffe680, #ffb300); border: 3px solid rgba(255,255,255,0.8); z-index: 201; pointer-events: none; transform: translate(-50%, -50%); }
 
   #mobileSlots { position: fixed; left: 50%; transform: translateX(-50%); bottom: 20px; display: flex; gap: 8px; z-index: 200; }
-  .mSlot { width: 56px; height: 56px; border-radius: 10px; background: rgba(0,0,0,0.55); border: 3px solid rgba(255,255,255,0.5); display: flex; align-items: center; justify-content: center; position: relative; touch-action: manipulation; user-select: none; }
-  .mSlot:active { transform: scale(0.95); }
+  .mSlot { width: 56px; height: 56px; border-radius: 10px; background: rgba(0,0,0,0.55); border: 3px solid rgba(255,255,255,0.5); display: flex; align-items: center; justify-content: center; position: relative; }
   .mSlot.active { border-color: #ffd700; background: rgba(255,215,0,0.35); box-shadow: 0 0 12px #ffd700; }
   .mSlot .num { position: absolute; top: 2px; left: 5px; font-size: 11px; color: rgba(255,255,255,0.85); font-weight: bold; }
   .mSlot canvas { border-radius: 6px; }
 
   #mTopBtns { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; z-index: 200; }
-  #mTopBtns .mBtn { padding: 10px 16px; border-radius: 10px; background: rgba(0,0,0,0.6); border: 2px solid rgba(255,255,255,0.55); color: white; font-size: 14px; font-weight: bold; letter-spacing: 1px; touch-action: manipulation; user-select: none; }
-  #mTopBtns .mBtn:active { background: rgba(255,215,0,0.55); border-color: #ffd700; }
+  #mTopBtns .mBtn { padding: 10px 16px; border-radius: 10px; background: rgba(0,0,0,0.6); border: 2px solid rgba(255,255,255,0.55); color: white; font-size: 14px; font-weight: bold; letter-spacing: 1px; }
 
   #mStats { position: fixed; top: 60px; right: 10px; display: flex; flex-direction: column; gap: 6px; z-index: 200; width: 210px; pointer-events: none; }
   .mBar { height: 26px; border-radius: 8px; background: rgba(0,0,0,0.65); overflow: hidden; position: relative; font-size: 13px; font-weight: bold; color: white; text-shadow: 1px 1px 2px black; display: flex; align-items: center; padding-left: 10px; border: 2px solid rgba(255,255,255,0.3); }
@@ -121,30 +104,26 @@
   .mBarWater .fill { background: linear-gradient(180deg, #aaffff, #0a5c9c); }
 
   #abilityBtns { position: fixed; right: 15px; bottom: 200px; display: flex; flex-direction: column-reverse; gap: 10px; z-index: 200; align-items: flex-end; }
-  .abBtn { position: relative; width: 68px; height: 68px; border-radius: 50%; background: rgba(0,0,0,0.6); border: 3px solid rgba(255,255,255,0.6); color: white; font-size: 24px; font-weight: bold; display: flex; align-items: center; justify-content: center; z-index: 200; touch-action: manipulation; user-select: none; box-shadow: 0 4px 10px rgba(0,0,0,0.4); transition: transform 0.08s; }
-  .abBtn:active { background: rgba(255,215,0,0.7); border-color: #ffd700; transform: scale(0.92); }
+  .abBtn { position: relative; width: 68px; height: 68px; border-radius: 50%; background: rgba(0,0,0,0.6); border: 3px solid rgba(255,255,255,0.6); color: white; font-size: 24px; font-weight: bold; display: flex; align-items: center; justify-content: center; z-index: 200; }
   .abBtn.locked { opacity: 0.45; background: rgba(60, 60, 60, 0.7); border-color: rgba(120, 120, 120, 0.7); filter: grayscale(0.9); }
   .abBtn.locked .lockLabel { position: absolute; top: -22px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.85); color: #ffaa44; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 6px; white-space: nowrap; pointer-events: none; border: 1px solid rgba(255,170,68,0.6); }
   .abBtn.dev { opacity: 0.55; background: rgba(60, 60, 60, 0.6); border-color: rgba(150, 150, 150, 0.7); filter: grayscale(0.4); }
   .abBtn.dev .lockLabel { position: absolute; top: -22px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.9); color: #aaddff; font-size: 9px; font-weight: bold; padding: 2px 6px; border-radius: 6px; white-space: nowrap; pointer-events: none; border: 1px solid rgba(170,220,255,0.6); }
   .abBtn .cdOverlay { position: absolute; inset: 0; border-radius: 50%; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; font-size: 16px; color: #ffcc66; font-weight: bold; }
+  .abBtn.active { background: radial-gradient(circle at 35% 30%, #333, #000); border-color: #e8e8e8; box-shadow: 0 0 15px #e8e8e8; }
 
-  #attackBtn { position: fixed; right: 15px; bottom: 100px; width: 95px; height: 95px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #ff6666, #aa0000); border: 4px solid rgba(255,255,255,0.75); color: white; font-size: 38px; display: flex; align-items: center; justify-content: center; z-index: 200; touch-action: manipulation; user-select: none; box-shadow: 0 6px 18px rgba(0,0,0,0.5); }
-  #attackBtn:active { background: radial-gradient(circle at 35% 30%, #ffaaaa, #dd2222); transform: scale(0.92); }
+  #attackBtn { position: fixed; right: 15px; bottom: 100px; width: 95px; height: 95px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #ff6666, #aa0000); border: 4px solid rgba(255,255,255,0.75); color: white; font-size: 38px; display: flex; align-items: center; justify-content: center; z-index: 200; }
 
   #bottomBtns { position: fixed; right: 125px; bottom: 15px; display: flex; gap: 10px; z-index: 200; align-items: center; }
   #bottomBtns .abBtn { width: 58px; height: 58px; font-size: 24px; }
 
-  #npcBtn { position: fixed; left: 50%; transform: translateX(-50%); bottom: 90px; padding: 14px 26px; background: linear-gradient(180deg, #ffd700, #cc9900); border: 3px solid rgba(255,255,255,0.85); border-radius: 14px; color: #3a2a00; font-size: 16px; font-weight: bold; z-index: 250; display: none; box-shadow: 0 6px 20px rgba(0,0,0,0.5); touch-action: manipulation; user-select: none; }
-  #npcBtn:active { background: linear-gradient(180deg, #ffe680, #ffbb00); transform: translateX(-50%) scale(0.95); }
+  #npcBtn { position: fixed; left: 50%; transform: translateX(-50%); bottom: 90px; padding: 14px 26px; background: linear-gradient(180deg, #ffd700, #cc9900); border: 3px solid rgba(255,255,255,0.85); border-radius: 14px; color: #3a2a00; font-size: 16px; font-weight: bold; z-index: 250; display: none; }
 
   #mPlayerName { position: fixed; left: 20px; bottom: 50px; padding: 6px 12px; background: rgba(0,0,0,0.55); border: 2px solid rgba(255,215,0,0.6); border-radius: 6px; color: #ffd700; font-size: 13px; font-weight: bold; z-index: 200; display: none; }
-  #mLogoutBtn { position: fixed; left: 20px; bottom: 15px; padding: 6px 12px; background: rgba(255,60,60,0.75); border: 2px solid rgba(255,255,255,0.5); border-radius: 6px; color: white; font-size: 12px; font-weight: bold; cursor: pointer; z-index: 200; display: none; }
-  #mLogoutBtn:active { background: rgba(255,60,60,1); }
+  #mLogoutBtn { position: fixed; left: 20px; bottom: 15px; padding: 6px 12px; background: rgba(255,60,60,0.75); border: 2px solid rgba(255,255,255,0.5); border-radius: 6px; color: white; font-size: 12px; font-weight: bold; z-index: 200; display: none; }
 
-  /* ============ КВЕСТЫ НА МОБИЛКЕ ============ */
   #mobileQuests { position: fixed; top: 12px; left: 12px; display: flex; flex-direction: column; gap: 6px; z-index: 190; max-width: 60vw; pointer-events: none; }
-  .mQuest { background: rgba(0,0,0,0.72); border: 2px solid rgba(255,215,0,0.75); border-radius: 8px; padding: 6px 10px; color: white; font-size: 11px; font-weight: bold; text-shadow: 1px 1px 2px black; }
+  .mQuest { background: rgba(0,0,0,0.72); border: 2px solid rgba(255,215,0,0.75); border-radius: 8px; padding: 6px 10px; color: white; font-size: 11px; font-weight: bold; }
   .mQuest .qt { color: #ffd700; display: block; margin-bottom: 2px; }
   .mQuest.boss { border-color: rgba(255,60,60,0.85); }
   .mQuest.boss .qt { color: #ff6666; }
@@ -155,30 +134,24 @@
   body:not(.mobile) #mobileUi { display: none !important; }
   body:not(.mobile) #mobileQuests { display: none !important; }
 
-  /* ==================== UI ПОРТАЛА ==================== */
   #portalUiOverlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.8); z-index: 600; display: flex; align-items: center; justify-content: center; padding: 20px; }
   #portalUiOverlay.hidden { display: none; }
-  #portalUiPanel { width: 100%; max-width: 560px; background: linear-gradient(135deg, rgba(20, 10, 40, 0.98), rgba(40, 20, 70, 0.98)); border: 3px solid rgba(180, 120, 255, 0.8); border-radius: 16px; padding: 22px; box-shadow: 0 20px 60px rgba(80, 40, 160, 0.6); }
-  #portalUiPanel h2 { color: #c8b0ff; margin: 0 0 6px; font-size: 24px; text-align: center; text-shadow: 0 0 12px rgba(180, 120, 255, 0.8); }
-  #portalUiPanel .subtitle { color: rgba(255,255,255,0.65); font-size: 13px; text-align: center; margin-bottom: 18px; }
-  #portalIslandList { display: flex; flex-direction: column; gap: 10px; max-height: 340px; overflow-y: auto; padding-right: 4px; }
-  .portalIslandBtn { display: flex; align-items: center; gap: 14px; width: 100%; padding: 14px 18px; background: linear-gradient(135deg, rgba(80, 40, 140, 0.55), rgba(40, 20, 80, 0.7)); border: 2px solid rgba(180, 120, 255, 0.5); border-radius: 12px; color: white; font-size: 16px; font-weight: bold; cursor: pointer; transition: all 0.15s; text-align: left; }
-  .portalIslandBtn:hover { background: linear-gradient(135deg, rgba(120, 60, 200, 0.75), rgba(60, 30, 120, 0.85)); border-color: #c8b0ff; transform: scale(1.02); box-shadow: 0 0 20px rgba(180, 120, 255, 0.5); }
+  #portalUiPanel { width: 100%; max-width: 560px; background: linear-gradient(135deg, rgba(20, 10, 40, 0.98), rgba(40, 20, 70, 0.98)); border: 3px solid rgba(180, 120, 255, 0.8); border-radius: 16px; padding: 22px; }
+  #portalUiPanel h2 { color: #c8b0ff; margin: 0 0 6px; font-size: 24px; text-align: center; }
+  #portalIslandList { display: flex; flex-direction: column; gap: 10px; max-height: 340px; overflow-y: auto; }
+  .portalIslandBtn { display: flex; align-items: center; gap: 14px; width: 100%; padding: 14px 18px; background: linear-gradient(135deg, rgba(80, 40, 140, 0.55), rgba(40, 20, 80, 0.7)); border: 2px solid rgba(180, 120, 255, 0.5); border-radius: 12px; color: white; font-size: 16px; font-weight: bold; cursor: pointer; text-align: left; }
   .portalIslandBtn .ico { font-size: 32px; flex-shrink: 0; }
   .portalIslandBtn .info { flex: 1; }
   .portalIslandBtn .info small { display: block; font-size: 11px; color: rgba(255,255,255,0.6); font-weight: normal; margin-top: 3px; }
-  .portalIslandBtn.current { opacity: 0.45; cursor: not-allowed; }
-  #portalUiClose { width: 100%; padding: 12px; background: linear-gradient(180deg, #aa3333, #661111); border: none; border-radius: 10px; color: white; font-size: 15px; font-weight: bold; cursor: pointer; margin-top: 14px; box-shadow: 0 4px 0 #440000; }
+  #portalUiClose { width: 100%; padding: 12px; background: linear-gradient(180deg, #aa3333, #661111); border: none; border-radius: 10px; color: white; font-size: 15px; font-weight: bold; cursor: pointer; margin-top: 14px; }
   #portalCountdown { color: #c8b0ff; text-align: center; font-size: 14px; margin-top: 10px; font-weight: bold; min-height: 18px; }
 
-  /* ==================== HUD ВЛАДЕНИЙ ==================== */
-  #domainHud { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); padding: 10px 22px; background: linear-gradient(135deg, rgba(30, 0, 50, 0.95), rgba(60, 0, 90, 0.95)); border: 3px solid rgba(200, 80, 255, 0.85); border-radius: 14px; color: #ffccff; font-size: 15px; font-weight: bold; z-index: 300; box-shadow: 0 0 30px rgba(200, 80, 255, 0.7); display: none; text-shadow: 0 0 8px rgba(255, 100, 255, 0.9); pointer-events: none; }
+  #domainHud { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); padding: 10px 22px; background: linear-gradient(135deg, rgba(30, 0, 50, 0.95), rgba(60, 0, 90, 0.95)); border: 3px solid rgba(200, 80, 255, 0.85); border-radius: 14px; color: #ffccff; font-size: 15px; font-weight: bold; z-index: 300; display: none; pointer-events: none; }
   #domainHud.active { display: block; }
   #domainHud .timer { color: #ff8888; font-size: 18px; margin-left: 10px; }
   #domainHud .buffs { font-size: 12px; color: #ffaaff; margin-top: 4px; display: block; }
 
-  /* ==================== HUD ИЗМЕРЕНИЯ ==================== */
-  #dimensionHud { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); padding: 10px 22px; background: linear-gradient(135deg, rgba(0, 40, 80, 0.95), rgba(0, 80, 140, 0.95)); border: 3px solid rgba(120, 220, 255, 0.85); border-radius: 14px; color: #ccf0ff; font-size: 15px; font-weight: bold; z-index: 300; box-shadow: 0 0 30px rgba(120, 220, 255, 0.7); display: none; text-shadow: 0 0 8px rgba(120, 220, 255, 0.9); pointer-events: none; }
+  #dimensionHud { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); padding: 10px 22px; background: linear-gradient(135deg, rgba(0, 40, 80, 0.95), rgba(0, 80, 140, 0.95)); border: 3px solid rgba(120, 220, 255, 0.85); border-radius: 14px; color: #ccf0ff; font-size: 15px; font-weight: bold; z-index: 300; display: none; pointer-events: none; }
   #dimensionHud.active { display: block; }
   #dimensionHud .timer { color: #88ddff; font-size: 18px; margin-left: 10px; }
 
@@ -187,6 +160,11 @@
 
   #domainVeil { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 151; display: none; background: radial-gradient(circle at center, rgba(120, 0, 60, 0.08) 0%, rgba(80, 0, 100, 0.2) 60%, rgba(20, 0, 40, 0.4) 100%); }
   #domainVeil.active { display: block; }
+
+  /* ============ КУПОЛ ДУШИ — HUD ============ */
+  #soulDomainHud { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); padding: 10px 22px; background: linear-gradient(135deg, rgba(0, 0, 0, 0.95), rgba(30, 0, 50, 0.95)); border: 3px solid rgba(232, 232, 232, 0.85); border-radius: 14px; color: #ffffff; font-size: 15px; font-weight: bold; z-index: 300; display: none; pointer-events: none; box-shadow: 0 0 30px rgba(255, 255, 255, 0.5); text-shadow: 0 0 8px rgba(255, 255, 255, 0.9); }
+  #soulDomainHud.active { display: block; }
+  #soulDomainHud .sub { font-size: 12px; color: #cccccc; margin-top: 4px; display: block; }
 </style>
 </head><body>
 <canvas id="game"></canvas>
@@ -1161,7 +1139,6 @@ const WINDMILL_ABILITIES = [
   { id: 'windmill_transform', name: 'Трансформация мельницы', key: 'Z', requiredMasteryLevel: 0, cooldown: 0, stamina: 0, damage: 0, description: 'Стань мельницей · Z — отмена', isWindmill: true }
 ];
 
-// ---- ПОРТАЛ (обновлённые mastery + V в разработке) ----
 const PORTAL_ABILITIES = [
   { id: 'portal_rift', name: 'Портал-ловушка', key: 'Z', requiredMasteryLevel: 0, cooldown: 8, stamina: 25, damage: 21, description: 'Портал под врага · 21 урона · кд 8с', aiming: 'portalZ' },
   { id: 'portal_dimension', name: 'Своё измерение', key: 'X', requiredMasteryLevel: 5, cooldown: 30, stamina: 30, damage: 0, description: 'Уйти в своё измерение на 15с · кд 30с' },
@@ -1172,7 +1149,8 @@ const PORTAL_ABILITIES = [
 
 // ---- ДУША (секретная) ----
 const SOUL_ABILITIES = [
-  { id: 'soul_z', name: 'Праздная трансфигурация', key: 'Z', requiredMasteryLevel: 0, cooldown: 20, stamina: 0, damage: 999999, description: 'Казнь впритык · 2с · 20с кд', isSoul: true }
+  { id: 'soul_z', name: 'Праздная трансфигурация', key: 'Z', requiredMasteryLevel: 0, cooldown: 20, stamina: 0, damage: 999999, description: 'Казнь впритык · 2с · 20с кд', isSoul: true },
+  { id: 'soul_domain', name: 'Само-воплощение идеала!', key: 'V', requiredMasteryLevel: 0, cooldown: 30, stamina: 0, damage: 0, description: 'Купол-территория · бесконечный · кд 30с', isSoulDomain: true }
 ];
 
 function getAbilitiesFor(name) {
@@ -1187,7 +1165,6 @@ function getAbilitiesFor(name) {
   return [];
 }
 
-// ============ РЕДКОСТИ ============
 const FRUIT_RARITY = {
   'Огонь': 'common',
   'Лёд': 'uncommon',
@@ -1200,12 +1177,8 @@ const FRUIT_RARITY = {
 };
 
 const FRUITS_BY_RARITY = {
-  common: [
-    { name: 'Огонь', color: '#ff6600' }
-  ],
-  uncommon: [
-    { name: 'Лёд', color: '#00c8ff' }
-  ],
+  common: [{ name: 'Огонь', color: '#ff6600' }],
+  uncommon: [{ name: 'Лёд', color: '#00c8ff' }],
   rare: [],
   legendary: [
     { name: 'Акула', color: '#1a4f8c' },
@@ -1215,12 +1188,9 @@ const FRUITS_BY_RARITY = {
     { name: 'Контроль', color: '#7c5cff' },
     { name: 'Портал', color: '#7c5cff' }
   ],
-  secret: [
-    { name: 'Душа', color: '#7c3aed' }
-  ]
+  secret: [{ name: 'Душа', color: '#7c3aed' }]
 };
 
-// Шансы (сумма 100)
 const RARITY_CHANCES = {
   common: 49.9,
   uncommon: 25,
@@ -1360,7 +1330,6 @@ const SHIP_SPEED_MULT = 2.3;
 const SHIP_SAIL_LENGTH = 55;
 const SHIP_HULL_WIDTH = 70;
 
-// Портальные константы
 const PORTAL_RIFT_RADIUS = 70;
 const PORTAL_RIFT_DURATION = 90;
 const PORTAL_RIFT_DAMAGE = 21;
@@ -1371,7 +1340,6 @@ const PORTAL_DOMAIN_DURATION_MS = 40000;
 const PORTAL_DOMAIN_RADIUS = 260;
 const PORTAL_DOMAIN_PULL_RADIUS = 400;
 
-// Душа
 const SOUL_BURST_DAMAGE = 999999;
 
 let controlZone = null;
@@ -1410,6 +1378,13 @@ function isInDomainArena() {
   return isInMyDomain() || (iAmInSomeoneDomain && performance.now() < iAmInSomeoneDomain.until);
 }
 function isHiddenFromOthers() { return isInMyDimension(); }
+
+// Купол души — работает бесконечно
+function isInMySoulDomain() { return !!mySoulDomain; }
+function isInsideSoulDomain(x, y) {
+  if (!mySoulDomain) return false;
+  return Math.hypot(x - mySoulDomain.x, y - mySoulDomain.y) <= mySoulDomain.radius;
+}
 
 const npc = { x: 400, y: 200, radius: 30, maxHp: 1000, hp: 1000, color: '#d4a373', hitFlash: 0, shakeUntil: 0, shakeOffset: { x: 0, y: 0 }, slowUntil: 0 };
 
@@ -1483,8 +1458,7 @@ const whipTrails = [];
 const lightBeams = [];
 const lightFlightTrails = [];
 const shipWakes = [];
-const soulBursts = [];      // свои фонтаны крови
-const soulTargets = [];     // цели "заминированные" (ждут 2с)
+const soulBursts = [];
 const menuButtons = [
   { label: 'Съесть', action: 'eat', color: '#4caf50' },
   { label: 'Взять в руки', action: 'take', color: '#ff9800' },
@@ -1559,17 +1533,14 @@ function tryMoveDesert(ent, dx, dy) {
   if (inDesertY && canBeAt(ent.x, ny, ent.radius)) ent.y = ny;
 }
 
-// ==================== ДУША: КАЗНЬ ====================
-// Ищем всех NPC рядом с игроком (в SOUL_RADIUS), кто ещё не "заминирован"
+// ==================== ДУША ====================
 function findSoulTargets() {
   const result = [];
   const px = player.x, py = player.y;
-  // NPC
   for (const pir of pirates) { if (pir.dead) continue; if (Math.hypot(pir.x - px, pir.y - py) < SOUL_RADIUS + pir.radius) result.push({ kind: 'pirate', ref: pir, x: pir.x, y: pir.y }); }
   for (const dw of duneWarriors) { if (dw.dead) continue; if (Math.hypot(dw.x - px, dw.y - py) < SOUL_RADIUS + dw.radius) result.push({ kind: 'dune', ref: dw, x: dw.x, y: dw.y }); }
   if (boss.active && !boss.dead && Math.hypot(boss.x - px, boss.y - py) < SOUL_RADIUS + boss.radius) result.push({ kind: 'boss', ref: boss, x: boss.x, y: boss.y });
   if (Math.hypot(npc.x - px, npc.y - py) < SOUL_RADIUS + npc.radius) result.push({ kind: 'npc', ref: npc, x: npc.x, y: npc.y });
-  // Игроки (PvP, только в обычном мире)
   if (!isInsideAnySpecialWorld()) {
     for (const rp of remotePlayers.values()) {
       if (rp.dim !== 0) continue;
@@ -1579,10 +1550,8 @@ function findSoulTargets() {
   return result;
 }
 
-// Создать "фонтан крови" в точке
 function spawnSoulBurst(x, y, fromRemote) {
   soulBursts.push({ x, y, startAt: performance.now(), life: 90, maxLife: 90 });
-  // Фонтан частиц
   for (let i = 0; i < 80; i++) {
     const a = Math.random() * Math.PI * 2;
     const sp = 3 + Math.random() * 10;
@@ -1618,12 +1587,76 @@ function applySoulExecution(target) {
   } else if (kind === 'npc') {
     npc.hp = 0;
     spawnSoulBurst(target.x, target.y, false);
-    // манекен не умирает — просто сбрасываем HP
     setTimeout(() => { npc.hp = npc.maxHp; }, 500);
   } else if (kind === 'remote') {
-    // PvP: отправить hit с огромным уроном, чтобы сервер убил
     sendHit(target.u, 9999, 'melee');
     spawnSoulBurst(target.x, target.y, false);
+  }
+}
+
+// ==================== КУПОЛ ДУШИ (V) ====================
+function activateSoulDomain() {
+  // Если уже активен — деактивировать (по повторному V)
+  if (mySoulDomain) {
+    mySoulDomain = null;
+    player.cooldowns['soul_domain'] = SOUL_DOMAIN_COOLDOWN;
+    for (let i = 0; i < 60; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const r = SOUL_DOMAIN_RADIUS * (0.8 + Math.random() * 0.2);
+      particles.push({
+        x: player.x + Math.cos(a) * r,
+        y: player.y + Math.sin(a) * r,
+        vx: -Math.cos(a) * 3, vy: -Math.sin(a) * 3,
+        life: 50 + Math.random() * 30, maxLife: 80,
+        radius: 4 + Math.random() * 6,
+        color: Math.random() < 0.5 ? '#000000' : '#333333'
+      });
+    }
+    return;
+  }
+  // Проверка кд
+  if ((player.cooldowns['soul_domain'] || 0) > 0) return;
+  if (soulCutscene) return;
+
+  // Создаём купол
+  mySoulDomain = { x: player.x, y: player.y, radius: SOUL_DOMAIN_RADIUS, startedAt: performance.now() };
+  soulCutscene = { startedAt: performance.now(), until: performance.now() + SOUL_CUTSCENE_MS };
+  player.cooldowns['soul_domain'] = SOUL_DOMAIN_COOLDOWN;
+  sendSoulDomain(player.x, player.y);
+
+  // Частицы взрыва при появлении
+  for (let i = 0; i < 150; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const s = 4 + Math.random() * 15;
+    particles.push({
+      x: player.x, y: player.y,
+      vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+      life: 80 + Math.random() * 40, maxLife: 120,
+      radius: 5 + Math.random() * 8,
+      color: Math.random() < 0.3 ? '#000000' : (Math.random() < 0.6 ? '#1a1a1a' : '#333333')
+    });
+  }
+  particles.push({ isShockwave: true, x: player.x, y: player.y, radius: 10, maxRadius: SOUL_DOMAIN_RADIUS * 1.3, life: 60, maxLife: 60, color: '#e8e8e8' });
+}
+
+// Убийство при касании внутри купола (только хост убивает врагов)
+function processSoulDomainKills() {
+  if (!mySoulDomain) return;
+  if (soulCutscene) return; // во время кат-сцены не убиваем
+  // Хост внутри купола?
+  if (!isInsideSoulDomain(player.x, player.y)) return;
+
+  // Для каждого игрока рядом (вплотную)
+  for (const rp of remotePlayers.values()) {
+    if (rp.dim !== 0) continue;
+    if (!isInsideSoulDomain(rp.x, rp.y)) continue;
+    const d = Math.hypot(rp.x - player.x, rp.y - player.y);
+    if (d < SOUL_DOMAIN_KILL_RADIUS + player.radius) {
+      // Убиваем врага
+      sendHit(rp.u, 999999, 'melee');
+      spawnSoulBurst(rp.x, rp.y, false);
+      rp.hp = 0;
+    }
   }
 }
 
@@ -1646,6 +1679,8 @@ function consumeFruit(item) {
     player.waterFormUntil = 0;
     player.flying = false;
     if (soulMode) { soulMode = null; }
+    if (mySoulDomain) { mySoulDomain = null; }
+    if (soulCutscene) { soulCutscene = null; }
     if (player.windmillActive) { player.windmillActive = false; player.radius = player.windmillSavedRadius || 25; sendWindmillExit(); }
     if (player.onShip) leaveShip();
     if (aimingAbility) aimingAbility = null;
@@ -1842,7 +1877,7 @@ function leaveShip() {
   }
 }
 
-// ==================== ПОРТАЛ: скиллы ====================
+// ==================== ПОРТАЛ ====================
 function activatePortalRiftAt(tx, ty) {
   if (player.cooldowns['portal_rift'] > 0) return;
   if (player.stamina < 25) return;
@@ -1988,7 +2023,6 @@ function throwPortalKnifeAt(tx, ty) {
 }
 
 function activatePortalDomain() {
-  // ЗАБЛОКИРОВАН: в разработке
   return;
 }
 
@@ -2066,7 +2100,7 @@ function exitMyDomainSilent() {
   sendDomainExit(victims);
 }
 
-// ==================== ДУША: запуск Z ====================
+// ==================== ДУША Z ====================
 function startSoulExecution() {
   if (soulMode) return;
   if ((player.cooldowns['soul_z'] || 0) > 0) return;
@@ -2089,6 +2123,7 @@ function startAbility(powerName, abilityId) {
   if (abilityId === 'light_flight') return;
   if (abilityId === 'windmill_transform') { toggleWindmill(); return; }
   if (abilityId === 'soul_z') { startSoulExecution(); return; }
+  if (abilityId === 'soul_domain') { activateSoulDomain(); return; }
   if (player.onShip) return;
   if (ab.zoneOnly && !isInControlZone(player.x, player.y)) return;
   if ((player.cooldowns[abilityId] || 0) > 0) return;
@@ -2399,6 +2434,8 @@ function damagePlayer(dmg) {
     player.x = 0; player.y = 0;
     player.flying = false;
     if (soulMode) soulMode = null;
+    if (mySoulDomain) mySoulDomain = null;
+    if (soulCutscene) soulCutscene = null;
     if (player.windmillActive) { player.windmillActive = false; player.radius = player.windmillSavedRadius || 25; sendWindmillExit(); }
     if (player.onShip) leaveShip();
     exitMyDimensionSilent();
@@ -2407,6 +2444,7 @@ function damagePlayer(dmg) {
 }// ==================== МОРСКОЙ УРОН ====================
 function applySeaDamage() {
   if (isInsideAnySpecialWorld()) return;
+  if (isInMySoulDomain()) return;
   if (!isOnAnyLand(player.x, player.y) && !isInWaterForm() && !isFlying() && !player.windmillActive && !player.onShip) {
     player.hp = Math.max(0, player.hp - 30);
     player.lastDamageTime = performance.now();
@@ -2420,6 +2458,8 @@ function applySeaDamage() {
       player.x = 0; player.y = 0;
       player.flying = false;
       if (soulMode) soulMode = null;
+      if (mySoulDomain) mySoulDomain = null;
+      if (soulCutscene) soulCutscene = null;
       if (player.windmillActive) { player.windmillActive = false; player.radius = player.windmillSavedRadius || 25; sendWindmillExit(); }
       if (player.onShip) leaveShip();
     }
@@ -2685,7 +2725,7 @@ function handleQuestDialog2Click(mx, my) {
   }
 }
 
-// ==================== NPC ДИАЛОГ 3 (NEXVERTIX) ====================
+// ==================== NPC ДИАЛОГ 3 ====================
 function openRollDialog() { rollDialogOpen = true; updateNpcBtnMobile(); }
 function closeRollDialog() { rollDialogOpen = false; updateNpcBtnMobile(); }
 function getRollDialogButtons() {
@@ -3171,6 +3211,10 @@ function buildAbilityButtons() {
     btn.textContent = ab.key;
     const myLevel = held.power.masteryLevel || 0;
     const locked = myLevel < ab.requiredMasteryLevel;
+    // Активность купола души
+    if (ab.id === 'soul_domain' && mySoulDomain) {
+      btn.classList.add('active');
+    }
     if (ab.dev) {
       btn.classList.add('dev');
       const label = document.createElement('div');
@@ -3439,7 +3483,6 @@ function updateNpcBtnMobile() {
   btn.style.display = 'none';
 }
 
-// ============ КВЕСТЫ НА МОБИЛКЕ ============
 function updateMobileQuests() {
   const container = document.getElementById('mobileQuests');
   if (!container) return;
@@ -3544,6 +3587,26 @@ function tickMobileHud(now) {
     if (domHud) domHud.classList.remove('active');
     if (domVeil) domVeil.classList.remove('active');
   }
+  // HUD КУПОЛА ДУШИ
+  const soulHud = document.getElementById('soulDomainHud');
+  if (mySoulDomain) {
+    if (soulHud) soulHud.classList.add('active');
+    if (soulHud) {
+      const elapsed = (performance.now() - mySoulDomain.startedAt) / 1000;
+      soulHud.innerHTML = '💀 Само-воплощение идеала! · ' + elapsed.toFixed(0) + 'с' +
+        '<span class="sub">V — закрыть купол · КД ' + SOUL_DOMAIN_COOLDOWN + 'с</span>';
+    }
+  } else {
+    if (soulHud) soulHud.classList.remove('active');
+  }
+  // Обновление активного состояния кнопки V купола на мобилке
+  const soulBtns = document.querySelectorAll('#abilityBtns .abBtn');
+  for (const btn of soulBtns) {
+    if (btn.dataset.abId === 'soul_domain') {
+      if (mySoulDomain) btn.classList.add('active');
+      else btn.classList.remove('active');
+    }
+  }
 }// ==================== ОБНОВЛЕНИЕ ====================
 function update() {
   if (!currentUser) return;
@@ -3589,13 +3652,22 @@ function update() {
     iAmInSomeoneDomain = null;
   }
 
+  // Конец кат-сцены купола души
+  if (soulCutscene && performance.now() >= soulCutscene.until) {
+    soulCutscene = null;
+  }
+
+  // Механика убийства в куполе души (только хост)
+  if (mySoulDomain && !soulCutscene) {
+    processSoulDomainKills();
+  }
+
   // Босс-респавн
   if (boss.dead && bossRespawnAt > 0 && performance.now() >= bossRespawnAt) {
     resetBoss();
     bossRespawnAt = 0;
   }
 
-  // Таймер портала телепорта
   if (portalUiOpen && portalUiCountdownTimer > 0) {
     portalUiCountdownTimer -= 1000 / 60;
     const el = document.getElementById('portalCountdown');
@@ -3608,20 +3680,17 @@ function update() {
     sendBigPortalClose();
   }
 
-  // ============ ДУША: ОБРАБОТКА Z ============
+  // ============ ДУША Z: ЗАРЯДКА ============
   if (soulMode) {
     const elapsed = performance.now() - soulMode.startedAt;
     if (elapsed >= SOUL_CHARGE_MS) {
-      // Прошло 2 сек — ищем цели и казним
       const targets = findSoulTargets();
       for (const tg of targets) {
         applySoulExecution(tg);
       }
-      // Устанавливаем кд и сбрасываем режим
       soulMode = null;
       player.cooldowns['soul_z'] = SOUL_COOLDOWN;
     } else {
-      // Эффект "зарядки" — тёмные частицы вокруг игрока
       if (Math.random() < 0.6) {
         const a = Math.random() * Math.PI * 2;
         const r = player.radius + 10 + Math.random() * 20;
@@ -3636,6 +3705,63 @@ function update() {
         });
       }
     }
+  }
+
+  // ============ ДУША V: КУПОЛ ============
+  // Если купол активен — постоянные частицы по краю + тёмный туман
+  if (mySoulDomain) {
+    // Частицы по краю купола
+    if (Math.random() < 0.4) {
+      const a = Math.random() * Math.PI * 2;
+      const r = mySoulDomain.radius * (0.95 + Math.random() * 0.1);
+      particles.push({
+        x: mySoulDomain.x + Math.cos(a) * r,
+        y: mySoulDomain.y + Math.sin(a) * r,
+        vx: -Math.cos(a) * 0.5,
+        vy: -Math.sin(a) * 0.5,
+        life: 40 + Math.random() * 20, maxLife: 60,
+        radius: 3 + Math.random() * 5,
+        color: Math.random() < 0.5 ? '#000000' : (Math.random() < 0.8 ? '#1a1a1a' : '#333333')
+      });
+    }
+    // Тёмный туман внутри купола
+    if (Math.random() < 0.3) {
+      const a = Math.random() * Math.PI * 2;
+      const r = Math.random() * mySoulDomain.radius;
+      particles.push({
+        x: mySoulDomain.x + Math.cos(a) * r,
+        y: mySoulDomain.y + Math.sin(a) * r,
+        vx: (Math.random() - 0.5) * 0.8,
+        vy: (Math.random() - 0.5) * 0.8 - 0.3,
+        life: 50 + Math.random() * 30, maxLife: 80,
+        radius: 5 + Math.random() * 8,
+        color: Math.random() < 0.7 ? 'rgba(0,0,0,0.4)' : 'rgba(40,0,60,0.3)'
+      });
+    }
+    // Если кат-сцена — доп. частицы ладоней
+    if (soulCutscene) {
+      const csElapsed = (performance.now() - soulCutscene.startedAt) / 1000;
+      // Ладони появляются постепенно
+      for (let i = 0; i < 20; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const r = 30 + Math.random() * 200 + csElapsed * 40;
+        particles.push({
+          x: player.x + Math.cos(a) * r,
+          y: player.y + Math.sin(a) * r,
+          vx: -Math.cos(a) * 3,
+          vy: -Math.sin(a) * 3,
+          life: 40 + Math.random() * 20, maxLife: 60,
+          radius: 4 + Math.random() * 6,
+          color: Math.random() < 0.5 ? '#e8e8e8' : (Math.random() < 0.8 ? '#ffffff' : '#cccccc')
+        });
+      }
+    }
+  }
+
+  // Купол исчезает если умер
+  if (mySoulDomain && player.hp <= 0) {
+    mySoulDomain = null;
+    soulCutscene = null;
   }
 
   for (const rp of remotePlayers.values()) {
@@ -3656,6 +3782,8 @@ function update() {
 
   const now = performance.now();
   const blocked = bagOpen || statsOpen || questDialogOpen || questDialog2Open || adminOpen || rollDialogOpen || !!eatConfirm || !!bagEatConfirm || portalUiOpen || mapOpen;
+  // Во время кат-сцены купола игрок не двигается
+  const cutsceneBlocked = !!soulCutscene;
   const spd = player.speedWalk * (isInMyDomain() ? 3.0 : 1);
 
   if (now > player.seaDamageTimer && !blocked) { player.seaDamageTimer = now + 1000; applySeaDamage(); }
@@ -3667,7 +3795,8 @@ function update() {
     if (player.onShip) leaveShip();
   }
 
-  if (player.onShip && !blocked && !aimingAbility) {
+  // ДВИЖЕНИЕ заблокировано во время кат-сцены купола
+  if (player.onShip && !blocked && !aimingAbility && !cutsceneBlocked) {
     let dx = 0, dy = 0;
     if (isMobile() && (Math.abs(mobileJoy.dx) > 0.15 || Math.abs(mobileJoy.dy) > 0.15)) { dx = mobileJoy.dx; dy = mobileJoy.dy; }
     else {
@@ -3700,7 +3829,7 @@ function update() {
     }
   }
 
-  if (!player.onShip) {
+  if (!player.onShip && !cutsceneBlocked) {
     const heldNow = getHeldPower();
     if (player.flying) {
       const stillOk = player.flightKeyDown && heldNow && heldNow.power.name === 'Свет' && player.stamina > 0 && !blocked && !player.windmillActive && !player.onShip;
@@ -3742,7 +3871,7 @@ function update() {
     }
   }
 
-  if (!player.windmillActive && !player.onShip && !blocked && !player.flying) {
+  if (!player.windmillActive && !player.onShip && !blocked && !player.flying && !cutsceneBlocked) {
     let dx = 0, dy = 0;
     if (isMobile() && (Math.abs(mobileJoy.dx) > 0.15 || Math.abs(mobileJoy.dy) > 0.15)) { dx = mobileJoy.dx; dy = mobileJoy.dy; }
     else {
@@ -3809,7 +3938,7 @@ function update() {
   for (let i = remoteLightBeams.length - 1; i >= 0; i--) { remoteLightBeams[i].life--; if (remoteLightBeams[i].life <= 0) remoteLightBeams.splice(i, 1); }
   for (let i = shipWakes.length - 1; i >= 0; i--) { shipWakes[i].life--; shipWakes[i].radius += 0.3; if (shipWakes[i].life <= 0) shipWakes.splice(i, 1); }
 
-  // ---- Душа: фонтаны крови ----
+  // Фонтаны крови
   for (let i = soulBursts.length - 1; i >= 0; i--) {
     const b = soulBursts[i];
     b.life--;
@@ -3834,7 +3963,7 @@ function update() {
     if (b.life <= 0) remoteSoulBursts.splice(i, 1);
   }
 
-  // ---- Портал: разломы Z ----
+  // Портальные разломы Z
   for (let i = activePortalRifts.length - 1; i >= 0; i--) {
     const r = activePortalRifts[i];
     r.life--; r.rot = (r.rot || 0) + 0.06;
@@ -3861,7 +3990,7 @@ function update() {
     if (r.life <= 0) remotePortalRifts.splice(i, 1);
   }
 
-  // ---- Ножи F ----
+  // Ножи F
   for (let i = thrownKnives.length - 1; i >= 0; i--) {
     const k = thrownKnives[i];
     k.x += k.vx; k.y += k.vy; k.life--;
@@ -3935,7 +4064,7 @@ function update() {
     if (b.life <= 0) remoteBlackHoles.splice(i, 1);
   }
 
-  // ---- Световой луч ----
+  // Световой луч
   for (let i = lightBeams.length - 1; i >= 0; i--) {
     const LB = lightBeams[i];
     if (now > LB.until) { lightBeams.splice(i, 1); continue; }
@@ -4010,7 +4139,7 @@ function update() {
   }
   for (let i = remoteBeams.length - 1; i >= 0; i--) { remoteBeams[i].life--; if (remoteBeams[i].life <= 0) remoteBeams.splice(i, 1); }
 
-  // ---- Свои снаряды ----
+  // Свои снаряды
   for (let i = projectiles.length - 1; i >= 0; i--) {
     const p = projectiles[i];
     p.x += p.vx; p.y += p.vy; p.life--;
@@ -4474,7 +4603,7 @@ function drawWorld() {
     }
   }
 
-  if (!isOnAnyLand(player.x, player.y) && !player.windmillActive && !player.onShip && !isInMyDimension()) {
+  if (!isOnAnyLand(player.x, player.y) && !player.windmillActive && !player.onShip && !isInMyDimension() && !isInMySoulDomain()) {
     const pulse = 0.3 + Math.sin(performance.now() * 0.008) * 0.2;
     ctx.strokeStyle = `rgba(80, 200, 255, ${pulse})`;
     ctx.lineWidth = 8;
@@ -4482,138 +4611,313 @@ function drawWorld() {
   }
 }
 
-// ==================== АРЕНА ВЛАДЕНИЙ V ====================
-function drawDomainArena() {
-  const W = canvas.width, H = canvas.height;
+// ==================== КУПОЛ ДУШИ — ФОН И ВНУТРЕННЯЯ ЧАСТЬ ====================
+// Рисуется ПОД всеми объектами мира (кроме арены V)
+function drawSoulDomainVeil() {
+  if (!mySoulDomain) return;
   const now = performance.now();
-  const t = now * 0.001;
+  const sdx = mySoulDomain.x - camera.x;
+  const sdy = mySoulDomain.y - camera.y;
+  const sdr = mySoulDomain.radius;
 
-  const bg = ctx.createRadialGradient(W / 2, H / 2, 100, W / 2, H / 2, Math.max(W, H) * 0.9);
-  bg.addColorStop(0, '#3a1a6e');
-  bg.addColorStop(0.4, '#2a0a52');
-  bg.addColorStop(0.75, '#150335');
-  bg.addColorStop(1, '#0a0018');
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, W, H);
+  // Огромный тёмный круг — покрывает всё, что снаружи
+  // Внутри — прозрачнее, чтобы видеть объекты
+  const isInside = isInsideSoulDomain(player.x, player.y);
 
-  for (let i = 0; i < 60; i++) {
-    const px = ((i * 137) % W);
-    const py = ((i * 251) % H);
-    const a = 0.3 + Math.sin(t * 2 + i) * 0.25;
-    ctx.beginPath(); ctx.arc(px, py, 1 + (i % 2), 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(200, 180, 255, ${a})`;
-    ctx.fill();
-  }
-
-  const chainColor = 'rgba(200, 220, 255, 0.85)';
-  const chainGlow = 'rgba(140, 180, 255, 0.45)';
-  drawChain(-40, -40, W * 0.28, H * 0.30, 7, chainColor, chainGlow);
-  drawChain(-40, H + 40, W * 0.30, H * 0.72, 7, chainColor, chainGlow);
-  drawChain(W + 40, -40, W * 0.72, H * 0.30, 7, chainColor, chainGlow);
-  drawChain(W + 40, H + 40, W * 0.70, H * 0.72, 7, chainColor, chainGlow);
-  drawChain(-40, H * 0.45, W * 0.06, H * 0.55, 4, chainColor, chainGlow);
-  drawChain(W + 40, H * 0.45, W * 0.94, H * 0.55, 4, chainColor, chainGlow);
-
-  const pulse = 0.85 + Math.sin(t * 2) * 0.15;
-  const glowR = Math.min(W, H) * 0.55;
-  const glow = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, glowR);
-  glow.addColorStop(0, `rgba(180, 240, 255, ${0.35 * pulse})`);
-  glow.addColorStop(0.4, `rgba(120, 180, 255, ${0.2 * pulse})`);
-  glow.addColorStop(1, 'rgba(80, 80, 220, 0)');
-  ctx.beginPath(); ctx.arc(W / 2, H / 2, glowR, 0, Math.PI * 2);
-  ctx.fillStyle = glow; ctx.fill();
-
-  const islX = DOMAIN_ISLAND.x - camera.x;
-  const islY = DOMAIN_ISLAND.y - camera.y;
-  const islW = DOMAIN_ISLAND.width;
-  const islH = DOMAIN_ISLAND.height;
-  const beach = 100;
-  ctx.fillStyle = '#c9a8e0';
-  ctx.fillRect(islX, islY, islW, islH);
-  ctx.fillStyle = '#4a2a8c';
-  ctx.fillRect(islX + beach, islY + beach, islW - beach * 2, islH - beach * 2);
-  ctx.fillStyle = '#6a3abc';
-  ctx.beginPath();
-  ctx.ellipse(islX + islW / 2, islY + islH / 2, islW * 0.32, islH * 0.32, 0, 0, Math.PI * 2);
-  ctx.fill();
-  for (let i = 0; i < 40; i++) {
-    const px = islX + beach + ((i * 137) % (islW - beach * 2));
-    const py = islY + beach + ((i * 251) % (islH - beach * 2));
-    const a = 0.15 + Math.sin(t * 1.5 + i) * 0.1;
-    ctx.beginPath(); ctx.arc(px, py, 4 + (i % 3), 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(220, 160, 255, ${a})`;
-    ctx.fill();
-  }
-  ctx.strokeStyle = '#e0b0ff';
-  ctx.lineWidth = 5;
-  ctx.strokeRect(islX, islY, islW, islH);
-
-  const centerX = islX + islW / 2;
-  const centerY = islY + islH / 2;
-  const innerGlowR = 200 * pulse;
-  const innerGlow = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, innerGlowR);
-  innerGlow.addColorStop(0, `rgba(220, 240, 255, ${0.7 * pulse})`);
-  innerGlow.addColorStop(0.5, `rgba(140, 200, 255, ${0.35 * pulse})`);
-  innerGlow.addColorStop(1, 'rgba(80, 120, 255, 0)');
-  ctx.beginPath(); ctx.arc(centerX, centerY, innerGlowR, 0, Math.PI * 2);
-  ctx.fillStyle = innerGlow; ctx.fill();
-  ctx.beginPath(); ctx.arc(centerX, centerY, 30 + Math.sin(t * 4) * 6, 0, Math.PI * 2);
-  ctx.fillStyle = `rgba(255, 255, 255, ${0.8 * pulse})`;
-  ctx.fill();
-  ctx.save();
-  ctx.translate(centerX, centerY);
-  for (let i = 0; i < 12; i++) {
-    const a = (i / 12) * Math.PI * 2 + t * 0.3;
-    const len = 120 + Math.sin(t * 2 + i) * 30;
-    const g = ctx.createLinearGradient(0, 0, Math.cos(a) * len, Math.sin(a) * len);
-    g.addColorStop(0, `rgba(220, 240, 255, ${0.5 * pulse})`);
-    g.addColorStop(1, 'rgba(140, 180, 255, 0)');
-    ctx.strokeStyle = g;
-    ctx.lineWidth = 3;
+  if (!isInside) {
+    // Игрок СНАРУЖИ купола — всё в куполе для него тёмное, непрозрачное
+    ctx.save();
+    ctx.globalAlpha = 0.92;
+    ctx.fillStyle = '#000000';
     ctx.beginPath();
-    ctx.moveTo(Math.cos(a) * 40, Math.sin(a) * 40);
-    ctx.lineTo(Math.cos(a) * len, Math.sin(a) * len);
-    ctx.stroke();
+    ctx.arc(sdx, sdy, sdr, 0, Math.PI * 2);
+    ctx.fill();
+    // Внутренние вихри (намёк на что-то внутри)
+    const t = now * 0.001;
+    for (let i = 0; i < 8; i++) {
+      const a = t * 0.3 + i * (Math.PI / 4);
+      const rr = sdr * (0.4 + Math.sin(t + i) * 0.3);
+      const px = sdx + Math.cos(a) * rr;
+      const py = sdy + Math.sin(a) * rr;
+      ctx.globalAlpha = 0.15 + Math.sin(t * 2 + i) * 0.05;
+      ctx.fillStyle = i % 2 === 0 ? '#1a1a1a' : '#0a0a0a';
+      ctx.beginPath();
+      ctx.arc(px, py, sdr * 0.25, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  } else {
+    // Игрок ВНУТРИ — внутри видно всё, снаружи — тёмная стена
+    // Рисуем огромный чёрный прямоугольник со "дыркой" (используем evenodd)
+    ctx.save();
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.88)';
+    ctx.beginPath();
+    // Внешний прямоугольник (весь экран)
+    ctx.rect(-10, -10, canvas.width + 20, canvas.height + 20);
+    // Дырка — купол
+    ctx.arc(sdx, sdy, sdr, 0, Math.PI * 2);
+    ctx.fill('evenodd');
+    ctx.restore();
+
+    // Легкая фиолетовая дымка внутри (эффект "мы в другом месте")
+    const t = now * 0.001;
+    const innerGrad = ctx.createRadialGradient(sdx, sdy, sdr * 0.3, sdx, sdy, sdr);
+    innerGrad.addColorStop(0, 'rgba(60, 0, 90, 0.05)');
+    innerGrad.addColorStop(0.7, 'rgba(30, 0, 50, 0.15)');
+    innerGrad.addColorStop(1, 'rgba(0, 0, 0, 0.45)');
+    ctx.beginPath(); ctx.arc(sdx, sdy, sdr, 0, Math.PI * 2);
+    ctx.fillStyle = innerGrad;
+    ctx.fill();
+
+    // Стены из ладоней по периметру купола
+    drawSoulDomainWalls(sdx, sdy, sdr, t);
+  }
+
+  // Общее свечение края купола (всегда видно)
+  const edgeGrad = ctx.createRadialGradient(sdx, sdy, sdr * 0.85, sdx, sdy, sdr * 1.15);
+  edgeGrad.addColorStop(0, 'rgba(232, 232, 232, 0)');
+  edgeGrad.addColorStop(0.5, 'rgba(232, 232, 232, 0.5)');
+  edgeGrad.addColorStop(1, 'rgba(232, 232, 232, 0)');
+  ctx.beginPath(); ctx.arc(sdx, sdy, sdr * 1.15, 0, Math.PI * 2);
+  ctx.fillStyle = edgeGrad;
+  ctx.fill();
+
+  // Кольцо с бегущими символами (декоративные "печати")
+  ctx.save();
+  ctx.translate(sdx, sdy);
+  ctx.rotate(now * 0.0003);
+  for (let i = 0; i < 24; i++) {
+    const a = (i / 24) * Math.PI * 2;
+    const rr = sdr * 1.02;
+    const px = Math.cos(a) * rr;
+    const py = Math.sin(a) * rr;
+    ctx.save();
+    ctx.translate(px, py);
+    ctx.rotate(a + Math.PI / 2);
+    ctx.fillStyle = 'rgba(232, 232, 232, 0.7)';
+    ctx.beginPath();
+    ctx.moveTo(-4, -6);
+    ctx.lineTo(4, -6);
+    ctx.lineTo(0, 6);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
   }
   ctx.restore();
-
-  ctx.fillStyle = `rgba(80, 30, 160, ${0.06 + Math.sin(t * 1.5) * 0.03})`;
-  ctx.fillRect(0, 0, W, H);
 }
 
-function drawChain(x1, y1, x2, y2, links, color, glow) {
-  const dx = x2 - x1, dy = y2 - y1;
-  const len = Math.hypot(dx, dy);
-  const angle = Math.atan2(dy, dx);
-  const linkLen = len / links;
+// Стены из гигантских ладоней по краю купола
+function drawSoulDomainWalls(cx, cy, R, t) {
+  const palmCount = 12;
+  for (let i = 0; i < palmCount; i++) {
+    const a = (i / palmCount) * Math.PI * 2 + t * 0.1;
+    const px = cx + Math.cos(a) * R * 0.98;
+    const py = cy + Math.sin(a) * R * 0.98;
+    drawGiantPalm(px, py, a + Math.PI / 2, 85, 0.35 + Math.sin(t * 2 + i) * 0.1);
+  }
+}
+
+// Рисует гигантскую ладонь
+function drawGiantPalm(x, y, angle, size, alpha) {
   ctx.save();
-  ctx.translate(x1, y1);
+  ctx.translate(x, y);
   ctx.rotate(angle);
-  ctx.strokeStyle = glow;
-  ctx.lineWidth = 3;
-  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(len, 0); ctx.stroke();
-  for (let i = 0; i < links; i++) {
-    const cx = i * linkLen + linkLen * 0.5;
-    const rx = linkLen * 0.32;
-    const ry = 10;
+  ctx.globalAlpha = alpha;
+
+  // Свечение вокруг ладони
+  const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, size * 1.2);
+  glow.addColorStop(0, 'rgba(255, 255, 255, 0.35)');
+  glow.addColorStop(0.5, 'rgba(180, 180, 220, 0.2)');
+  glow.addColorStop(1, 'rgba(80, 80, 120, 0)');
+  ctx.beginPath(); ctx.arc(0, 0, size * 1.2, 0, Math.PI * 2);
+  ctx.fillStyle = glow;
+  ctx.fill();
+
+  // Сама ладонь (эллипс)
+  ctx.beginPath();
+  ctx.ellipse(0, 0, size * 0.45, size * 0.65, 0, 0, Math.PI * 2);
+  const palmGrad = ctx.createRadialGradient(-size * 0.15, -size * 0.2, size * 0.05, 0, 0, size * 0.65);
+  palmGrad.addColorStop(0, 'rgba(240, 240, 255, 0.5)');
+  palmGrad.addColorStop(0.5, 'rgba(180, 180, 220, 0.3)');
+  palmGrad.addColorStop(1, 'rgba(100, 100, 150, 0.15)');
+  ctx.fillStyle = palmGrad;
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(232, 232, 255, 0.5)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // 5 пальцев
+  const fingerLen = size * 0.55;
+  const fingerW = size * 0.09;
+  const baseY = -size * 0.5;
+  for (let f = 0; f < 5; f++) {
+    const fx = (f - 2) * size * 0.18;
+    const fl = fingerLen * (1 - Math.abs(f - 2) * 0.12);
     ctx.beginPath();
-    ctx.ellipse(cx, 0, rx * 1.4, ry * 1.4, 0, 0, Math.PI * 2);
-    ctx.fillStyle = glow;
+    ctx.ellipse(fx, baseY - fl * 0.5, fingerW, fl * 0.5, 0, 0, Math.PI * 2);
+    const fGrad = ctx.createLinearGradient(fx, baseY - fl, fx, baseY);
+    fGrad.addColorStop(0, 'rgba(240, 240, 255, 0.6)');
+    fGrad.addColorStop(1, 'rgba(180, 180, 220, 0.3)');
+    ctx.fillStyle = fGrad;
     ctx.fill();
-    ctx.beginPath();
-    ctx.ellipse(cx, 0, rx, ry, 0, 0, Math.PI * 2);
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 2.5;
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.ellipse(cx, 0, rx * 0.55, ry * 0.55, 0, 0, Math.PI * 2);
-    ctx.strokeStyle = 'rgba(230, 240, 255, 0.55)';
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(232, 232, 255, 0.5)';
+    ctx.lineWidth = 1.5;
     ctx.stroke();
   }
+
   ctx.restore();
 }
 
+// ==================== КАТ-СЦЕНА АКТИВАЦИИ КУПОЛА ====================
+// 5 секунд: из-за спины игрока постепенно раскрываются 5 пар ладоней
+// (маленькие → средние → большие, ладонь в ладони, ладонь в ладони)
+function drawSoulCutscene() {
+  if (!soulCutscene) return;
+  const elapsed = performance.now() - soulCutscene.startedAt;
+  const progress = Math.min(1, elapsed / SOUL_CUTSCENE_MS);
+  const px = player.x - camera.x;
+  const py = player.y - camera.y;
+  // Направление "спины" игрока — противоположно взгляду
+  let lx = player.lookX, ly = player.lookY;
+  if (lx === 0 && ly === 0) { lx = 1; ly = 0; }
+  const lookAngle = Math.atan2(ly, lx);
+  const backAngle = lookAngle + Math.PI;
+
+  // Тёмное затемнение экрана
+  ctx.fillStyle = `rgba(0, 0, 0, ${0.75 * (1 - progress * 0.7)})`;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Вспышка в начале
+  if (progress < 0.15) {
+    const flashA = 1 - (progress / 0.15);
+    ctx.fillStyle = `rgba(255, 255, 255, ${flashA * 0.6})`;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+
+  // Расширяющийся круг от игрока (эффект "разворачивания" территории)
+  const expandR = progress * SOUL_DOMAIN_RADIUS * 1.3;
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(px, py, expandR, 0, Math.PI * 2);
+  ctx.strokeStyle = `rgba(232, 232, 232, ${1 - progress * 0.5})`;
+  ctx.lineWidth = 4;
+  ctx.stroke();
+  ctx.restore();
+
+  // 5 ПАР ЛАДОНЕЙ: рисуем поверх всего, они растут из-за спины
+  for (let pair = 0; pair < 5; pair++) {
+    // Каждая пара появляется с задержкой
+    const pairDelay = pair * 0.1;
+    const pairProgress = Math.max(0, Math.min(1, (progress - pairDelay) / (1 - pairDelay)));
+    if (pairProgress <= 0) continue;
+
+    // Размер растёт с каждой парой — маленькие внутри, большие снаружи
+    const baseSize = 40 + pair * 22;               // 40, 62, 84, 106, 128
+    const finalSize = baseSize;
+    const currentSize = finalSize * easeOutBack(pairProgress);
+
+    // Углы — по бокам от спины игрока (слева и справа)
+    const spreadAngle = 0.35 + pair * 0.12;         // веер
+    const distance = 80 + pair * 45;
+
+    // Левая ладонь
+    const leftAngle = backAngle - spreadAngle;
+    const lx1 = px + Math.cos(leftAngle) * distance;
+    const ly1 = py + Math.sin(leftAngle) * distance;
+    drawCutscenePalm(lx1, ly1, leftAngle + Math.PI / 2, currentSize, pairProgress, pair);
+
+    // Правая ладонь (симметрично)
+    const rightAngle = backAngle + spreadAngle;
+    const rx1 = px + Math.cos(rightAngle) * distance;
+    const ry1 = py + Math.sin(rightAngle) * distance;
+    drawCutscenePalm(rx1, ry1, rightAngle - Math.PI / 2, currentSize, pairProgress, pair);
+  }
+
+  // Лучи-искры во время кат-сцены
+  for (let i = 0; i < 20; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const r = progress * 300 + Math.random() * 100;
+    const sx = px + Math.cos(a) * r;
+    const sy = py + Math.sin(a) * r;
+    ctx.beginPath();
+    ctx.arc(sx, sy, 2 + Math.random() * 3, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(232, 232, 232, ${(1 - progress) * 0.8})`;
+    ctx.fill();
+  }
+
+  // Заголовок внизу
+  ctx.font = 'bold 36px Arial';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.strokeStyle = 'black'; ctx.lineWidth = 6;
+  const titleAlpha = Math.min(1, progress * 2) * (progress < 0.85 ? 1 : 1 - (progress - 0.85) / 0.15);
+  ctx.globalAlpha = titleAlpha;
+  ctx.strokeText('💀 Само-воплощение идеала! 💀', canvas.width / 2, canvas.height - 80);
+  ctx.fillStyle = '#e8e8e8';
+  ctx.fillText('💀 Само-воплощение идеала! 💀', canvas.width / 2, canvas.height - 80);
+  ctx.globalAlpha = 1;
+}
+
+function easeOutBack(t) {
+  const c1 = 1.70158;
+  const c3 = c1 + 1;
+  return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+}
+
+// Ладонь для кат-сцены — светящаяся, плавно появляется
+function drawCutscenePalm(x, y, angle, size, alpha, pair) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle);
+  ctx.globalAlpha = alpha;
+
+  // Свечение вокруг ладони
+  const glowR = size * 1.4;
+  const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, glowR);
+  const tint = pair % 2 === 0 ? 'rgba(255, 255, 255, 0.4)' : 'rgba(200, 180, 255, 0.4)';
+  const tintMid = pair % 2 === 0 ? 'rgba(180, 180, 220, 0.25)' : 'rgba(120, 100, 180, 0.25)';
+  glow.addColorStop(0, tint);
+  glow.addColorStop(0.5, tintMid);
+  glow.addColorStop(1, 'rgba(80, 80, 120, 0)');
+  ctx.beginPath(); ctx.arc(0, 0, glowR, 0, Math.PI * 2);
+  ctx.fillStyle = glow;
+  ctx.fill();
+
+  // Ладонь — эллипс
+  ctx.beginPath();
+  ctx.ellipse(0, 0, size * 0.5, size * 0.7, 0, 0, Math.PI * 2);
+  const palmGrad = ctx.createRadialGradient(-size * 0.15, -size * 0.2, size * 0.05, 0, 0, size * 0.7);
+  palmGrad.addColorStop(0, 'rgba(255, 255, 255, 0.85)');
+  palmGrad.addColorStop(0.5, 'rgba(220, 220, 240, 0.55)');
+  palmGrad.addColorStop(1, 'rgba(140, 140, 200, 0.25)');
+  ctx.fillStyle = palmGrad;
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+
+  // 5 пальцев
+  const fingerLen = size * 0.6;
+  const fingerW = size * 0.1;
+  const baseY = -size * 0.55;
+  for (let f = 0; f < 5; f++) {
+    const fx = (f - 2) * size * 0.2;
+    const fl = fingerLen * (1 - Math.abs(f - 2) * 0.1);
+    ctx.beginPath();
+    ctx.ellipse(fx, baseY - fl * 0.5, fingerW, fl * 0.5, 0, 0, Math.PI * 2);
+    const fGrad = ctx.createLinearGradient(fx, baseY - fl, fx, baseY);
+    fGrad.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+    fGrad.addColorStop(1, 'rgba(200, 200, 240, 0.5)');
+    ctx.fillStyle = fGrad;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+// ==================== ЭФФЕКТЫ ====================
 function lightenColor(hex, amount) {
   const num = parseInt(hex.slice(1), 16);
   let r = (num >> 16) + Math.round(255 * amount);
@@ -4993,16 +5297,13 @@ function drawPowerIcon(cx, cy, radius, name) {
     ctx.fillStyle = core; ctx.fill();
     ctx.restore();
   } else if (name === 'Душа') {
-    // ИКОНКА ДУШИ: чёрно-белая, череп на чёрном фоне
     const bg = ctx.createRadialGradient(cx, cy, 1, cx, cy, radius * 1.2);
     bg.addColorStop(0, '#1a1a1a');
     bg.addColorStop(1, '#000000');
     ctx.beginPath(); ctx.arc(cx, cy, radius * 1.1, 0, Math.PI * 2);
     ctx.fillStyle = bg; ctx.fill();
     ctx.strokeStyle = '#e8e8e8'; ctx.lineWidth = 2; ctx.stroke();
-    // Череп — белый
     const t = performance.now() * 0.003;
-    // Голова
     ctx.beginPath();
     ctx.arc(cx, cy - radius * 0.15, radius * 0.55, 0, Math.PI * 2);
     ctx.fillStyle = '#e8e8e8';
@@ -5010,7 +5311,6 @@ function drawPowerIcon(cx, cy, radius, name) {
     ctx.strokeStyle = '#555';
     ctx.lineWidth = 1.5;
     ctx.stroke();
-    // Глаза
     ctx.beginPath();
     ctx.arc(cx - radius * 0.2, cy - radius * 0.2, radius * 0.15, 0, Math.PI * 2);
     ctx.fillStyle = '#000';
@@ -5019,7 +5319,6 @@ function drawPowerIcon(cx, cy, radius, name) {
     ctx.arc(cx + radius * 0.2, cy - radius * 0.2, radius * 0.15, 0, Math.PI * 2);
     ctx.fillStyle = '#000';
     ctx.fill();
-    // Глаза — светящиеся точки внутри
     const eyeGlow = 0.5 + Math.sin(t * 5) * 0.5;
     ctx.beginPath();
     ctx.arc(cx - radius * 0.2, cy - radius * 0.2, radius * 0.07, 0, Math.PI * 2);
@@ -5029,7 +5328,6 @@ function drawPowerIcon(cx, cy, radius, name) {
     ctx.arc(cx + radius * 0.2, cy - radius * 0.2, radius * 0.07, 0, Math.PI * 2);
     ctx.fillStyle = `rgba(200, 200, 255, ${eyeGlow})`;
     ctx.fill();
-    // Нос
     ctx.beginPath();
     ctx.moveTo(cx, cy - radius * 0.05);
     ctx.lineTo(cx - radius * 0.08, cy + radius * 0.08);
@@ -5037,7 +5335,6 @@ function drawPowerIcon(cx, cy, radius, name) {
     ctx.closePath();
     ctx.fillStyle = '#000';
     ctx.fill();
-    // Зубы (полоски)
     ctx.strokeStyle = '#000';
     ctx.lineWidth = 1.5;
     for (let i = 0; i < 4; i++) {
@@ -5047,7 +5344,6 @@ function drawPowerIcon(cx, cy, radius, name) {
       ctx.lineTo(cx + radius * 0.25, yy);
       ctx.stroke();
     }
-    // Призрачный шлейф снизу
     ctx.beginPath();
     ctx.moveTo(cx - radius * 0.4, cy + radius * 0.4);
     ctx.quadraticCurveTo(cx - radius * 0.2, cy + radius * 0.9, cx, cy + radius * 0.7);
@@ -5079,7 +5375,6 @@ function getRarityBorderColor(name) {
   return 'rgba(200, 200, 200, 0.75)';
 }
 
-// ==================== ФРУКТЫ НА ЗЕМЛЕ ====================
 function drawFruitShape(x, y, radius, color, phase = 0, bob = false, glow = false) {
   const bo = bob ? Math.sin(phase) * 5 : 0;
   const fy = y + bo;
@@ -5127,7 +5422,6 @@ function drawSharedDroppedFruits() {
   }
 }
 
-// ==================== ПОРТАЛЫ ====================
 function drawActivePortalRifts() {
   for (const r of activePortalRifts) drawPortalRiftAt(r.x, r.y, r.radius, r.rot || 0);
   for (const r of remotePortalRifts) drawPortalRiftAt(r.x, r.y, r.radius, r.rot || 0);
@@ -5331,25 +5625,21 @@ function drawSoulCharge() {
   const x = player.x - camera.x, y = player.y - camera.y;
   const elapsed = performance.now() - soulMode.startedAt;
   const progress = Math.min(1, elapsed / SOUL_CHARGE_MS);
-  // Тёмное кольцо вокруг игрока
   const R = 80 + Math.sin(performance.now() * 0.01) * 5;
   ctx.save();
   ctx.globalAlpha = 0.85;
-  // Внешнее тёмное свечение
   const halo = ctx.createRadialGradient(x, y, player.radius, x, y, R);
   halo.addColorStop(0, `rgba(30, 0, 50, ${0.7 * progress})`);
   halo.addColorStop(0.5, `rgba(80, 0, 120, ${0.4 * progress})`);
   halo.addColorStop(1, 'rgba(20, 0, 40, 0)');
   ctx.beginPath(); ctx.arc(x, y, R, 0, Math.PI * 2);
   ctx.fillStyle = halo; ctx.fill();
-  // Прогресс-кольцо
   ctx.beginPath();
   ctx.arc(x, y, R - 5, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress);
   ctx.strokeStyle = progress < 0.5 ? '#cc0000' : (progress < 0.9 ? '#ff3333' : '#ffffff');
   ctx.lineWidth = 5;
   ctx.lineCap = 'round';
   ctx.stroke();
-  // Вращающиеся тёмные дуги
   const rot = performance.now() * 0.005;
   for (let i = 0; i < 3; i++) {
     ctx.beginPath();
@@ -5358,7 +5648,6 @@ function drawSoulCharge() {
     ctx.lineWidth = 3;
     ctx.stroke();
   }
-  // Череп-индикатор
   ctx.font = 'bold 30px Arial';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -5368,13 +5657,11 @@ function drawSoulCharge() {
 }
 
 function drawSoulBursts() {
-  // Свои фонтаны
   for (const b of soulBursts) {
     const x = b.x - camera.x, y = b.y - camera.y;
     const age = (performance.now() - b.startAt) / 1000;
     const fade = Math.max(0, 1 - age * 1.2);
     if (fade <= 0) continue;
-    // Лужа крови на земле
     ctx.save();
     ctx.globalAlpha = fade * 0.9;
     const poolR = 30 + Math.min(50, age * 40);
@@ -5386,7 +5673,6 @@ function drawSoulBursts() {
     ctx.ellipse(x, y, poolR, poolR * 0.4, 0, 0, Math.PI * 2);
     ctx.fillStyle = pool;
     ctx.fill();
-    // Фонтан брызг вверх
     ctx.globalAlpha = fade;
     for (let i = 0; i < 12; i++) {
       const t = i / 12;
@@ -5399,7 +5685,6 @@ function drawSoulBursts() {
       ctx.fillStyle = Math.random() < 0.5 ? '#cc0000' : '#8a0000';
       ctx.fill();
     }
-    // Центральный столб крови
     const columnH = 60 * Math.max(0, 1 - age * 1.5);
     if (columnH > 5) {
       const colGrad = ctx.createLinearGradient(x, y, x, y - columnH);
@@ -5417,7 +5702,6 @@ function drawSoulBursts() {
     }
     ctx.restore();
   }
-  // Чужие фонтаны
   for (const b of remoteSoulBursts) {
     const x = b.x - camera.x, y = b.y - camera.y;
     const age = (performance.now() - b.startAt) / 1000;
@@ -5434,27 +5718,10 @@ function drawSoulBursts() {
     ctx.ellipse(x, y, poolR, poolR * 0.4, 0, 0, Math.PI * 2);
     ctx.fillStyle = pool;
     ctx.fill();
-    ctx.globalAlpha = fade;
-    const columnH = 60 * Math.max(0, 1 - age * 1.5);
-    if (columnH > 5) {
-      const colGrad = ctx.createLinearGradient(x, y, x, y - columnH);
-      colGrad.addColorStop(0, `rgba(140, 0, 0, ${fade})`);
-      colGrad.addColorStop(0.5, `rgba(200, 0, 0, ${fade * 0.9})`);
-      colGrad.addColorStop(1, `rgba(100, 0, 0, 0)`);
-      ctx.beginPath();
-      ctx.moveTo(x - 12, y);
-      ctx.lineTo(x - 8, y - columnH);
-      ctx.lineTo(x + 8, y - columnH);
-      ctx.lineTo(x + 12, y);
-      ctx.closePath();
-      ctx.fillStyle = colGrad;
-      ctx.fill();
-    }
     ctx.restore();
   }
 }
 
-// ==================== ЭФФЕКТЫ ====================
 function drawControlSlashes() {
   for (const s of controlSlashes) {
     const a = s.life / s.maxLife;
@@ -5879,6 +6146,14 @@ function drawParticles() {
       if (pt.color.startsWith('#') && pt.color.length === 7) {
         const num = parseInt(pt.color.slice(1), 16);
         rgb = `rgb(${num >> 16},${(num >> 8) & 0xff},${num & 0xff})`;
+      } else if (pt.color.startsWith('rgba')) {
+        // Уже rgba — используем как есть
+        ctx.beginPath(); ctx.arc(x, y, pt.radius, 0, Math.PI * 2);
+        ctx.fillStyle = pt.color;
+        ctx.globalAlpha = a;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        continue;
       }
       g.addColorStop(0, rgb.replace('rgb', 'rgba').replace(')', `, ${a})`));
       g.addColorStop(1, rgb.replace('rgb', 'rgba').replace(')', `, 0)`));
@@ -6041,6 +6316,26 @@ function drawPlayer() {
   const inWater = isInWaterForm();
   const flying = player.flying;
   const inArena = isInDomainArena();
+  const inSoul = isInMySoulDomain();
+  const isHiddenByCutscene = !!soulCutscene;
+
+  if (isHiddenByCutscene) {
+    // Во время кат-сцены игрок светится
+    ctx.save();
+    const t = performance.now() * 0.005;
+    const R = player.radius * 3 + Math.sin(t * 4) * 10;
+    const glow = ctx.createRadialGradient(x, y, 0, x, y, R);
+    glow.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
+    glow.addColorStop(0.4, 'rgba(200, 200, 255, 0.6)');
+    glow.addColorStop(1, 'rgba(120, 120, 200, 0)');
+    ctx.beginPath(); ctx.arc(x, y, R, 0, Math.PI * 2);
+    ctx.fillStyle = glow; ctx.fill();
+    // Сам игрок
+    ctx.beginPath(); ctx.arc(x, y, player.radius, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffffff'; ctx.fill();
+    ctx.restore();
+    return;
+  }
 
   if (player.windmillActive) {
     drawWindmillAt(x, y, player.windmillAngle, WINDMILL_RADIUS, true);
@@ -6104,7 +6399,7 @@ function drawPlayer() {
       ctx.beginPath(); ctx.arc(px, py, 5, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'; ctx.fill();
     }
   }
-  if (!inArena && !isOnAnyLand(player.x, player.y) && !inWater && !flying) {
+  if (!inArena && !inSoul && !isOnAnyLand(player.x, player.y) && !inWater && !flying) {
     for (let i = 0; i < 8; i++) { const a = t * 2 + i * (Math.PI / 4); const r = player.radius + 10 + Math.sin(t * 3 + i) * 4; const dx = x + Math.cos(a) * r, dy = y + Math.sin(a) * r; ctx.beginPath(); ctx.arc(dx, dy, 2 + Math.sin(t * 4 + i), 0, Math.PI * 2); ctx.fillStyle = 'rgba(150,220,255,0.7)'; ctx.fill(); }
     const g = ctx.createRadialGradient(x, y + 15, 0, x, y + 15, 40); g.addColorStop(0, 'rgba(80,180,255,0.5)'); g.addColorStop(1, 'rgba(80,180,255,0)');
     ctx.beginPath(); ctx.ellipse(x, y + 15, 40, 15, 0, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
@@ -6127,9 +6422,10 @@ function drawPlayer() {
   else if (flying) { g.addColorStop(0, '#ffffff'); g.addColorStop(1, '#fff6b0'); }
   else if (inWater) { g.addColorStop(0, '#aaffff'); g.addColorStop(1, '#2288cc'); }
   else if (inArena) { g.addColorStop(0, '#ffccff'); g.addColorStop(1, '#8800cc'); }
+  else if (inSoul) { g.addColorStop(0, '#e8e8e8'); g.addColorStop(1, '#333333'); }
   else { g.addColorStop(0, '#ffe066'); g.addColorStop(1, '#ffb300'); }
   ctx.beginPath(); ctx.arc(x, y, player.radius, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
-  ctx.strokeStyle = inArena ? '#ff44ff' : (flying ? '#c9a800' : (inWater ? '#005588' : '#b37700'));
+  ctx.strokeStyle = inSoul ? '#e8e8e8' : (inArena ? '#ff44ff' : (flying ? '#c9a800' : (inWater ? '#005588' : '#b37700')));
   ctx.lineWidth = 3; ctx.stroke();
   if (player.punchAnim > 0.05) {
     const px = x + player.punchDir.x * (player.radius + 15 + player.punchAnim * 20);
@@ -6148,17 +6444,17 @@ function drawPlayer() {
   ctx.beginPath(); ctx.arc(eRx, eRy, er, 0, Math.PI * 2); ctx.fillStyle = 'white'; ctx.fill();
   ctx.strokeStyle = '#333'; ctx.lineWidth = 2; ctx.stroke();
   ctx.beginPath(); ctx.arc(eLx + lx * ps, eLy + ly * ps, pr, 0, Math.PI * 2);
-  ctx.fillStyle = (inWater || flying || inArena) ? '#003366' : '#1a1a1a'; ctx.fill();
+  ctx.fillStyle = (inWater || flying || inArena || inSoul) ? '#003366' : '#1a1a1a'; ctx.fill();
   ctx.beginPath(); ctx.arc(eRx + lx * ps, eRy + ly * ps, pr, 0, Math.PI * 2);
-  ctx.fillStyle = (inWater || flying || inArena) ? '#003366' : '#1a1a1a'; ctx.fill();
+  ctx.fillStyle = (inWater || flying || inArena || inSoul) ? '#003366' : '#1a1a1a'; ctx.fill();
   ctx.beginPath(); ctx.arc(x, y + player.radius * 0.25, player.radius * 0.4, 0.15 * Math.PI, 0.85 * Math.PI);
-  ctx.strokeStyle = (inWater || flying || inArena) ? '#003366' : '#5a3a00';
+  ctx.strokeStyle = (inWater || flying || inArena || inSoul) ? '#003366' : '#5a3a00';
   ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.stroke();
   if (currentUser) {
     ctx.font = 'bold 13px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
     ctx.strokeText(currentUser.username, x, y - player.radius - 12);
-    ctx.fillStyle = inArena ? '#ff88ff' : (flying ? '#fff6b0' : '#ffd700');
+    ctx.fillStyle = inSoul ? '#e8e8e8' : (inArena ? '#ff88ff' : (flying ? '#fff6b0' : '#ffd700'));
     ctx.fillText(currentUser.username, x, y - player.radius - 12);
   }
 }
@@ -6182,6 +6478,7 @@ function drawHeldItem() {
 // ==================== NPC ====================
 function drawQuestNpc() {
   if (isInDomainArena()) return;
+  if (isInMySoulDomain() && !isInsideSoulDomain(questNpc.x, questNpc.y)) return;
   const x = questNpc.x - camera.x, y = questNpc.y - camera.y;
   const t = performance.now() * 0.003;
   ctx.beginPath(); ctx.ellipse(x, questNpc.y - camera.y + questNpc.radius * 0.9, questNpc.radius * 0.9, 7, 0, 0, Math.PI * 2);
@@ -6212,6 +6509,7 @@ function drawQuestNpc() {
 
 function drawQuestNpc2() {
   if (isInDomainArena()) return;
+  if (isInMySoulDomain() && !isInsideSoulDomain(questNpc2.x, questNpc2.y)) return;
   const x = questNpc2.x - camera.x, y = questNpc2.y - camera.y;
   const t = performance.now() * 0.003;
   ctx.beginPath(); ctx.ellipse(x, questNpc2.y - camera.y + questNpc2.radius * 0.9, questNpc2.radius * 0.9, 7, 0, 0, Math.PI * 2);
@@ -6245,6 +6543,7 @@ function drawQuestNpc2() {
 
 function drawRollNpc() {
   if (isInDomainArena()) return;
+  if (isInMySoulDomain() && !isInsideSoulDomain(rollNpc.x, rollNpc.y)) return;
   const x = rollNpc.x - camera.x, y = rollNpc.y - camera.y;
   const t = performance.now() * 0.003;
   ctx.beginPath(); ctx.ellipse(x, rollNpc.y - camera.y + rollNpc.radius * 0.9, rollNpc.radius * 0.9, 7, 0, 0, Math.PI * 2);
@@ -6282,6 +6581,7 @@ function drawRollNpc() {
 function drawAdmirals() {
   if (isInDomainArena()) return;
   for (const a of admirals) {
+    if (isInMySoulDomain() && !isInsideSoulDomain(a.x, a.y)) continue;
     const x = a.x - camera.x, y = a.y - camera.y;
     const t = performance.now() * 0.003;
     ctx.beginPath(); ctx.ellipse(x, a.y - camera.y + a.radius * 0.9, a.radius * 0.9, 7, 0, 0, Math.PI * 2);
@@ -6308,11 +6608,24 @@ function drawAdmirals() {
     ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
     ctx.strokeText(a.name, x, y - a.radius - 20);
     ctx.fillText(a.name, x, y - a.radius - 20);
+    const bob = Math.sin(t * 4) * 4;
+    if (player.hasShip) {
+      ctx.fillStyle = '#88ff88'; ctx.font = 'bold 22px Arial';
+      ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
+      ctx.strokeText('✓', x, y - a.radius - 50 + bob);
+      ctx.fillText('✓', x, y - a.radius - 50 + bob);
+    } else {
+      ctx.fillStyle = '#ffd700'; ctx.font = 'bold 22px Arial';
+      ctx.strokeStyle = 'black'; ctx.lineWidth = 4;
+      ctx.strokeText('🚢', x, y - a.radius - 50 + bob);
+      ctx.fillText('🚢', x, y - a.radius - 50 + bob);
+    }
   }
 }
 
 function drawNpc() {
   if (isInDomainArena()) return;
+  if (isInMySoulDomain() && !isInsideSoulDomain(npc.x, npc.y)) return;
   const x = npc.x - camera.x + npc.shakeOffset.x;
   const y = npc.y - camera.y + npc.shakeOffset.y;
   const isSlowed = performance.now() < npc.slowUntil;
@@ -6354,6 +6667,7 @@ function drawPirates() {
   const now = performance.now();
   for (const pir of pirates) {
     if (pir.dead && pir.deathTimer <= 0) continue;
+    if (isInMySoulDomain() && !isInsideSoulDomain(pir.x, pir.y)) continue;
     const x = pir.x - camera.x, y = pir.y - camera.y;
     let al = 1, sc = 1;
     if (pir.dead) { const t = pir.deathTimer / 40; al = t; sc = 0.5 + t * 0.5; }
@@ -6402,6 +6716,7 @@ function drawDuneWarriors() {
   const now = performance.now();
   for (const dw of duneWarriors) {
     if (dw.dead && dw.deathTimer <= 0) continue;
+    if (isInMySoulDomain() && !isInsideSoulDomain(dw.x, dw.y)) continue;
     const x = dw.x - camera.x, y = dw.y - camera.y;
     let al = 1, sc = 1;
     if (dw.dead) { const t = dw.deathTimer / 40; al = t; sc = 0.5 + t * 0.5; }
@@ -6452,6 +6767,7 @@ function drawBoss() {
   if (isInDomainArena()) return;
   if (!boss.active && !boss.dead) return;
   if (boss.dead && boss.deathTimer <= 0) return;
+  if (isInMySoulDomain() && !isInsideSoulDomain(boss.x, boss.y)) return;
   const x = boss.x - camera.x, y = boss.y - camera.y;
   const now = performance.now();
   let al = 1, sc = 1;
@@ -6527,7 +6843,6 @@ function drawBoss() {
   ctx.globalAlpha = 1;
 }
 
-// ==================== КОРАБЛЬ ====================
 function drawShipAt(x, y, angle, radius, isPlayer) {
   const t = performance.now() * 0.003;
   ctx.save();
@@ -6678,8 +6993,12 @@ function drawRemotePlayers() {
     if (rp.onShip) continue;
     if (rp.dim === -1) continue;
     const inArena = isInDomainArena();
+    const inSoul = isInMySoulDomain();
     if (inArena) {
       if (rp.dim !== -2 && rp.dim !== -3) continue;
+    } else if (inSoul) {
+      // В куполе видим только тех, кто рядом внутри купола
+      if (!isInsideSoulDomain(rp.x, rp.y)) continue;
     } else {
       if (rp.dim !== 0) continue;
     }
@@ -6868,12 +7187,14 @@ function drawAbilityGuide() {
     const abY = py + hh + i * rh;
     const unlocked = myLevel >= ab.requiredMasteryLevel;
     const zoneBlocked = ab.zoneOnly && !inZone;
+    const isActive = ab.id === 'soul_domain' && mySoulDomain;
     const ix = px + 32, iy = abY + rh / 2, ir = 20;
     ctx.beginPath(); ctx.arc(ix, iy, ir, 0, Math.PI * 2);
-    ctx.fillStyle = ab.dev ? 'rgba(30, 30, 40, 0.7)' : (unlocked && !zoneBlocked ? 'rgba(10,10,10,0.7)' : 'rgba(17,17,17,0.7)');
+    ctx.fillStyle = isActive ? 'rgba(232,232,232,0.3)' : (ab.dev ? 'rgba(30, 30, 40, 0.7)' : (unlocked && !zoneBlocked ? 'rgba(10,10,10,0.7)' : 'rgba(17,17,17,0.7)'));
     ctx.fill();
-    ctx.strokeStyle = ab.dev ? '#666' : (unlocked && !zoneBlocked ? themeSolid : (zoneBlocked ? '#aa3333' : '#444'));
-    ctx.lineWidth = 2; ctx.stroke();
+    ctx.strokeStyle = isActive ? '#e8e8e8' : (ab.dev ? '#666' : (unlocked && !zoneBlocked ? themeSolid : (zoneBlocked ? '#aa3333' : '#444')));
+    ctx.lineWidth = isActive ? 3 : 2;
+    ctx.stroke();
     ctx.fillStyle = 'white';
     ctx.font = 'bold 12px Arial';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -6902,6 +7223,9 @@ function drawAbilityGuide() {
     if (ab.dev) {
       statusText = '🛠️ В РАЗРАБОТКЕ — пока недоступно';
       statusColor = '#aaddff';
+    } else if (isActive) {
+      statusText = '✅ АКТИВНО — V чтобы закрыть';
+      statusColor = '#e8e8e8';
     } else if (unlocked) {
       statusText = `✓ Mastery Lv.${ab.requiredMasteryLevel}+`;
       statusColor = '#66ff66';
@@ -7105,6 +7429,16 @@ function drawPlayerStats() {
     ctx.fillText('💀 КАЗНЬ ' + left.toFixed(1) + 'с', x + bw / 2, nextY + 13);
     nextY += 36;
   }
+  if (mySoulDomain) {
+    ctx.fillStyle = 'rgba(0,0,0,0.75)';
+    roundRect(x - 4, nextY - 4, bw + 8, 30, 6); ctx.fill();
+    ctx.fillStyle = '#e8e8e8';
+    ctx.font = 'bold 13px Arial';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const elapsed = (performance.now() - mySoulDomain.startedAt) / 1000;
+    ctx.fillText('💀 КУПОЛ ' + elapsed.toFixed(0) + 'с (V — закрыть)', x + bw / 2, nextY + 13);
+    nextY += 36;
+  }
   if (isInMyDomain()) {
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
     roundRect(x - 4, nextY - 4, bw + 8, 24, 6); ctx.fill();
@@ -7224,7 +7558,6 @@ function drawActiveQuest() {
   }
 }
 
-// ==================== ДИАЛОГИ ====================
 function drawQuestDialog() {
   if (!questDialogOpen) return;
   ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -7625,7 +7958,6 @@ function drawBagEatConfirm() {
   ctx.fillText('❌ НЕТ', no.x + no.w / 2, no.y + no.h / 2);
 }
 
-// ==================== МИНИ-КАРТА ====================
 function drawMiniMapBtn() {
   const cvs = document.getElementById('miniMapBtn');
   if (!cvs) return;
@@ -7757,7 +8089,6 @@ function updateMapOverlay() {
   }
 }
 
-// ==================== КОМПАС ====================
 function drawCompass() {
   const cx = isMobile() ? 55 : 90;
   const cy = isMobile() ? 175 : 130;
@@ -7828,7 +8159,6 @@ function drawCompass() {
   ctx.restore();
 }
 
-// ==================== АДМИН-КОНСОЛЬ ====================
 function drawAdminConsole() {
   if (!adminOpen) return;
   ctx.fillStyle = 'rgba(0,0,0,0.55)';
@@ -7886,7 +8216,6 @@ function drawAdminConsole() {
   ctx.fillText(displayInput + (Math.floor(now / 500) % 2 === 0 ? '_' : ''), inputX, inY + 20);
 }
 
-// ==================== АДМИН-ЛОГИКА ====================
 function openAdminConsole() { adminOpen = true; adminInput = ''; }
 function closeAdminConsole() { adminOpen = false; adminInput = ''; }
 function adminLog(text, color) {
@@ -8016,6 +8345,8 @@ let _accumulator = 0;
 function render() {
   if (currentUser) {
     drawWorld();
+    // Купол души — фон (до объектов)
+    if (mySoulDomain) drawSoulDomainVeil();
     drawObstacles();
     drawSharedDroppedFruits();
     drawIceFields();
@@ -8079,6 +8410,8 @@ function render() {
     drawAdminConsole();
     drawCompass();
     drawMiniMapBtn();
+    // Кат-сцена купола — поверх всего
+    if (soulCutscene) drawSoulCutscene();
   } else {
     ctx.fillStyle = '#0a1a3a';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
