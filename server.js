@@ -126,8 +126,7 @@ function snapshotExcept(exceptUsername) {
       hp: Math.round(p.hp), mhp: p.mhp,
       c: p.color, wf: p.waterForm,
       held: p.held || null,
-      dim: p.dim || 0,
-      inDomainName: p.inDomainName || null
+      dim: p.dim || 0
     });
   }
   return list;
@@ -209,8 +208,9 @@ wss.on('connection', (ws) => {
         windmillAngle: 0,
         onShip: false,
         shipAngle: 0,
-        dim: 0,
-        inDomainName: null,
+        // Портальные состояния
+        dim: 0,                       // 0 = обычный, -1 = своё измерение, -2 = владения, -3 = в чужом
+        inDomainHost: null,           // имя хоста, если мы в его владениях
         domainUntil: 0
       };
       players.set(username, me);
@@ -375,7 +375,6 @@ wss.on('connection', (ws) => {
       if (typeof msg.wf === 'boolean') me.waterForm = msg.wf;
       if (msg.held === null || (typeof msg.held === 'string' && msg.held.length > 0)) me.held = msg.held;
       if (typeof msg.dim === 'number' && Number.isFinite(msg.dim)) me.dim = msg.dim;
-      if (typeof msg.inDomainName === 'string' || msg.inDomainName === null) me.inDomainName = msg.inDomainName;
 
       broadcastExcept({
         type: 'pos', u: username,
@@ -384,8 +383,7 @@ wss.on('connection', (ws) => {
         hp: Math.round(me.hp), mhp: me.mhp,
         c: me.color, wf: me.waterForm,
         held: me.held,
-        dim: me.dim,
-        inDomainName: me.inDomainName
+        dim: me.dim
       }, username);
       return;
     }
@@ -414,8 +412,7 @@ wss.on('connection', (ws) => {
         hp: Math.round(me.hp), mhp: me.mhp,
         c: me.color, wf: me.waterForm,
         held: me.held,
-        dim: me.dim,
-        inDomainName: me.inDomainName
+        dim: me.dim
       }, username);
       return;
     }
@@ -594,30 +591,22 @@ wss.on('connection', (ws) => {
       return;
     }
 
-    // -------- ДУША: ФОНТАН КРОВИ (Z / удар) --------
-    // Клиент шлёт через attack_use с abilityId='soul_z', сервер это уже рассылает
-    // как remote_attack. Но чтобы визуал был явный — добавим broadcast с типом soul_burst.
-    if (msg.type === 'soul_burst') {
-      broadcastExcept({
-        type: 'soul_burst',
-        from: username,
-        x: Number(msg.x) || me.x,
-        y: Number(msg.y) || me.y
-      }, username);
-      return;
-    }
-
     // -------- ПОРТАЛ: ИЗМЕРЕНИЕ (X) --------
     if (msg.type === 'dimension_enter') {
       me.dim = -1;
-      broadcastExcept({ type: 'dimension_enter', u: username }, username);
+      broadcastExcept({
+        type: 'dimension_enter',
+        u: username
+      }, username);
+      // повторно рассылаем позицию
       broadcastExcept({
         type: 'pos', u: username,
         x: Math.round(me.x), y: Math.round(me.y),
         lx: +me.lx.toFixed(2), ly: +me.ly.toFixed(2),
         hp: Math.round(me.hp), mhp: me.mhp,
         c: me.color, wf: me.waterForm,
-        held: me.held, dim: me.dim, inDomainName: me.inDomainName
+        held: me.held,
+        dim: me.dim
       }, username);
       return;
     }
@@ -638,14 +627,11 @@ wss.on('connection', (ws) => {
         lx: +me.lx.toFixed(2), ly: +me.ly.toFixed(2),
         hp: Math.round(me.hp), mhp: me.mhp,
         c: me.color, wf: me.waterForm,
-        held: me.held, dim: me.dim, inDomainName: me.inDomainName
+        held: me.held,
+        dim: me.dim
       }, username);
       return;
     }
-
-    // -------- ДУША: КУПОЛ (V) --------
-    // Клиент отправляет через attack_use с abilityId='soul_domain'.
-    // Сервер рассылает как remote_attack. Отдельный тип не нужен.
 
     // -------- ПОРТАЛ: ВЛАДЕНИЯ (V) --------
     if (msg.type === 'domain_enter') {
@@ -653,20 +639,28 @@ wss.on('connection', (ws) => {
       const victims = Array.isArray(msg.victims) ? msg.victims : [];
       const duration = Number(msg.duration) || 40000;
 
+      // хост
       if (hostName === username) {
         me.dim = -2;
         me.domainUntil = Date.now() + duration;
       }
+      // жертвы
       for (const v of victims) {
         const victim = players.get(v);
         if (victim) {
           victim.dim = -3;
-          victim.inDomainName = hostName;
+          victim.inDomainHost = hostName;
           victim.domainUntil = Date.now() + duration;
           if (victim.ws.readyState === 1) {
             try {
-              victim.ws.send(JSON.stringify({ type: 'domain_enter', hostName, victims, duration }));
+              victim.ws.send(JSON.stringify({
+                type: 'domain_enter',
+                hostName,
+                victims,
+                duration
+              }));
             } catch (e) {}
+            // обновить позицию для всех
             try {
               victim.ws.send(JSON.stringify({
                 type: 'pos', u: v,
@@ -674,12 +668,14 @@ wss.on('connection', (ws) => {
                 lx: +victim.lx.toFixed(2), ly: +victim.ly.toFixed(2),
                 hp: Math.round(victim.hp), mhp: victim.mhp,
                 c: victim.color, wf: victim.waterForm,
-                held: victim.held, dim: victim.dim, inDomainName: victim.inDomainName
+                held: victim.held,
+                dim: victim.dim
               }));
             } catch (e) {}
           }
         }
       }
+      // рассылаем остальным
       broadcastExcept({
         type: 'domain_enter',
         u: username,
@@ -697,21 +693,28 @@ wss.on('connection', (ws) => {
         const victim = players.get(v);
         if (victim) {
           victim.dim = 0;
-          victim.inDomainName = null;
+          victim.inDomainHost = null;
           victim.domainUntil = 0;
           if (victim.ws.readyState === 1) {
-            try { victim.ws.send(JSON.stringify({ type: 'domain_exit', victims })); } catch (e) {}
+            try {
+              victim.ws.send(JSON.stringify({ type: 'domain_exit', victims }));
+            } catch (e) {}
           }
         }
       }
-      broadcastExcept({ type: 'domain_exit', u: username, victims }, username);
+      broadcastExcept({
+        type: 'domain_exit',
+        u: username,
+        victims
+      }, username);
       broadcastExcept({
         type: 'pos', u: username,
         x: Math.round(me.x), y: Math.round(me.y),
         lx: +me.lx.toFixed(2), ly: +me.ly.toFixed(2),
         hp: Math.round(me.hp), mhp: me.mhp,
         c: me.color, wf: me.waterForm,
-        held: me.held, dim: me.dim, inDomainName: me.inDomainName
+        held: me.held,
+        dim: me.dim
       }, username);
       return;
     }
@@ -720,6 +723,7 @@ wss.on('connection', (ws) => {
     if (msg.type === 'hit') {
       const target = players.get(msg.target);
       if (!target || target.username === username) return;
+      // нельзя бить через измерения
       if (me.dim !== 0 || target.dim !== 0) return;
       const now = Date.now();
 
@@ -734,7 +738,7 @@ wss.on('connection', (ws) => {
 
       let dmg = Number(msg.dmg);
       if (!Number.isFinite(dmg)) return;
-      dmg = Math.max(1, Math.min(999999, Math.round(dmg)));
+      dmg = Math.max(1, Math.min(80, Math.round(dmg)));
       if (target.waterForm) dmg = Math.max(1, Math.floor(dmg * 0.8));
 
       const dist = Math.hypot(target.x - me.x, target.y - me.y);
@@ -765,9 +769,10 @@ wss.on('connection', (ws) => {
         target.hp = target.mhp;
         target.x = 0; target.y = 0;
         target.invulnUntil = now + 2000;
+        // сброс измерений/владений
         if (target.dim !== 0) {
           target.dim = 0;
-          target.inDomainName = null;
+          target.inDomainHost = null;
           broadcastAll({ type: 'dimension_exit', u: target.username, x: 0, y: 0 });
         }
         if (target.windmillActive) {
@@ -797,16 +802,23 @@ wss.on('connection', (ws) => {
       if (p && p.ws === ws) {
         players.delete(username);
         broadcastAll({ type: 'leave', u: username });
-        if (p.windmillActive) broadcastAll({ type: 'windmill_exit', u: username });
-        if (p.onShip) broadcastAll({ type: 'ship_exit', u: username });
+        if (p.windmillActive) {
+          broadcastAll({ type: 'windmill_exit', u: username });
+        }
+        if (p.onShip) {
+          broadcastAll({ type: 'ship_exit', u: username });
+        }
+        // если хост владений вышел — освобождаем пленников
         if (p.dim === -2) {
           for (const [, victim] of players) {
-            if (victim.inDomainName === username) {
+            if (victim.inDomainHost === username) {
               victim.dim = 0;
-              victim.inDomainName = null;
+              victim.inDomainHost = null;
               victim.domainUntil = 0;
               if (victim.ws.readyState === 1) {
-                try { victim.ws.send(JSON.stringify({ type: 'domain_exit', victims: [] })); } catch (e) {}
+                try {
+                  victim.ws.send(JSON.stringify({ type: 'domain_exit', victims: [] }));
+                } catch (e) {}
               }
             }
           }
@@ -827,6 +839,7 @@ setInterval(() => {
   }
 }, 30000);
 
+// Мельницы — крутим лопасти сервер-сайд и рассылаем позиции
 setInterval(() => {
   for (const [u, p] of players) {
     if (!p.windmillActive) continue;
@@ -841,6 +854,7 @@ setInterval(() => {
   }
 }, 200);
 
+// Владения — проверка окончания (страховка)
 setInterval(() => {
   const now = Date.now();
   for (const [, p] of players) {
@@ -850,7 +864,7 @@ setInterval(() => {
     }
     if (p.dim === -3 && p.domainUntil > 0 && now >= p.domainUntil) {
       p.dim = 0;
-      p.inDomainName = null;
+      p.inDomainHost = null;
       p.domainUntil = 0;
     }
   }
